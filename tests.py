@@ -865,5 +865,241 @@ class TestAdaptiveRisk(TempProject):
         self.assertTrue(notes)
 
 
+class FakeExchange:
+    """Tiruan ccxt: mencatat panggilan, tidak pernah menyentuh jaringan."""
+
+    def __init__(self, duplicate: bool = False, fail: bool = False) -> None:
+        self.created: list[dict] = []
+        self.canceled: list[tuple] = []
+        self.duplicate = duplicate
+        self.fail = fail
+        self.markets = {
+            "BTC/USDT": {
+                "symbol": "BTC/USDT",
+                "limits": {"amount": {"min": 0.0001}, "cost": {"min": 5.0}},
+            }
+        }
+
+    def load_markets(self):
+        return self.markets
+
+    def amount_to_precision(self, symbol, amount):
+        return f"{float(amount):.5f}"
+
+    def price_to_precision(self, symbol, price):
+        return f"{float(price):.2f}"
+
+    def create_order(self, **kwargs):
+        if self.duplicate:
+            raise Exception("binance duplicate order -2010 clientOrderId exists")
+        if self.fail:
+            raise Exception("insufficient balance")
+        self.created.append(kwargs)
+        return {"id": "X1", "status": "closed", "filled": kwargs["amount"],
+                "average": kwargs.get("price") or 100.0, "fee": {"cost": 0.05}}
+
+    def cancel_order(self, order_id, symbol=None):
+        self.canceled.append((order_id, symbol))
+        return {}
+
+    def fetch_open_orders(self):
+        return []
+
+    def fetch_balance(self):
+        return {"free": {"USDT": 1234.5}}
+
+    def fetch_order(self, order_id, symbol):
+        return {"id": order_id, "status": "closed", "filled": 0.01, "average": 100.0}
+
+
+class TestLiveBroker(TempProject):
+    """Pagar eksekusi nyata: default menolak, dry-run tidak mengirim."""
+
+    def _settings(self, **live_overrides):
+        from config import LiveConfig
+
+        live = LiveConfig(
+            enabled=True,
+            dry_run=live_overrides.pop("dry_run", True),
+            ack=live_overrides.pop("ack", "SAYA PAHAM RISIKONYA"),
+            max_order_notional=live_overrides.pop("max_order_notional", 5000.0),
+            symbols=live_overrides.pop("symbols", ("BTC/USDT",)),
+            allow_market=live_overrides.pop("allow_market", False),
+        )
+        return Settings(
+            db_path=self.tmp / "live.sqlite3",
+            jsonl_path=self.tmp / "live.jsonl",
+            kill_switch_file=self.tmp / "K",
+            live_mode=True,
+            live=live,
+            initial_equity=10_000.0,
+        )
+
+    def _env(self):
+        import os
+        from unittest.mock import patch
+
+        return patch.dict(os.environ, {"EXCHANGE_API_KEY": "k" * 12, "EXCHANGE_API_SECRET": "s" * 12})
+
+    def _order(self, qty=0.01, price=68000.0, market=False):
+        from execution import Order, OrderSide, OrderType
+
+        return Order(
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            type=OrderType.MARKET if market else OrderType.LIMIT,
+            qty=qty,
+            price=None if market else price,
+        )
+
+    def test_refuses_without_ack_phrase(self) -> None:
+        from live import LiveBroker, LiveRefused
+
+        with self._env():
+            with self.assertRaises(LiveRefused) as ctx:
+                LiveBroker(self._settings(ack="ya"), self.audit, exchange=FakeExchange())
+        self.assertIn("SAYA PAHAM RISIKONYA", str(ctx.exception))
+
+    def test_refuses_without_symbol_allowlist(self) -> None:
+        from live import LiveBroker, LiveRefused
+
+        with self._env():
+            with self.assertRaises(LiveRefused):
+                LiveBroker(self._settings(symbols=()), self.audit, exchange=FakeExchange())
+
+    def test_refuses_without_credentials(self) -> None:
+        import os
+        from unittest.mock import patch
+
+        from live import LiveBroker, LiveRefused
+
+        with patch.dict(os.environ, {"EXCHANGE_API_KEY": "", "EXCHANGE_API_SECRET": ""}):
+            with self.assertRaises(LiveRefused):
+                LiveBroker(self._settings(), self.audit, exchange=FakeExchange())
+
+    def test_dry_run_never_sends_order(self) -> None:
+        from live import LiveBroker
+
+        fake = FakeExchange()
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=True), self.audit, exchange=fake)
+            order = broker.place(self._order())
+        self.assertEqual(fake.created, [])
+        self.assertEqual(broker.status.orders_sent, 0)
+        self.assertEqual(order.status.value, "NEW")
+
+    def test_real_mode_sends_precise_order(self) -> None:
+        from live import LiveBroker
+
+        fake = FakeExchange()
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
+            order = broker.place(self._order(qty=0.0123456, price=68000.987))
+        self.assertEqual(len(fake.created), 1)
+        sent = fake.created[0]
+        self.assertEqual(sent["amount"], 0.01235)          # dibulatkan ke presisi exchange
+        self.assertEqual(sent["price"], 68000.99)
+        self.assertEqual(sent["params"]["newClientOrderId"], order.client_id)
+        self.assertEqual(broker.status.orders_sent, 1)
+
+    def test_notional_cap_blocks_order(self) -> None:
+        from execution import OrderRejected
+        from live import LiveBroker
+
+        fake = FakeExchange()
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False, max_order_notional=100.0),
+                                self.audit, exchange=fake)
+            with self.assertRaises(OrderRejected):
+                broker.place(self._order(qty=1.0, price=68000.0))
+        self.assertEqual(fake.created, [])
+
+    def test_min_notional_from_exchange_is_enforced(self) -> None:
+        from execution import OrderRejected
+        from live import LiveBroker
+
+        fake = FakeExchange()
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
+            with self.assertRaises(OrderRejected):
+                broker.place(self._order(qty=0.0001, price=100.0))   # 0.01 < min 5
+        self.assertEqual(fake.created, [])
+
+    def test_market_order_blocked_unless_allowed(self) -> None:
+        from execution import OrderRejected
+        from live import LiveBroker
+
+        fake = FakeExchange()
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
+            with self.assertRaises(OrderRejected):
+                broker.place(self._order(market=True))
+            allowed = LiveBroker(self._settings(dry_run=False, allow_market=True),
+                                 self.audit, exchange=fake)
+            allowed.place(self._order(market=True))
+        self.assertEqual(len(fake.created), 1)
+
+    def test_symbol_outside_allowlist_rejected(self) -> None:
+        from execution import Order, OrderRejected, OrderSide, OrderType
+        from live import LiveBroker
+
+        fake = FakeExchange()
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
+            with self.assertRaises(OrderRejected):
+                broker.place(Order(symbol="ETH/USDT", side=OrderSide.BUY,
+                                   type=OrderType.LIMIT, qty=1.0, price=100.0))
+
+    def test_duplicate_client_id_not_resent(self) -> None:
+        from live import LiveBroker
+
+        fake = FakeExchange(duplicate=True)
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
+            order = broker.place(self._order())
+        self.assertEqual(fake.created, [])          # tidak dikirim ulang
+        self.assertEqual(order.status.value, "OPEN")
+
+    def test_exchange_error_becomes_order_rejected(self) -> None:
+        from execution import OrderRejected
+        from live import LiveBroker
+
+        fake = FakeExchange(fail=True)
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
+            with self.assertRaises(OrderRejected):
+                broker.place(self._order())
+        self.assertEqual(broker.status.orders_rejected, 1)
+
+    def test_cancel_all_and_flatten(self) -> None:
+        from live import LiveBroker
+
+        fake = FakeExchange()
+        with self._env():
+            broker = LiveBroker(self._settings(dry_run=False, allow_market=True),
+                                self.audit, exchange=fake)
+            first = broker.place(self._order())
+            first.status = type(first.status).OPEN
+            self.assertEqual(broker.cancel_all(), 1)
+            self.assertTrue(broker.flatten("BTC/USDT", 0.01, is_long=True))
+        self.assertTrue(fake.canceled)
+        self.assertEqual(len(fake.created), 2)      # order awal + flatten
+
+    def test_build_broker_refuses_live_without_gates(self) -> None:
+        from execution import LiveBrokerUnavailable, build_broker
+
+        settings = self._settings(ack="")   # pagar belum lengkap
+        with self._env():
+            with self.assertRaises(LiveBrokerUnavailable):
+                build_broker(settings, self.audit)
+
+    def test_build_broker_returns_paper_by_default(self) -> None:
+        from execution import PaperBroker, build_broker
+
+        settings = Settings(db_path=self.tmp / "p.sqlite3", jsonl_path=self.tmp / "p.jsonl",
+                            kill_switch_file=self.tmp / "K2", live_mode=False)
+        self.assertIsInstance(build_broker(settings, self.audit), PaperBroker)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
