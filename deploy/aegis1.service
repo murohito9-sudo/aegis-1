@@ -1,0 +1,27 @@
+[Unit]
+Description=AEGIS-1 trading engine (paper)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aegis
+Group=aegis
+WorkingDirectory=/opt/aegis1
+EnvironmentFile=-/opt/aegis1/.env
+# LIVE_MODE tetap false: adapter eksekusi live tidak disertakan.
+Environment=AEGIS_LIVE_MODE=false
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/aegis1/.venv/bin/python /opt/aegis1/main.py
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=20
+# Kredensial exchange hanya boleh masuk lewat secret manager, bukan file unit.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/opt/aegis1/data
+
+[Install]
+WantedBy=multi-user.target
