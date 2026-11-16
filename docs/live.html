@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AEGIS-1 — mode live (lokal)</title>
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#11161f; --panel-2:#151b26; --line:#1f2836;
+    --text:#d7dee9; --muted:#7c8798; --accent:#4da3ff;
+    --profit:#22c55e; --loss:#ef4444; --warn:#f59e0b; --safe:#38bdf8;
+    --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans)}
+  body{font-size:14px;line-height:1.6}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 64px}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:14px 20px;background:linear-gradient(180deg,#121823,#0d121a);border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;font-weight:700;font-size:13px}
+  .brand h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.3px}
+  .brand small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.8px;text-transform:uppercase}
+  .navlinks{display:flex;gap:16px;font-size:12.5px;color:var(--muted)}
+  .navlinks a{color:var(--muted)}
+  .navlinks a:hover{color:var(--text);text-decoration:none}
+  h2.sec{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin:34px 0 12px;font-weight:600}
+  .lead{color:var(--muted);max-width:70ch}
+  code,pre,.mono{font-family:var(--mono)}
+  pre{background:#0d1219;border:1px solid var(--line);border-radius:9px;padding:12px 14px;overflow:auto;
+    font-size:12.5px;line-height:1.55;color:#b9c6d6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .note{border-left:3px solid var(--warn);background:#1a1509;color:#d9c9a3;padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px}
+  .foot{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:8px;border:1px solid #2b3a4d;
+    background:var(--panel-2);color:var(--text);font:600 12.5px/1 var(--sans);cursor:pointer;text-decoration:none}
+  .btn:hover{background:#1b2331;text-decoration:none}
+  .btn.primary{background:#1d4ed8;border-color:#2563eb;color:#fff}
+  .btn.primary:hover{background:#2563eb}
+  .btn.ghost{background:transparent}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;
+    font-weight:700;letter-spacing:.6px;border:1px solid}
+  .pill.demo{color:var(--safe);border-color:#1e4a63;background:#0b2230}
+  .pill.live{color:var(--warn);border-color:#5c4210;background:#2a1e07}
+
+  .steps{counter-reset:step}
+  .step{display:grid;grid-template-columns:34px 1fr;gap:14px;margin:16px 0}
+  .step .n{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#16202e;
+    border:1px solid #26313f;color:var(--accent);font:700 12.5px/1 var(--mono)}
+  .step h4{margin:2px 0 6px;font-size:14.5px}
+  .step p{margin:6px 0;color:var(--muted);font-size:13px}
+  .copy{float:right;font:600 11px/1 var(--sans);padding:5px 9px;border-radius:6px;border:1px solid #2b3a4d;
+    background:#141c27;color:var(--muted);cursor:pointer}
+  .copy:hover{color:var(--text);border-color:#3a4a5f}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px}
+  @media(max-width:860px){.split{grid-template-columns:1fr}}
+  .why{border-left:3px solid var(--loss);background:#1b0f10;color:#e0b4b4;padding:10px 14px;
+    border-radius:0 8px 8px 0;font-size:13px}
+  .mini{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo">A1</div>
+    <div><h1>AEGIS-1</h1><small>Mode live — console di mesinmu</small></div>
+  </div>
+  <nav class="navlinks">
+    <a href="./index.html">&larr; Mode</a>
+    <a href="./demo.html">Demo</a>
+    <a href="https://github.com/murohito9-sudo/aegis-1">Repo</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <h2 class="sec">Kenapa live tidak di halaman ini</h2>
+  <p class="lead">Console live adalah proses Python yang membaca data, menghitung sinyal, dan menulis
+  audit log ke disk. GitHub Pages hanya menyajikan berkas statis, jadi tidak bisa menjalankannya.</p>
+  <div class="why" style="margin-top:10px">Halaman HTTPS juga tidak boleh memanggil
+  <span class="mono">http://127.0.0.1:8787</span> dari browser (mixed content), dan backend sengaja
+  hanya mengikat ke loopback. Jadi console live selalu dibuka langsung di mesin yang menjalankan bot.</div>
+
+  <h2 class="sec">Jalankan di komputermu</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="n">1</div>
+      <div>
+        <h4>Siapkan lingkungan</h4>
+        <button class="copy" data-copy="#c1">salin</button>
+        <pre id="c1">cd aegis-1
+python -m venv .venv &amp;&amp; source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env</pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">2</div>
+      <div>
+        <h4>Uji dulu tanpa jaringan</h4>
+        <button class="copy" data-copy="#c2">salin</button>
+        <pre id="c2">python tests.py                        # 48 unit test harus OK
+python main.py --offline --interval 0.5 # data sintetis, uji guardrail</pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">3</div>
+      <div>
+        <h4>Jalankan dengan data pasar</h4>
+        <button class="copy" data-copy="#c3">salin</button>
+        <pre id="c3">python main.py                          # ccxt publik, tanpa API key
+python main.py --csv data/BTCUSDT_15m.csv  # atau candle milikmu</pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">4</div>
+      <div>
+        <h4>Buka console</h4>
+        <p>Alamatnya <span class="mono">http://127.0.0.1:8787</span>. Tombol di bawah hanya bekerja
+        bila bot sedang jalan di perangkat ini.</p>
+        <button class="btn primary" id="open-local">Buka console lokal</button>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="sec">Di VPS (24/7)</h2>
+  <div class="split">
+    <div class="card">
+      <h4 style="margin:0 0 8px;font-size:14px">systemd</h4>
+      <button class="copy" data-copy="#c4">salin</button>
+      <pre id="c4">sudo cp deploy/aegis1.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now aegis1
+sudo journalctl -u aegis1 -f</pre>
+    </div>
+    <div class="card">
+      <h4 style="margin:0 0 8px;font-size:14px">Akses console dari laptop</h4>
+      <button class="copy" data-copy="#c5">salin</button>
+      <pre id="c5">ssh -L 8787:127.0.0.1:8787 user@vps
+# lalu buka http://127.0.0.1:8787</pre>
+      <p class="mini" style="margin:8px 0 0">Jangan membuka port 8787 ke publik tanpa reverse proxy
+      dan autentikasi.</p>
+    </div>
+  </div>
+
+  <h2 class="sec">Yang perlu diingat</h2>
+  <div class="card">
+    <ul class="lead" style="font-size:13px;margin:0;padding-left:18px">
+      <li>Paket ini <b>paper</b>: <span class="mono">AEGIS_LIVE_MODE=true</span> akan ditolak sebelum
+      menyentuh jaringan. Adapter eksekusi live tidak disertakan.</li>
+      <li>Kill-switch bisa diaktifkan dari console (dua langkah konfirmasi) atau dengan membuat berkas
+      <span class="mono">data/KILL_SWITCH</span>.</li>
+      <li>Audit log tersimpan di <span class="mono">data/aegis1.sqlite3</span> dan
+      <span class="mono">data/aegis1.jsonl</span> — keduanya tidak masuk git.</li>
+      <li>Angka di console adalah hasil simulasi dengan fee, slippage, dan spread eksplisit. Bukan
+      nasihat investasi dan bukan janji profit.</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    Sumber: <a href="https://github.com/murohito9-sudo/aegis-1">https://github.com/murohito9-sudo/aegis-1</a> · Demo tampilan:
+    <a href="./demo.html">demo.html</a>
+  </div>
+</div>
+<script>
+document.querySelectorAll(".copy").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var el = document.querySelector(b.dataset.copy);
+    var text = el ? el.textContent : "";
+    navigator.clipboard.writeText(text).then(function () {
+      var old = b.textContent; b.textContent = "tersalin";
+      setTimeout(function () { b.textContent = old; }, 1400);
+    }).catch(function () { b.textContent = "gagal"; });
+  });
+});
+var openBtn = document.getElementById("open-local");
+openBtn.addEventListener("click", function () {
+  window.open("http://127.0.0.1:8787", "_blank", "noopener");
+});
+</script>
+</body>
+</html>
