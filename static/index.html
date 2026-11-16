@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="aegis-csrf" content="__AEGIS_CSRF__" />
+<title>AEGIS-1 Trading Console</title>
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#11161f; --panel-2:#151b26; --line:#1f2836;
+    --text:#d7dee9; --muted:#7c8798; --accent:#4da3ff;
+    --profit:#22c55e; --loss:#ef4444; --warn:#f59e0b; --safe:#38bdf8;
+    --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans)}
+  body{font-size:13px;line-height:1.45}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .up{color:var(--profit)} .down{color:var(--loss)} .flat{color:var(--muted)}
+  header{
+    display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+    padding:12px 18px;background:linear-gradient(180deg,#121823,#0d121a);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{
+    width:30px;height:30px;border-radius:7px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;font-weight:700;font-size:13px
+  }
+  .brand h1{font-size:15px;margin:0;letter-spacing:.4px;font-weight:600}
+  .brand small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.8px;text-transform:uppercase}
+  .hdr-right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;
+    background:var(--panel-2);border:1px solid var(--line);font-size:11.5px;color:var(--muted)
+  }
+  .chip b{color:var(--text);font-weight:600}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .dot.on{background:var(--profit);box-shadow:0 0 8px var(--profit)}
+  .dot.off{background:var(--loss);box-shadow:0 0 8px var(--loss)}
+  .dot.warn{background:var(--warn)}
+  .mode{font-weight:700;letter-spacing:.6px;font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid}
+  .mode.PAPER{color:var(--safe);border-color:#1e4a63;background:#0b2230}
+  .mode.SAFE{color:var(--warn);border-color:#5c4210;background:#2a1e07}
+  .mode.PAUSED{color:#cbd5e1;border-color:#334155;background:#1a2230}
+  .mode.KILL_SWITCH{color:#fff;border-color:#7f1d1d;background:#7f1d1d;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  main{padding:16px 18px 40px;max-width:1560px;margin:0 auto}
+  .grid{display:grid;gap:12px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+  .card .label{font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
+  .card .value{font-family:var(--mono);font-size:19px;margin-top:5px;font-variant-numeric:tabular-nums}
+  .card .sub{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .cols{grid-template-columns:2.05fr 1fr;margin-top:12px}
+  .cols-2{grid-template-columns:1.35fr 1fr;margin-top:12px}
+  @media(max-width:1080px){.cols,.cols-2{grid-template-columns:1fr}}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .panel-head h2{font-size:12px;margin:0;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .panel-head .meta{font-size:10.5px;color:var(--muted);font-family:var(--mono)}
+  canvas{width:100%;height:260px;display:block}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{
+    text-align:left;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);
+    font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap
+  }
+  td{padding:7px 8px;border-bottom:1px solid #161d29;font-family:var(--mono);white-space:nowrap}
+  tbody tr:hover{background:#141a25}
+  .empty{padding:18px 8px;color:var(--muted);font-family:var(--sans);text-align:center;font-size:12px}
+  .side-long{color:var(--profit);font-weight:600}
+  .side-short{color:var(--loss);font-weight:600}
+  .badge{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--line);color:var(--muted);font-family:var(--mono)}
+  .badge.FILLED{color:var(--profit);border-color:#14532d}
+  .badge.OPEN,.badge.PARTIALLY_FILLED{color:var(--accent);border-color:#1e3a5f}
+  .badge.CANCELED,.badge.EXPIRED{color:var(--muted)}
+  .badge.REJECTED{color:var(--loss);border-color:#7f1d1d}
+  .risk-row{margin-bottom:11px}
+  .risk-row .top{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+  .risk-row .top span:last-child{font-family:var(--mono);color:var(--text)}
+  .bar{height:7px;background:#0d131c;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+  .bar > i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s ease}
+  .bar.ok > i{background:var(--profit)} .bar.warn > i{background:var(--warn)} .bar.danger > i{background:var(--loss)}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  button{
+    font-family:var(--sans);font-size:11.5px;font-weight:600;letter-spacing:.5px;
+    padding:9px 14px;border-radius:6px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--text);cursor:pointer;transition:.15s
+  }
+  button:hover:not(:disabled){border-color:#33415a;transform:translateY(-1px)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:#12345c;border-color:#1d4f8a;color:#cfe6ff}
+  button.warn{background:#3a2a08;border-color:#6b4a0d;color:#fcd34d}
+  button.danger{background:#3d1113;border-color:#7f1d1d;color:#fca5a5}
+  button.kill{background:#7f1d1d;border-color:#b91c1c;color:#fff}
+  .log{
+    height:214px;overflow-y:auto;font-family:var(--mono);font-size:11px;
+    background:#0c1119;border:1px solid var(--line);border-radius:6px;padding:8px 10px
+  }
+  .log div{padding:2px 0;border-bottom:1px dashed #141b26;white-space:pre-wrap;word-break:break-word}
+  .log .t{color:#55637a}
+  .log .info{color:#9fb3c8} .log .warn{color:var(--warn)} .log .error{color:var(--loss)}
+  .log .ok{color:var(--profit)}
+  .tabs{display:flex;gap:6px;margin-bottom:8px}
+  .tabs button{padding:5px 10px;font-size:11px}
+  .tabs button.active{background:#12345c;border-color:#1d4f8a;color:#cfe6ff}
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(3,6,10,.78);display:none;
+    place-items:center;z-index:60;padding:18px
+  }
+  .modal-backdrop.show{display:grid}
+  .modal{
+    background:var(--panel);border:1px solid #263243;border-radius:11px;padding:20px;
+    max-width:520px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)
+  }
+  .modal h3{margin:0 0 4px;font-size:15px}
+  .modal p{color:var(--muted);font-size:12px;margin:0 0 14px}
+  .modal .kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a2230;font-size:12px}
+  .modal .kv span:last-child{font-family:var(--mono)}
+  .modal input{
+    width:100%;padding:10px;border-radius:6px;border:1px solid var(--line);
+    background:#0b1017;color:var(--text);font-family:var(--mono);font-size:12px;margin-top:10px
+  }
+  .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .modal .step{font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .notice{
+    background:#20180a;border:1px solid #6b4a0d;color:#fcd34d;border-radius:7px;
+    padding:9px 12px;font-size:11.5px;margin-bottom:12px
+  }
+  .footnote{color:var(--muted);font-size:10.5px;margin-top:14px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">A1</div>
+    <div>
+      <h1>AEGIS-1 Trading Console</h1>
+      <small>Adaptive Execution &amp; Guarded Investment System</small>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="chip"><i class="dot" id="conn-dot"></i><span id="conn-text">menghubungkan…</span></span>
+    <span class="chip">PAIR <b id="hdr-symbol">—</b></span>
+    <span class="chip">TF <b id="hdr-tf">—</b></span>
+    <span class="chip">DATA <b id="hdr-source">—</b></span>
+    <span class="mode" id="mode-badge">PAPER</span>
+    <span class="chip num" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<main>
+  <div class="notice">
+    Mode PAPER: tidak ada order nyata yang dikirim ke exchange. Semua eksekusi disimulasikan
+    dengan fee dan slippage. Angka di layar ini bukan janji hasil.
+  </div>
+
+  <section class="grid kpis">
+    <div class="card"><div class="label">Equity</div><div class="value" id="k-equity">—</div><div class="sub" id="k-equity-sub">awal —</div></div>
+    <div class="card"><div class="label">Available Balance</div><div class="value" id="k-balance">—</div><div class="sub">quote currency</div></div>
+    <div class="card"><div class="label">Unrealized PnL</div><div class="value" id="k-unreal">—</div><div class="sub" id="k-open-count">0 posisi terbuka</div></div>
+    <div class="card"><div class="label">Realized PnL</div><div class="value" id="k-realized">—</div><div class="sub" id="k-today">hari ini —</div></div>
+    <div class="card"><div class="label">Win Rate</div><div class="value" id="k-winrate">—</div><div class="sub" id="k-trades">0 trade</div></div>
+    <div class="card"><div class="label">Profit Factor</div><div class="value" id="k-pf">—</div><div class="sub">gross win / gross loss</div></div>
+    <div class="card"><div class="label">Average R</div><div class="value" id="k-avgr">—</div><div class="sub">per trade tertutup</div></div>
+    <div class="card"><div class="label">Max Drawdown</div><div class="value" id="k-mdd">—</div><div class="sub" id="k-dd-now">sekarang —</div></div>
+  </section>
+
+  <section class="grid cols">
+    <div class="card">
+      <div class="panel-head">
+        <h2>Harga &amp; Indikator</h2>
+        <div class="meta"><span style="color:#f59e0b">— EMA50</span> · <span style="color:#4da3ff">— EMA200</span> · <span style="color:#22c55e">▲ entry</span> · <span style="color:#ef4444">▼ exit</span></div>
+      </div>
+      <canvas id="chart" height="260"></canvas>
+      <div class="meta num" id="chart-meta" style="color:var(--muted);font-size:10.5px;margin-top:6px">—</div>
+    </div>
+
+    <div class="card">
+      <div class="panel-head"><h2>Panel Risiko</h2><div class="meta" id="risk-mode">PAPER</div></div>
+      <div class="risk-row">
+        <div class="top"><span>Risk per trade</span><span id="r-risk">—</span></div>
+        <div class="bar ok"><i id="r-risk-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Daily loss</span><span id="r-daily">—</span></div>
+        <div class="bar" id="r-daily-bar-wrap"><i id="r-daily-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Open exposure</span><span id="r-exposure">—</span></div>
+        <div class="bar" id="r-exp-bar-wrap"><i id="r-exp-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Drawdown</span><span id="r-dd">—</span></div>
+        <div class="bar" id="r-dd-bar-wrap"><i id="r-dd-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Slot posisi</span><span id="r-slots">—</span></div>
+        <div class="bar ok"><i id="r-slot-bar"></i></div>
+      </div>
+      <div class="actions">
+        <button id="btn-pause" class="warn">PAUSE TRADING</button>
+        <button id="btn-resume" class="primary">RESUME TRADING</button>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button id="btn-closeall" class="danger">CLOSE ALL POSITIONS</button>
+        <button id="btn-kill" class="kill">EMERGENCY KILL-SWITCH</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:12px">
+    <div class="panel-head"><h2>Posisi Terbuka</h2><div class="meta" id="pos-meta">0 posisi</div></div>
+    <table>
+      <thead><tr>
+        <th>Pair</th><th>Side</th><th>Entry</th><th>Size</th><th>SL</th><th>TP</th>
+        <th>Harga</th><th>PnL</th><th>R</th><th>Age</th><th>Trailing</th>
+      </tr></thead>
+      <tbody id="pos-body"><tr><td colspan="11" class="empty">belum ada posisi terbuka</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="grid cols-2">
+    <div class="card">
+      <div class="panel-head"><h2>Riwayat</h2></div>
+      <div class="tabs">
+        <button class="active" data-tab="orders">Order</button>
+        <button data-tab="trades">Trade tertutup</button>
+        <button data-tab="signals">Sinyal</button>
+      </div>
+      <div style="max-height:300px;overflow:auto">
+        <table id="hist-table">
+          <thead id="hist-head"></thead>
+          <tbody id="hist-body"><tr><td class="empty">memuat…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="panel-head"><h2>Log Eksekusi</h2><div class="meta" id="log-meta">—</div></div>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+
+  <div class="footnote">
+    Tidak ada API key, secret, passphrase, atau token exchange yang disimpan di halaman ini
+    maupun di penyimpanan lokal browser. Dashboard hanya membaca state dari proses bot
+    di mesin yang sama. Semua keputusan tercatat di audit log (SQLite + JSONL).
+  </div>
+</main>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="step" id="m-step">Langkah 1 dari 2</div>
+    <h3 id="m-title">Konfirmasi</h3>
+    <p id="m-desc"></p>
+    <div id="m-body"></div>
+    <input id="m-input" placeholder="ketik frasa konfirmasi di atas" autocomplete="off" spellcheck="false" />
+    <div class="foot">
+      <button id="m-cancel">Batal</button>
+      <button id="m-next" class="primary">Lanjut</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const CSRF = document.querySelector('meta[name="aegis-csrf"]').content;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v, d = 2) =>
+    (v === null || v === undefined || Number.isNaN(v)) ? "—" :
+    Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const pct = (v) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : (v * 100).toFixed(2) + "%";
+  const money = (v) => (v === null || v === undefined) ? "—" : (v >= 0 ? "+" : "") + fmt(v, 2);
+  const cls = (v) => v > 0 ? "up" : v < 0 ? "down" : "flat";
+  const age = (s) => {
+    if (s === null || s === undefined) return "—";
+    const t = Math.floor(s);
+    if (t < 60) return t + "s";
+    if (t < 3600) return Math.floor(t / 60) + "m";
+    if (t < 86400) return Math.floor(t / 3600) + "h " + Math.floor((t % 3600) / 60) + "m";
+    return Math.floor(t / 86400) + "d";
+  };
+  const clock = (ts) => new Date(ts * 1000).toLocaleTimeString("en-GB");
+
+  let state = null;
+  let history = { orders: [], trades: [], signals: [] };
+  let activeTab = "orders";
+  let ws = null;
+  let pollTimer = null;
+
+  // ---------------- render ----------------
+  function renderHeader(s) {
+    $("hdr-symbol").textContent = s.symbol || "—";
+    $("hdr-tf").textContent = s.timeframe || "—";
+    $("hdr-source").textContent = s.data_source || "—";
+    const badge = $("mode-badge");
+    badge.textContent = s.mode;
+    badge.className = "mode " + s.mode;
+    $("risk-mode").textContent = s.mode;
+    const dot = $("conn-dot");
+    dot.className = "dot " + (s.connected ? "on" : "off");
+    $("conn-text").textContent = s.connected ? ("terhubung · " + (s.exchange || "paper")) : "terputus";
+  }
+
+  function renderKpis(s) {
+    $("k-equity").textContent = fmt(s.equity, 2);
+    $("k-equity-sub").textContent = "awal " + fmt(s.initial_equity, 2) + " " + (s.quote || "");
+    $("k-balance").textContent = fmt(s.balance, 2);
+    const u = $("k-unreal");
+    u.textContent = money(s.unrealized_pnl);
+    u.className = "value " + cls(s.unrealized_pnl);
+    $("k-open-count").textContent = (s.positions || []).length + " posisi terbuka";
+    const r = $("k-realized");
+    r.textContent = money(s.realized_pnl);
+    r.className = "value " + cls(s.realized_pnl);
+    $("k-today").textContent = "hari ini " + money(s.realized_pnl_today);
+    $("k-winrate").textContent = s.stats ? pct(s.stats.win_rate) : "—";
+    $("k-trades").textContent = (s.stats ? s.stats.trades : 0) + " trade";
+    $("k-pf").textContent = s.stats ? fmt(s.stats.profit_factor, 2) : "—";
+    $("k-avgr").textContent = s.stats ? fmt(s.stats.avg_r, 2) + "R" : "—";
+    $("k-mdd").textContent = s.stats ? pct(s.stats.max_drawdown) : "—";
+    $("k-dd-now").textContent = "sekarang " + pct(s.drawdown);
+  }
+
+  function bar(id, ratio, limit) {
+    const el = $(id);
+    if (!el) return;
+    const r = Math.max(0, Math.min(1, limit > 0 ? ratio / limit : 0));
+    el.style.width = (r * 100).toFixed(1) + "%";
+    const wrap = el.parentElement;
+    wrap.className = "bar " + (r > 0.85 ? "danger" : r > 0.6 ? "warn" : "ok");
+  }
+
+  function renderRisk(s) {
+    const risk = s.risk || {};
+    $("r-risk").textContent = pct(risk.risk_per_trade) + " / trade";
+    bar("r-risk-bar", risk.risk_per_trade || 0, risk.risk_per_trade || 1);
+    $("r-daily").textContent = pct(s.daily_loss) + " dari " + pct(risk.max_daily_loss);
+    bar("r-daily-bar", s.daily_loss || 0, risk.max_daily_loss || 0.03);
+    $("r-exposure").textContent = pct(s.exposure_ratio) + " dari " + pct(risk.max_total_exposure);
+    bar("r-exp-bar", s.exposure_ratio || 0, risk.max_total_exposure || 0.2);
+    $("r-dd").textContent = pct(s.drawdown) + " dari " + pct(risk.max_drawdown);
+    bar("r-dd-bar", s.drawdown || 0, risk.max_drawdown || 0.1);
+    const open = (s.positions || []).length;
+    $("r-slots").textContent = open + " / " + (risk.max_open_positions || 3);
+    bar("r-slot-bar", open, risk.max_open_positions || 3);
+  }
+
+  function renderPositions(s) {
+    const body = $("pos-body");
+    const rows = s.positions || [];
+    $("pos-meta").textContent = rows.length + " posisi";
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="11" class="empty">belum ada posisi terbuka</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(p => `
+      <tr>
+        <td>${p.symbol}</td>
+        <td class="${p.side === "LONG" ? "side-long" : "side-short"}">${p.side}</td>
+        <td>${fmt(p.entry, 2)}</td>
+        <td>${fmt(p.size, 5)}</td>
+        <td class="down">${fmt(p.stop, 2)}</td>
+        <td class="up">${fmt(p.take_profit, 2)}</td>
+        <td>${fmt(p.price, 2)}</td>
+        <td class="${cls(p.pnl)}">${money(p.pnl)}</td>
+        <td class="${cls(p.r_multiple)}">${fmt(p.r_multiple, 2)}R</td>
+        <td>${age(p.age_s)}</td>
+        <td>${p.trailing_active ? '<span class="badge OPEN">aktif</span>' : '<span class="badge">—</span>'}</td>
+      </tr>`).join("");
+  }
+
+  const HEADERS = {
+    orders: ["Waktu", "Pair", "Side", "Tipe", "Qty", "Harga", "Status", "Fee", "Slip"],
+    trades: ["Tutup", "Pair", "Side", "Entry", "Exit", "PnL", "R", "Alasan"],
+    signals: ["Waktu", "Side", "Skor", "Entry", "SL", "TP", "RR", "Regime", "Aksi"],
+  };
+
+  function renderHistory() {
+    const head = $("hist-head");
+    const body = $("hist-body");
+    head.innerHTML = "<tr>" + HEADERS[activeTab].map(h => `<th>${h}</th>`).join("") + "</tr>";
+    const rows = history[activeTab] || [];
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="${HEADERS[activeTab].length}" class="empty">belum ada data</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      if (activeTab === "orders") {
+        return `<tr><td>${clock(r.ts)}</td><td>${r.symbol || "—"}</td>
+          <td class="${r.side === "BUY" ? "side-long" : "side-short"}">${r.side}</td>
+          <td>${r.type}</td><td>${fmt(r.qty, 5)}</td><td>${fmt(r.avg_price || r.price, 2)}</td>
+          <td><span class="badge ${r.status}">${r.status}</span></td>
+          <td>${fmt(r.fee, 4)}</td><td>${fmt(r.slippage_bps, 2)}bp</td></tr>`;
+      }
+      if (activeTab === "trades") {
+        return `<tr><td>${clock(r.closed_at)}</td><td>${r.symbol}</td>
+          <td class="${r.side === "LONG" ? "side-long" : "side-short"}">${r.side}</td>
+          <td>${fmt(r.entry, 2)}</td><td>${fmt(r.exit, 2)}</td>
+          <td class="${cls(r.pnl)}">${money(r.pnl)}</td>
+          <td class="${cls(r.r_multiple)}">${fmt(r.r_multiple, 2)}R</td>
+          <td>${r.close_reason || "—"}</td></tr>`;
+      }
+      return `<tr><td>${clock(r.ts)}</td>
+        <td class="${r.side === "LONG" ? "side-long" : r.side === "SHORT" ? "side-short" : ""}">${r.side || "—"}</td>
+        <td>${fmt(r.score, 2)}</td><td>${fmt(r.entry, 2)}</td><td>${fmt(r.stop, 2)}</td>
+        <td>${fmt(r.take_profit, 2)}</td><td>${fmt(r.reward_risk, 2)}</td>
+        <td>${r.regime || "—"}</td>
+        <td><span class="badge ${r.action === "EXECUTED" ? "FILLED" : ""}">${r.action}</span></td></tr>`;
+    }).join("");
+  }
+
+  function renderLog(s) {
+    const box = $("log");
+    const events = s.events || [];
+    $("log-meta").textContent = events.length + " entri terakhir";
+    box.innerHTML = events.map(e => {
+      const lvl = e.level === "error" ? "error" : e.level === "warning" ? "warn" : e.kind && e.kind.startsWith("alert") ? "ok" : "info";
+      return `<div><span class="t">${clock(e.ts)}</span> <span class="${lvl}">[${e.kind}]</span> ${e.message}</div>`;
+    }).join("") || '<div class="info">belum ada log</div>';
+  }
+
+  // ---------------- chart ----------------
+  function drawChart(s) {
+    const cv = $("chart");
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth, h = 260;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const series = s.chart || { close: [], ema_fast: [], ema_slow: [], ts: [] };
+    const n = series.close.length;
+    $("chart-meta").textContent = n ? (n + " bar · terakhir " + fmt(series.close[n - 1], 2)) : "belum ada data";
+    if (n < 2) {
+      ctx.fillStyle = "#7c8798"; ctx.font = "12px monospace";
+      ctx.fillText("menunggu data candle…", 16, h / 2);
+      return;
+    }
+    const padL = 8, padR = 62, padT = 12, padB = 18;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    const all = series.close.concat(series.ema_fast || [], series.ema_slow || []).filter(v => v !== null && !Number.isNaN(v));
+    let lo = Math.min(...all), hi = Math.max(...all);
+    if (hi === lo) { hi += 1; lo -= 1; }
+    const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const X = (i) => padL + (i / (n - 1)) * plotW;
+    const Y = (v) => padT + (1 - (v - lo) / (hi - lo)) * plotH;
+
+    // grid
+    ctx.strokeStyle = "#161e2b"; ctx.lineWidth = 1;
+    ctx.font = "10px monospace"; ctx.fillStyle = "#55637a";
+    for (let g = 0; g <= 4; g++) {
+      const y = padT + (plotH * g) / 4;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+      const val = hi - ((hi - lo) * g) / 4;
+      ctx.fillText(fmt(val, 0), padL + plotW + 6, y + 3);
+    }
+
+    const line = (arr, color, width) => {
+      ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = width;
+      let started = false;
+      arr.forEach((v, i) => {
+        if (v === null || v === undefined || Number.isNaN(v)) { started = false; return; }
+        const x = X(i), y = Y(v);
+        if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    };
+    line(series.close, "#9fb3c8", 1.4);
+    line(series.ema_fast || [], "#f59e0b", 1.2);
+    line(series.ema_slow || [], "#4da3ff", 1.2);
+
+    (s.markers || []).forEach(m => {
+      // Cari bar terdekat dengan toleransi 1 detik (ts bisa dibulatkan saat JSON).
+      let i = series.ts.findIndex(t => Math.abs(t - m.ts) < 1);
+      if (i < 0) i = series.ts.findIndex(t => Math.abs(t - m.ts) < 60);
+      if (i < 0) return;
+      const x = X(i), y = Y(m.price);
+      ctx.beginPath();
+      if (m.kind === "entry") {
+        ctx.fillStyle = m.side === "SHORT" ? "#ef4444" : "#22c55e";
+        ctx.moveTo(x, y - 7); ctx.lineTo(x - 4, y - 14); ctx.lineTo(x + 4, y - 14);
+      } else {
+        ctx.fillStyle = "#ef4444";
+        ctx.moveTo(x, y + 7); ctx.lineTo(x - 4, y + 14); ctx.lineTo(x + 4, y + 14);
+      }
+      ctx.closePath(); ctx.fill();
+    });
+  }
+
+  // ---------------- data ----------------
+  function apply(s) {
+    state = s;
+    renderHeader(s); renderKpis(s); renderRisk(s); renderPositions(s); renderLog(s); drawChart(s);
+  }
+
+  async function fetchState() {
+    try {
+      const res = await fetch("/api/state", { headers: { "X-AEGIS-CSRF": CSRF } });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      apply(await res.json());
+      setConn(true);
+    } catch (e) {
+      setConn(false);
+    }
+  }
+
+  async function fetchHistory() {
+    try {
+      const res = await fetch("/api/history", { headers: { "X-AEGIS-CSRF": CSRF } });
+      if (!res.ok) return;
+      history = await res.json();
+      renderHistory();
+    } catch (e) { /* biarkan data lama */ }
+  }
+
+  function setConn(on) {
+    const dot = $("conn-dot");
+    if (on) { dot.className = "dot on"; $("conn-text").textContent = "terhubung"; }
+    else { dot.className = "dot off"; $("conn-text").textContent = "terputus"; }
+  }
+
+  function connectWs() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/ws?csrf=${encodeURIComponent(CSRF)}`);
+    ws.onmessage = (ev) => {
+      try { apply(JSON.parse(ev.data)); setConn(true); } catch (e) {}
+    };
+    ws.onclose = () => { setConn(false); setTimeout(connectWs, 3000); };
+    ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  }
+
+  // ---------------- actions ----------------
+  const ACTIONS = {
+    pause: {
+      title: "PAUSE TRADING",
+      desc: "Entry baru dihentikan. Posisi terbuka tetap dikelola (stop, target, trailing).",
+      phrase: "PAUSE AEGIS-1",
+      detail: (s) => [["Mode sekarang", s.mode], ["Posisi terbuka", (s.positions || []).length]],
+    },
+    resume: {
+      title: "RESUME TRADING",
+      desc: "Entry baru diizinkan kembali bila seluruh guardrail lolos.",
+      phrase: "RESUME AEGIS-1",
+      detail: (s) => [["Mode sekarang", s.mode], ["Drawdown", pct(s.drawdown)], ["Rugi harian", pct(s.daily_loss)]],
+    },
+    close_all: {
+      title: "CLOSE ALL POSITIONS",
+      desc: "Seluruh posisi terbuka ditutup pada harga pasar berikutnya. PnL direalisasikan.",
+      phrase: "TUTUP SEMUA POSISI",
+      detail: (s) => (s.positions || []).map(p => [p.symbol + " " + p.side, fmt(p.size, 5) + " @ " + fmt(p.price, 2)]),
+    },
+    kill: {
+      title: "EMERGENCY KILL-SWITCH",
+      desc: "Menghentikan entry, membatalkan semua order pending, dan menutup seluruh posisi. Bot masuk mode KILL-SWITCH dan tidak kembali sendiri.",
+      phrase: "AKTIFKAN KILL SWITCH",
+      detail: (s) => [["Posisi terbuka", (s.positions || []).length], ["Order pending", (s.pending_orders || 0)]],
+    },
+  };
+
+  let pending = null; // {action, token, step}
+
+  function openModal(action) {
+    const spec = ACTIONS[action];
+    pending = { action, token: null, step: 1 };
+    $("m-step").textContent = "Langkah 1 dari 2";
+    $("m-title").textContent = spec.title;
+    $("m-desc").textContent = spec.desc;
+    const rows = spec.detail(state || {});
+    $("m-body").innerHTML = rows.length
+      ? rows.map(([k, v]) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`).join("")
+      : '<div class="kv"><span>tidak ada yang terdampak</span><span>—</span></div>';
+    $("m-input").style.display = "none";
+    $("m-input").value = "";
+    $("m-next").textContent = "Lanjut";
+    $("modal").classList.add("show");
+  }
+
+  async function stepTwo() {
+    const spec = ACTIONS[pending.action];
+    try {
+      const res = await fetch(`/api/actions/${pending.action}/request`, {
+        method: "POST",
+        headers: { "X-AEGIS-CSRF": CSRF, "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "permintaan ditolak");
+      pending.token = data.token;
+      pending.step = 2;
+      $("m-step").textContent = "Langkah 2 dari 2";
+      $("m-desc").innerHTML = `Ketik frasa berikut untuk mengonfirmasi: <b style="color:#fca5a5">${spec.phrase}</b>`;
+      $("m-input").style.display = "block";
+      $("m-input").placeholder = spec.phrase;
+      $("m-next").textContent = "Eksekusi";
+      $("m-input").focus();
+    } catch (e) {
+      alert("Gagal: " + e.message);
+    }
+  }
+
+  async function confirm() {
+    const spec = ACTIONS[pending.action];
+    if ($("m-input").value.trim().toUpperCase() !== spec.phrase.toUpperCase()) {
+      alert("Frasa konfirmasi tidak cocok.");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/actions/${pending.action}/confirm`, {
+        method: "POST",
+        headers: { "X-AEGIS-CSRF": CSRF, "Content-Type": "application/json" },
+        body: JSON.stringify({ token: pending.token, phrase: $("m-input").value.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "ditolak");
+      closeModal();
+      await fetchState();
+      await fetchHistory();
+    } catch (e) {
+      alert("Gagal: " + e.message);
+    }
+  }
+
+  function closeModal() { $("modal").classList.remove("show"); pending = null; }
+
+  $("btn-pause").onclick = () => openModal("pause");
+  $("btn-resume").onclick = () => openModal("resume");
+  $("btn-closeall").onclick = () => openModal("close_all");
+  $("btn-kill").onclick = () => openModal("kill");
+  $("m-cancel").onclick = closeModal;
+  $("m-next").onclick = () => { if (!pending) return; pending.step === 1 ? stepTwo() : confirm(); };
+  $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+
+  document.querySelectorAll(".tabs button").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      activeTab = b.dataset.tab;
+      renderHistory();
+    };
+  });
+
+  setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString("en-GB"); }, 1000);
+  window.addEventListener("resize", () => { if (state) drawChart(state); });
+
+  // Muat awal: polling cepat sampai WS tersambung.
+  fetchState(); fetchHistory();
+  setInterval(fetchHistory, 5000);
+  pollTimer = setInterval(() => { if (!ws || ws.readyState !== 1) fetchState(); }, 3000);
+  connectWs();
+})();
+</script>
+</body>
+</html>
