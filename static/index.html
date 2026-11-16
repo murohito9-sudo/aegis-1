@@ -198,6 +198,13 @@
         <div class="top"><span>Slot posisi</span><span id="r-slots">—</span></div>
         <div class="bar ok"><i id="r-slot-bar"></i></div>
       </div>
+      <div class="risk-row">
+        <div class="top"><span>Pengali risiko (adaptif)</span><span id="r-mult">—</span></div>
+        <div class="bar ok"><i id="r-mult-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Bias HTF · divergensi · pola</span><span id="r-analysis" style="font-size:10.5px">—</span></div>
+      </div>
       <div class="actions">
         <button id="btn-pause" class="warn">PAUSE TRADING</button>
         <button id="btn-resume" class="primary">RESUME TRADING</button>
@@ -405,6 +412,20 @@
     const open = (s.positions || []).length;
     $("r-slots").textContent = open + " / " + (risk.max_open_positions || 3);
     bar("r-slot-bar", open, risk.max_open_positions || 3);
+
+    const adaptive = s.adaptive_risk || {};
+    const mult = (adaptive.multiplier === undefined) ? null : Number(adaptive.multiplier);
+    $("r-mult").textContent = mult === null ? "—" : "×" + mult.toFixed(2);
+    if (mult !== null) bar("r-mult-bar", mult, 1.5);
+
+    const a = s.analysis || {};
+    const bits = [];
+    if (a.htf_trend) bits.push("HTF " + a.htf_trend);
+    if (a.divergence) bits.push("div " + a.divergence);
+    if (a.pattern) bits.push(a.pattern.replace(/_/g, " "));
+    if (a.squeeze) bits.push("squeeze");
+    if (a.atr_pct_rank !== undefined) bits.push("ATR " + Number(a.atr_pct_rank).toFixed(2));
+    $("r-analysis").textContent = bits.length ? bits.join(" · ") : "—";
   }
 
   function renderPositions(s) {
