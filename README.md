@@ -31,8 +31,18 @@ memeriksanya di browser: rentang nilai, aturan silang seperti `ema_fast <
 ema_slow`, total bobot = 1, dan kunci tak dikenal. Hasilnya juga berupa potongan
 `.env` siap tempel untuk parameter yang punya variabel lingkungan
 (`AEGIS_EMA_FAST`, `AEGIS_MIN_CONFLUENCE`, `AEGIS_RISK_PER_TRADE`, dst).
-Halaman statis hanya memvalidasi dan menampilkan — bot tidak berubah karena
-unggahan itu; parameter tanpa env var harus diubah di `config.py`.
+
+Setelah lolos validasi, strategi itu masuk pustaka dan bisa dipakai tiga cara
+di halaman demo: **dipasang sebagai strategi aktif** (ukuran posisi, aksi sinyal
+di tabel riwayat, dan chip `STRATEGI` di header console ikut berubah),
+**dibandingkan berdampingan** dengan strategi lain (jumlah sinyal lolos, yang
+ditolak skor atau reward:risk, ukuran posisi risk-based vs setelah batas
+exposure, plus tabel parameter berbeda), dan **diekspor** sebagai ringkasan
+Markdown. Tersedia tiga preset bawaan sebagai pembanding.
+
+Halaman statis hanya memvalidasi, menghitung ulang, dan menampilkan — bot tidak
+berubah karena unggahan itu; parameter tanpa env var harus diubah di
+`config.py`.
 
 ---
 
