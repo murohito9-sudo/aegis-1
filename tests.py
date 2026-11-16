@@ -1101,5 +1101,364 @@ class TestLiveBroker(TempProject):
         self.assertIsInstance(build_broker(settings, self.audit), PaperBroker)
 
 
+class TestMicrostructure(unittest.TestCase):
+    def test_book_metrics(self) -> None:
+        from microstructure import analyze_book
+
+        bids = [[100.0, 6.0], [99.9, 3.0], [98.0, 10.0]]
+        asks = [[100.1, 1.0], [100.2, 4.0], [102.0, 10.0]]
+        m = analyze_book(bids, asks, depth_pct=0.01)
+        self.assertAlmostEqual(m.mid, 100.05, places=6)
+        self.assertGreater(m.spread_bps, 9.0)
+        self.assertLess(m.spread_bps, 11.0)
+        self.assertGreater(m.bid_depth, m.ask_depth)   # sisi beli lebih tebal
+        self.assertGreater(m.imbalance, 0.5)
+
+    def test_empty_book_is_safe(self) -> None:
+        from microstructure import analyze_book
+
+        m = analyze_book([], [])
+        self.assertEqual(m.source, "kosong")
+        self.assertEqual(m.imbalance, 0.5)
+
+    def test_trade_flow_vwap(self) -> None:
+        from microstructure import analyze_trades
+
+        flow = analyze_trades([[1, 100.0, 1.0, "buy"], [2, 102.0, 1.0, "sell"]])
+        self.assertAlmostEqual(flow.vwap, 101.0, places=6)
+        self.assertAlmostEqual(flow.aggressive_ratio, 0.5, places=6)
+        self.assertEqual(flow.trades, 2)
+
+    def test_candle_estimate_is_labelled(self) -> None:
+        from microstructure import estimate_from_candles
+
+        df = make_df(n=30)
+        m = estimate_from_candles(df)
+        self.assertEqual(m.source, "estimasi-candle")
+        self.assertGreater(m.total_depth, 0)
+
+
+class TestNewsSentiment(unittest.TestCase):
+    def test_score_text(self) -> None:
+        from news import score_text
+
+        self.assertGreater(score_text("Bitcoin surge to record high").score, 0.2)
+        self.assertLess(score_text("Exchange hacked, price crash").score, -0.2)
+        self.assertEqual(score_text("harga stabil").label, "netral")
+
+    def test_negation_flips_polarity(self) -> None:
+        from news import score_text
+
+        positive = score_text("approved")
+        negated = score_text("not approved")
+        self.assertGreater(positive.score, 0)
+        self.assertLess(negated.score, 0)
+
+    def test_briefing_weights_recent_news(self) -> None:
+        from news import NewsEngine
+
+        now = time.time()
+        provider = lambda: [
+            {"title": "Bitcoin rally to record", "ts": now},
+            {"title": "Old crash story", "ts": now - 72 * 3600},
+        ]
+        briefing = NewsEngine(provider, half_life_hours=6.0).briefing(now=now)
+        self.assertEqual(briefing.items, 2)
+        self.assertGreater(briefing.score, 0)
+        self.assertEqual(briefing.label, "positif")
+
+    def test_missing_provider_reports_error(self) -> None:
+        from news import NewsEngine
+
+        self.assertTrue(NewsEngine().briefing().errors)
+
+
+class TestOnChain(unittest.TestCase):
+    def test_zscore(self) -> None:
+        from onchain import zscore
+
+        self.assertAlmostEqual(zscore([1, 2, 3], 2), 0.0, places=6)
+        self.assertGreater(zscore([1, 2, 3, 4], 6), 0)
+        self.assertEqual(zscore([1, 1, 1, 1], 5), 0.0)   # seri konstan: tak terdefinisi
+
+    def test_engine_flags_anomaly(self) -> None:
+        from onchain import OnChainEngine
+
+        engine = OnChainEngine(min_samples=5, threshold=1.5)
+        for i in range(10):
+            engine.ingest(ts=float(i), values={"exchange_outflow": 100.0 + i})
+        engine.ingest(ts=99.0, values={"exchange_outflow": 500.0})
+        signal = engine.assess()
+        self.assertGreater(signal.score, 0)          # outflow tinggi = akumulasi
+        self.assertEqual(signal.label, "akumulasi")
+        self.assertTrue(any("ekstrem" in f for f in signal.flags))
+
+    def test_insufficient_samples(self) -> None:
+        from onchain import OnChainEngine
+
+        engine = OnChainEngine(min_samples=8)
+        engine.ingest(ts=1.0, values={"exchange_inflow": 5.0})
+        self.assertIn("butuh", engine.assess().note)
+
+    def test_csv_provider(self) -> None:
+        from onchain import CsvOnChainProvider, engine_from_rows
+
+        path = self.tmp_path("onchain.csv")
+        path.write_text("ts,exchange_inflow,whale_transactions\n1,10,5\n2,11,6\n", encoding="utf-8")
+        rows = CsvOnChainProvider(path)()
+        self.assertEqual(len(rows), 2)
+        engine = engine_from_rows(rows)
+        self.assertEqual(len(engine.history), 2)
+
+    def tmp_path(self, name: str):
+        import tempfile
+        from pathlib import Path
+
+        directory = tempfile.mkdtemp()
+        return Path(directory) / name
+
+
+class TestPortfolio(unittest.TestCase):
+    def _portfolio(self):
+        from portfolio import build_portfolio
+
+        return build_portfolio(
+            [{"symbol": "BTC/USDT", "qty": 0.1, "cost_basis": 60000, "price": 68000},
+             {"symbol": "ETH/USDT", "qty": 2.0, "cost_basis": 3000, "price": 3200}],
+            cash=2000.0,
+        )
+
+    def test_value_and_weights(self) -> None:
+        portfolio = self._portfolio()
+        self.assertAlmostEqual(portfolio.invested(), 6800 + 6400, places=2)
+        self.assertAlmostEqual(portfolio.value(), 15200.0, places=2)
+        weights = portfolio.weights()
+        self.assertAlmostEqual(sum(weights.values()), 1.0, places=6)
+        self.assertGreater(portfolio.pnl(), 0)
+
+    def test_buy_and_sell_cash_math(self) -> None:
+        from portfolio import Portfolio
+
+        portfolio = Portfolio(cash=2000.0)
+        portfolio.buy("BTC/USDT", 0.01, 50000)
+        self.assertAlmostEqual(portfolio.cash, 1500.0, places=6)
+        portfolio.buy("BTC/USDT", 0.01, 60000)
+        self.assertAlmostEqual(portfolio.holdings["BTC/USDT"].cost_basis, 55000.0, places=6)
+        portfolio.sell("BTC/USDT", 0.01, 70000)
+        self.assertAlmostEqual(portfolio.cash, 1600.0, places=6)
+
+    def test_buy_beyond_cash_rejected(self) -> None:
+        from portfolio import Portfolio
+
+        with self.assertRaises(ValueError):
+            Portfolio(cash=10.0).buy("BTC/USDT", 1.0, 100.0)
+
+    def test_rebalance_suggests_orders(self) -> None:
+        portfolio = self._portfolio()
+        orders = portfolio.rebalance({"BTC/USDT": 0.3, "ETH/USDT": 0.5, "USDT": 0.2})
+        self.assertTrue(orders)
+        self.assertIn(orders[0].side, ("BUY", "SELL"))
+        self.assertGreater(orders[0].notional, 0)
+
+    def test_dca_plan_sums_to_amount(self) -> None:
+        portfolio = self._portfolio()
+        plan = portfolio.dca_plan(1000.0, {"BTC/USDT": 0.6, "ETH/USDT": 0.4})
+        self.assertAlmostEqual(sum(p["notional"] for p in plan), 1000.0, places=2)
+
+
+class TestEvaluation(unittest.TestCase):
+    def test_metrics(self) -> None:
+        from evaluation import EvaluationEngine
+
+        engine = EvaluationEngine(buckets=4)
+        engine.record(0.9, "LONG", 2.0, ts=1.0)
+        engine.record(0.9, "LONG", 1.5, ts=2.0)
+        engine.record(0.2, "LONG", -1.0, ts=3.0)
+        engine.record(0.2, "SHORT", -1.0, ts=4.0)
+        engine.record(0.8, "LONG", 1.0, ts=5.0)
+        engine.record(0.8, "LONG", 1.2, ts=6.0)
+        report = engine.report()
+        self.assertEqual(report.samples, 6)
+        self.assertAlmostEqual(report.hit_rate, 4 / 6, places=6)
+        self.assertGreater(report.brier, 0)
+        self.assertTrue(report.calibration)
+        self.assertIn(report.drift["status"], ("memburuk", "membaik", "stabil"))
+
+    def test_empty_report(self) -> None:
+        from evaluation import EvaluationEngine
+
+        self.assertIn("belum ada", EvaluationEngine().report().note)
+
+
+class TestBrain(unittest.TestCase):
+    def _input(self, **overrides):
+        from brain import BriefingInput
+
+        base = dict(symbol="BTC/USDT", timeframe="15m", price=68000.0, regime="trending_up",
+                    score=0.86, side="LONG", htf_trend="up", news_score=0.4, news_label="positif",
+                    risk_multiplier=1.1)
+        base.update(overrides)
+        return BriefingInput(**base)
+
+    def test_strong_setup_enters(self) -> None:
+        from brain import compose
+
+        briefing = compose(self._input())
+        self.assertIn(briefing.decision, ("masuk", "masuk-kecil"))
+        self.assertGreater(briefing.confidence, 0.7)
+        self.assertIn("SITUASI", briefing.to_text())
+
+    def test_veto_forces_avoid(self) -> None:
+        from brain import compose
+
+        briefing = compose(self._input(vetoes=["skor konfluensi 0.60 < ambang 0.70"]))
+        self.assertEqual(briefing.decision, "hindari")
+
+    def test_opposing_news_lowers_confidence(self) -> None:
+        from brain import compose
+
+        good = compose(self._input())
+        bad = compose(self._input(news_score=-0.6, news_label="negatif"))
+        self.assertLess(bad.confidence, good.confidence)
+
+    def test_deterministic(self) -> None:
+        from brain import compose
+
+        first = compose(self._input()).as_dict()
+        second = compose(self._input()).as_dict()
+        self.assertEqual(first, second)
+
+    def test_risk_flags(self) -> None:
+        from brain import compose
+
+        briefing = compose(self._input(drawdown=0.08, daily_loss=0.03, exposure=0.2))
+        joined = " ".join(briefing.risks)
+        self.assertIn("drawdown", joined)
+        self.assertIn("rugi harian", joined)
+
+
+class TestAutomation(unittest.TestCase):
+    def test_scheduler_runs_once_per_window(self) -> None:
+        from monitor import Scheduler
+
+        scheduler = Scheduler()
+        counter = {"n": 0}
+        scheduler.add("tick", every_s=10.0, fn=lambda: counter.__setitem__("n", counter["n"] + 1))
+        scheduler.run_due(now=100.0)
+        scheduler.run_due(now=105.0)
+        self.assertEqual(counter["n"], 1)
+        scheduler.run_due(now=111.0)
+        self.assertEqual(counter["n"], 2)
+
+    def test_failing_job_does_not_stop_others(self) -> None:
+        from monitor import Scheduler
+
+        scheduler = Scheduler()
+        scheduler.add("bad", every_s=1.0, fn=lambda: (_ for _ in ()).throw(RuntimeError("x")))
+        scheduler.add("good", every_s=1.0, fn=lambda: "ok")
+        results = scheduler.run_due(now=10.0)
+        self.assertEqual(len(results), 2)
+        self.assertFalse([r for r in results if r["job"] == "bad"][0]["ok"])
+        self.assertTrue([r for r in results if r["job"] == "good"][0]["ok"])
+
+    def test_health_flags_stale_tick(self) -> None:
+        from monitor import check_health
+
+        report = check_health(started_at=0.0, last_tick_ts=0.0, tick_count=1,
+                              consecutive_errors=0, last_error=None,
+                              max_tick_age_s=60.0, now=1000.0)
+        self.assertFalse(report.ok)
+        self.assertTrue(any("tick terakhir" in i for i in report.issues))
+
+    def test_backup_and_restore_with_retention(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from monitor import backup, restore
+
+        root = Path(tempfile.mkdtemp())
+        source = root / "aegis.sqlite3"
+        source.write_text("data", encoding="utf-8")
+        dest = root / "backups"
+        first = backup([source], dest, keep=2, stamp="20260101-000000")
+        second = backup([source], dest, keep=2, stamp="20260102-000000")
+        third = backup([source], dest, keep=2, stamp="20260103-000000")
+        self.assertTrue(first.ok and second.ok and third.ok)
+        self.assertEqual(len(third.removed), 1)          # retensi 2 folder
+        target = root / "restored"
+        restored = restore(third.directory, target)
+        self.assertIn("aegis.sqlite3", restored)
+        self.assertEqual((target / "aegis.sqlite3").read_text(encoding="utf-8"), "data")
+
+
+class TestSecurity(unittest.TestCase):
+    def test_hash_chain_detects_tampering(self) -> None:
+        from security import AuditChain
+
+        chain = AuditChain()
+        chain.append({"event": "a"})
+        chain.append({"event": "b"})
+        self.assertTrue(chain.verify().ok)
+        chain.entries[0]["payload"]["event"] = "diubah"
+        result = chain.verify()
+        self.assertFalse(result.ok)
+        self.assertEqual(result.broken_at, 0)
+
+    def test_rate_limiter(self) -> None:
+        from security import RateLimiter
+
+        limiter = RateLimiter(capacity=2, window_s=60.0)
+        self.assertTrue(limiter.allow("ip", now=0.0))
+        self.assertTrue(limiter.allow("ip", now=1.0))
+        self.assertFalse(limiter.allow("ip", now=2.0))
+        self.assertTrue(limiter.allow("ip", now=61.0))
+
+    def test_secret_scanner_finds_planted_key(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from security import scan_secrets
+
+        path = Path(tempfile.mkdtemp()) / "config.txt"
+        path.write_text(chr(65) + 'PI_KEY = "sk-abcdefghijklmnopqrstuvwx"', encoding="utf-8")
+        findings = scan_secrets([path])
+        self.assertTrue(findings)
+        self.assertEqual(findings[0].kind, "kunci OpenAI")
+        self.assertNotIn("sk-abcdefghijklmnopqrstuvwx", findings[0].preview)
+
+    def test_permission_check(self) -> None:
+        import os
+        import tempfile
+        from pathlib import Path
+
+        from security import check_permissions
+
+        path = Path(tempfile.mkdtemp()) / "secret.env"
+        path.write_text("x", encoding="utf-8")
+        os.chmod(path, 0o644)
+        issues = check_permissions([path])
+        self.assertTrue(issues)
+        self.assertTrue(issues[0]["world_readable"])
+
+
+class TestVoice(unittest.TestCase):
+    def test_narrate_contains_decision(self) -> None:
+        from voice import narrate
+
+        text = narrate({"situation": "BTC/USDT naik", "decision": "masuk-kecil",
+                        "confidence": 0.66, "evidence": ["bias HTF up"],
+                        "risks": ["drawdown 6%"]})
+        self.assertIn("BTC/USDT", text)
+        self.assertIn("masuk dengan ukuran kecil", text)
+        self.assertIn("66%", text)
+
+    def test_speak_dry_run_never_calls_engine(self) -> None:
+        from voice import speak
+
+        result = speak("halo", dry_run=True)
+        self.assertFalse(result.spoken)
+        self.assertIn("dry-run", result.reason)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
