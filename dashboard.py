@@ -1,0 +1,199 @@
+"""AEGIS-1 — backend dashboard.
+
+FastAPI + WebSocket. Menyajikan satu file HTML dari ``static/index.html`` dan
+tiga kelompok endpoint:
+
+* ``GET  /api/state``   — snapshot state untuk dashboard,
+* ``GET  /api/history`` — order, trade tertutup, sinyal,
+* ``POST /api/actions/{action}/request`` + ``/confirm`` — aksi operator dua
+  langkah dengan token sekali pakai.
+
+Keamanan yang dipakai di sini:
+
+* Setiap halaman mendapat token CSRF acak sekali pakai yang disuntikkan ke
+  ``<meta name="aegis-csrf">``. Token tidak disimpan di localStorage atau
+  sessionStorage, hanya hidup di memori halaman.
+* Aksi berdampak uang wajib melewati dua langkah: minta token, lalu kirim token
+  + frasa konfirmasi. Token kedaluwarsa dalam 120 detik dan hangus setelah
+  dipakai.
+* Dashboard tidak pernah mengirim kredensial exchange ke browser. Yang dikirim
+  hanya angka dan status.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import secrets
+import time
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, JSONResponse
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+CONFIRM_PHRASES = {
+    "pause": "PAUSE AEGIS-1",
+    "resume": "RESUME AEGIS-1",
+    "close_all": "TUTUP SEMUA POSISI",
+    "kill": "AKTIFKAN KILL SWITCH",
+}
+
+TOKEN_TTL_S = 120.0
+CSRF_TTL_S = 12 * 3600.0
+
+
+class Hub:
+    """Broadcast state ke semua klien WebSocket."""
+
+    def __init__(self) -> None:
+        self._clients: set[WebSocket] = set()
+        self._lock = asyncio.Lock()
+
+    async def add(self, ws: WebSocket) -> None:
+        async with self._lock:
+            self._clients.add(ws)
+
+    async def remove(self, ws: WebSocket) -> None:
+        async with self._lock:
+            self._clients.discard(ws)
+
+    async def publish(self, payload: dict[str, Any]) -> None:
+        async with self._lock:
+            clients = list(self._clients)
+        dead: list[WebSocket] = []
+        for ws in clients:
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            await self.remove(ws)
+
+
+def _purge(store: dict[str, Any]) -> None:
+    """Buang entri kedaluwarsa. Nilai boleh float (epoch) atau dict berisi 'exp'."""
+    now = time.time()
+    for key, val in list(store.items()):
+        exp = val.get("exp", 0.0) if isinstance(val, dict) else float(val)
+        if exp < now:
+            store.pop(key, None)
+
+
+def create_app(engine: Any, hub: Hub) -> FastAPI:
+    """Bangun aplikasi FastAPI. ``engine`` harus menyediakan:
+
+    * ``async state()``            -> dict
+    * ``history()``                -> dict
+    * ``async execute_action(name)`` -> dict
+    * atribut ``symbol``, ``timeframe``, ``settings``
+    """
+
+    app = FastAPI(title="AEGIS-1 Trading Console", docs_url=None, redoc_url=None)
+    csrf_tokens: dict[str, float] = {}
+    pending: dict[str, dict[str, Any]] = {}
+
+    def check_csrf(request: Request) -> None:
+        token = request.headers.get("X-AEGIS-CSRF", "")
+        _purge(csrf_tokens)
+        if token not in csrf_tokens:
+            raise HTTPException(status_code=403, detail="token sesi tidak valid atau kedaluwarsa")
+
+    @app.get("/", response_class=HTMLResponse)
+    async def index() -> HTMLResponse:
+        token = secrets.token_urlsafe(24)
+        csrf_tokens[token] = time.time() + CSRF_TTL_S
+        html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+        return HTMLResponse(html.replace("__AEGIS_CSRF__", token))
+
+    @app.get("/api/state")
+    async def state(request: Request) -> JSONResponse:
+        check_csrf(request)
+        return JSONResponse(await engine.state())
+
+    @app.get("/api/history")
+    async def history(request: Request) -> JSONResponse:
+        check_csrf(request)
+        return JSONResponse(engine.history())
+
+    @app.get("/healthz")
+    async def healthz() -> JSONResponse:
+        return JSONResponse({"ok": True, "ts": time.time()})
+
+    @app.websocket("/ws")
+    async def ws_endpoint(ws: WebSocket, csrf: str = "") -> None:
+        _purge(csrf_tokens)
+        if csrf not in csrf_tokens:
+            await ws.close(code=4403)
+            return
+        await ws.accept()
+        await hub.add(ws)
+        try:
+            await ws.send_json(await engine.state())
+            while True:
+                # Klien tidak perlu mengirim apa pun; baca untuk deteksi putus.
+                await ws.receive_text()
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            pass
+        finally:
+            await hub.remove(ws)
+
+    @app.post("/api/actions/{action}/request")
+    async def action_request(action: str, request: Request) -> JSONResponse:
+        check_csrf(request)
+        if action not in CONFIRM_PHRASES:
+            raise HTTPException(status_code=404, detail="aksi tidak dikenal")
+        token = secrets.token_urlsafe(16)
+        _purge(pending)
+        pending[token] = {"action": action, "exp": time.time() + TOKEN_TTL_S}
+        return JSONResponse(
+            {
+                "token": token,
+                "action": action,
+                "phrase": CONFIRM_PHRASES[action],
+                "expires_in": TOKEN_TTL_S,
+            }
+        )
+
+    @app.post("/api/actions/{action}/confirm")
+    async def action_confirm(action: str, request: Request) -> JSONResponse:
+        check_csrf(request)
+        body = await request.json()
+        token = str(body.get("token", ""))
+        phrase = str(body.get("phrase", "")).strip()
+        _purge(pending)
+        record = pending.pop(token, None)
+        if not record or record["action"] != action:
+            raise HTTPException(status_code=400, detail="token konfirmasi tidak valid atau kedaluwarsa")
+        expected = CONFIRM_PHRASES[action]
+        if phrase.upper() != expected.upper():
+            raise HTTPException(status_code=400, detail="frasa konfirmasi tidak cocok")
+        try:
+            result = await engine.execute_action(action)
+        except RuntimeError as exc:  # guardrail menolak aksi (mis. resume saat kill)
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return JSONResponse({"ok": True, "action": action, "result": result})
+
+    return app
+
+
+def app_factory_docs() -> str:
+    """Dokumentasi ringkas endpoint untuk README."""
+    return json.dumps(
+        {
+            "GET /": "dashboard HTML",
+            "GET /api/state": "snapshot state",
+            "GET /api/history": "order, trade, sinyal",
+            "GET /healthz": "liveness",
+            "WS /ws?csrf=": "stream state",
+            "POST /api/actions/{pause|resume|close_all|kill}/request": "langkah 1",
+            "POST /api/actions/{action}/confirm": "langkah 2 + frasa",
+        },
+        indent=2,
+    )
