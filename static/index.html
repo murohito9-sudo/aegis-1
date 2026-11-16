@@ -144,6 +144,7 @@
     <span class="chip">PAIR <b id="hdr-symbol">—</b></span>
     <span class="chip">TF <b id="hdr-tf">—</b></span>
     <span class="chip">DATA <b id="hdr-source">—</b></span>
+    <span class="chip" id="hdr-broker">BROKER <b id="hdr-broker-name">paper</b></span>
     <span class="mode" id="mode-badge">PAPER</span>
     <span class="chip num" id="clock">--:--:--</span>
   </div>
@@ -361,9 +362,19 @@
     $("hdr-symbol").textContent = s.symbol || "—";
     $("hdr-tf").textContent = s.timeframe || "—";
     $("hdr-source").textContent = s.data_source || "—";
+    const broker = s.broker || {};
+    const live = broker.live || null;
+    const bname = $("hdr-broker-name");
+    if (live) {
+      bname.textContent = live.dry_run ? "live · dry-run" : "LIVE · NYATA";
+      bname.style.color = live.dry_run ? "#f59e0b" : "#ef4444";
+    } else {
+      bname.textContent = "paper (simulasi)";
+      bname.style.color = "";
+    }
     const badge = $("mode-badge");
-    badge.textContent = s.mode;
-    badge.className = "mode " + s.mode;
+    badge.textContent = live && !live.dry_run ? "LIVE" : s.mode;
+    badge.className = "mode " + (live && !live.dry_run ? "KILL_SWITCH" : s.mode);
     $("risk-mode").textContent = s.mode;
     const dot = $("conn-dot");
     dot.className = "dot " + (s.connected ? "on" : "off");
