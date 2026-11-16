@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -117,6 +117,29 @@ def create_app(engine: Any, hub: Hub) -> FastAPI:
     async def history(request: Request) -> JSONResponse:
         check_csrf(request)
         return JSONResponse(engine.history())
+
+    @app.get("/api/report")
+    async def report(request: Request) -> JSONResponse:
+        check_csrf(request)
+        return JSONResponse(engine.report())
+
+    @app.get("/api/report.md")
+    async def report_md(request: Request) -> Response:
+        check_csrf(request)
+        return Response(
+            engine.report_markdown(),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="aegis-laporan.md"'},
+        )
+
+    @app.get("/api/report.csv")
+    async def report_csv(request: Request) -> Response:
+        check_csrf(request)
+        return Response(
+            engine.report_csv(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="aegis-trades.csv"'},
+        )
 
     @app.get("/healthz")
     async def healthz() -> JSONResponse:
