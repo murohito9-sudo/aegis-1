@@ -12,6 +12,11 @@ ada di bagian [Batas paket](#batas-paket-dan-langkah-menuju-live).
 > Isi berkas ini bukan nasihat investasi. Tidak ada janji profit di mana pun.
 > Angka pada dashboard adalah hasil simulasi.
 
+**Demo tampilan (tanpa install):** <https://murohito9-sudo.github.io/aegis-1/>
+— satu halaman statis berisi data contoh yang tertanam. Tidak ada backend,
+tidak ada order, tidak ada koneksi jaringan. Untuk console yang benar-benar
+hidup, jalankan `python main.py` lalu buka `http://127.0.0.1:8787`.
+
 ---
 
 ## 1. Struktur folder
