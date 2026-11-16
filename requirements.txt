@@ -1,0 +1,21 @@
+# AEGIS-1 — dependensi
+# Semua open-source. Tidak ada pustaka berbayar.
+
+# Inti data & indikator
+pandas>=2.0
+numpy>=1.24
+
+# Data publik dari exchange (read-only, tanpa API key).
+# Boleh dihapus bila hanya memakai OFFLINE=true atau --csv.
+ccxt>=4.0
+
+# Dashboard
+fastapi>=0.110
+uvicorn[standard]>=0.27
+
+# .env opsional (kalau tidak ada, bot membaca environment biasa)
+python-dotenv>=1.0
+
+# Untuk menjalankan tests.py lewat pytest dan menguji endpoint dashboard
+pytest>=7.4
+httpx>=0.27
