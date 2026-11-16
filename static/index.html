@@ -241,6 +241,66 @@
     </div>
   </section>
 
+  <section class="card" id="report" style="margin-top:12px">
+    <style>
+      #report .rep-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+      #report .rep-btns{display:flex;gap:8px;flex-wrap:wrap}
+      #report button.rep{padding:6px 11px;border-radius:7px;border:1px solid var(--line);
+        background:var(--panel-2);color:var(--text);font:600 11.5px/1 var(--sans);cursor:pointer}
+      #report button.rep:hover{background:#1b2331}
+      #report button.rep.primary{background:#1d4ed8;border-color:#2563eb;color:#fff}
+      #report .rep-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+      #report .rep-kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+      #report .rep-kpi .l{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+      #report .rep-kpi .v{font-family:var(--mono);font-size:16px;margin-top:4px}
+      #report .rep-kpi .s{font-size:10px;color:var(--muted);margin-top:2px}
+      #report .rep-scroll{max-height:320px;overflow:auto;margin-top:6px}
+      #report h3{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+        margin:14px 0 6px;font-weight:600}
+    </style>
+    <div class="panel-head rep-head">
+      <h2>Laporan Kinerja</h2>
+      <div class="rep-btns">
+        <span class="meta" id="rep-meta">—</span>
+        <button class="rep" id="rep-refresh">Muat ulang</button>
+        <button class="rep" id="rep-csv">Unduh CSV</button>
+        <button class="rep primary" id="rep-md">Unduh laporan .md</button>
+      </div>
+    </div>
+    <div class="rep-kpis" id="rep-kpis"></div>
+
+    <div class="grid cols-2" style="margin-top:6px">
+      <div>
+        <h3>Daftar trade (untung/rugi per order)</h3>
+        <div class="rep-scroll">
+          <table>
+            <thead><tr>
+              <th>Tutup</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th>
+              <th>PnL</th><th>Net</th><th>R</th><th>MAE</th><th>MFE</th><th>Fee</th><th>Alasan</th>
+            </tr></thead>
+            <tbody id="rep-trades"><tr><td colspan="12" class="empty">belum ada trade tertutup</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3>Per simbol</h3>
+        <div class="rep-scroll" style="max-height:150px">
+          <table>
+            <thead><tr><th>Pair</th><th>Trade</th><th>Win</th><th>Loss</th><th>Win rate</th><th>PnL</th><th>PF</th></tr></thead>
+            <tbody id="rep-symbols"><tr><td colspan="7" class="empty">—</td></tr></tbody>
+          </table>
+        </div>
+        <h3>Per jam tutup (UTC)</h3>
+        <div class="rep-scroll" style="max-height:150px">
+          <table>
+            <thead><tr><th>Jam</th><th>Trade</th><th>Win rate</th><th>PnL</th><th>Rata-rata R</th></tr></thead>
+            <tbody id="rep-hours"><tr><td colspan="5" class="empty">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="footnote">
     Tidak ada API key, secret, passphrase, atau token exchange yang disimpan di halaman ini
     maupun di penyimpanan lokal browser. Dashboard hanya membaca state dari proses bot
@@ -650,6 +710,125 @@
   setInterval(fetchHistory, 5000);
   pollTimer = setInterval(() => { if (!ws || ws.readyState !== 1) fetchState(); }, 3000);
   connectWs();
+})();
+</script>
+<script>
+/* Laporan kinerja: metrik, daftar untung/rugi per trade, ekspor CSV & Markdown. */
+(() => {
+  "use strict";
+  const CSRF = document.querySelector('meta[name="aegis-csrf"]').content;
+  const $ = (id) => document.getElementById(id);
+  const num = (v, d = 2) =>
+    (v === null || v === undefined || Number.isNaN(v)) ? "—" :
+    Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const money = (v) => (v === null || v === undefined) ? "—" : (v >= 0 ? "+" : "") + num(v, 2);
+  const pct = (v) => (v === null || v === undefined) ? "—" : (Number(v) * 100).toFixed(2) + "%";
+  const cls = (v) => v > 0 ? "up" : v < 0 ? "down" : "flat";
+  const clock = (ts) => ts ? new Date(ts * 1000).toLocaleString("en-GB", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+  }) : "—";
+  const dur = (s) => {
+    s = Math.max(0, Math.floor(s || 0));
+    if (s < 60) return s + "s";
+    if (s < 3600) return Math.floor(s / 60) + "m";
+    if (s < 86400) return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+    return Math.floor(s / 86400) + "d";
+  };
+  const REASON = {
+    stop_loss: "stop loss", take_profit: "take profit", trailing_stop: "trailing stop",
+    partial_tp: "partial TP", close_all: "tutup semua", kill_switch: "kill switch",
+    stop_loss_safety: "stop (safety)", take_profit_safety: "TP (safety)",
+    manual: "manual", end_of_data: "akhir data"
+  };
+  const esc = (s) => String(s === null || s === undefined ? "—" : s)
+    .replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function kpi(label, value, sub, klass) {
+    return '<div class="rep-kpi"><div class="l">' + label + '</div><div class="v ' + (klass || "") +
+      '">' + value + '</div><div class="s">' + (sub || "") + "</div></div>";
+  }
+
+  function render(report) {
+    const m = (report && report.metrics) || null;
+    if (!m) {
+      $("rep-kpis").innerHTML = '<div class="rep-kpi"><div class="l">Status</div>' +
+        '<div class="v">—</div><div class="s">laporan belum tersedia</div></div>';
+      return;
+    }
+    const meta = report.meta || {};
+    $("rep-meta").textContent = (meta.symbol || "") + " · " + (meta.timeframe || "") +
+      (meta.sesi ? " · sesi " + meta.sesi : "") + (meta.replay === "ya" ? " · replay" : "");
+
+    $("rep-kpis").innerHTML = [
+      kpi("PnL bersih", money(m.net_pnl), "kotor " + money(m.gross_pnl), cls(m.net_pnl)),
+      kpi("Win rate", pct(m.win_rate), m.wins + "W / " + m.losses + "L / " + m.breakeven + "BE"),
+      kpi("Profit factor", num(m.profit_factor, 2), "payoff " + num(m.payoff, 2)),
+      kpi("Expectancy", money(m.expectancy_money), num(m.expectancy_r, 2) + "R per trade", cls(m.expectancy_money)),
+      kpi("Sharpe / trade", num(m.sharpe_trade, 2), "Sortino " + num(m.sortino_trade, 2)),
+      kpi("Max drawdown", pct(m.max_drawdown), money(-Math.abs(m.max_drawdown_money))),
+      kpi("Total fee", num(m.total_fees, 2), "rata-rata " + dur(m.avg_duration_s)),
+      kpi("Recovery factor", num(m.recovery_factor, 2), "return " + pct(m.return_pct))
+    ].join("");
+
+    const trades = report.trades || [];
+    $("rep-trades").innerHTML = trades.length ? trades.map((t) =>
+      "<tr><td>" + clock(t.closed_at) + "</td><td>" + esc(t.symbol) + "</td>" +
+      '<td class="' + (t.side === "LONG" ? "side-long" : "side-short") + '">' + esc(t.side) + "</td>" +
+      "<td>" + num(t.entry, 5) + "</td><td>" + num(t.exit, 5) + "</td>" +
+      '<td class="' + cls(t.pnl) + '">' + money(t.pnl) + "</td>" +
+      '<td class="' + cls(t.net_pnl) + '">' + money(t.net_pnl) + "</td>" +
+      '<td class="' + cls(t.r_multiple) + '">' + num(t.r_multiple, 2) + "R</td>" +
+      "<td>" + num(t.mae_r, 2) + "</td><td>" + num(t.mfe_r, 2) + "</td>" +
+      "<td>" + num(t.fees, 2) + "</td>" +
+      "<td>" + esc(REASON[t.reason] || t.reason) + "</td></tr>"
+    ).join("") : '<tr><td colspan="12" class="empty">belum ada trade tertutup</td></tr>';
+
+    const syms = report.by_symbol || [];
+    $("rep-symbols").innerHTML = syms.length ? syms.map((s) =>
+      "<tr><td>" + esc(s.name) + "</td><td>" + s.trades + "</td><td>" + s.wins + "</td><td>" +
+      s.losses + "</td><td>" + pct(s.win_rate) + '</td><td class="' + cls(s.net_pnl) + '">' +
+      money(s.net_pnl) + "</td><td>" + num(s.profit_factor, 2) + "</td></tr>"
+    ).join("") : '<tr><td colspan="7" class="empty">—</td></tr>';
+
+    const hours = report.by_hour || [];
+    $("rep-hours").innerHTML = hours.length ? hours.map((h) =>
+      "<tr><td>" + esc(h.name) + "</td><td>" + h.trades + "</td><td>" + pct(h.win_rate) +
+      '</td><td class="' + cls(h.net_pnl) + '">' + money(h.net_pnl) + "</td><td>" +
+      num(h.avg_r, 2) + "</td></tr>"
+    ).join("") : '<tr><td colspan="5" class="empty">—</td></tr>';
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/api/report", { headers: { "X-AEGIS-CSRF": CSRF } });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      render(await res.json());
+    } catch (e) {
+      $("rep-meta").textContent = "laporan tidak dapat dimuat";
+    }
+  }
+
+  async function download(path, filename, label) {
+    try {
+      const res = await fetch(path, { headers: { "X-AEGIS-CSRF": CSRF } });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) {
+      alert("Gagal mengunduh " + label + ": " + e.message);
+    }
+  }
+
+  $("rep-refresh").onclick = load;
+  $("rep-csv").onclick = () => download("/api/report.csv", "aegis-trades.csv", "CSV");
+  $("rep-md").onclick = () => download("/api/report.md", "aegis-laporan.md", "laporan");
+
+  load();
+  setInterval(load, 30000);
 })();
 </script>
 </body>
