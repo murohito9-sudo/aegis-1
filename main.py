@@ -45,6 +45,7 @@ from execution import (
     PaperBroker,
     build_broker,
 )
+from analytics import build_report, to_csv, to_markdown
 from indicators import add_indicators
 from logger import Alerts, AuditLog
 from risk import RiskManager
@@ -118,6 +119,47 @@ class Engine:
         self.alerts.send("mode", f"Mode {old.value} → {mode.value} ({reason})", "warning")
 
     # ------------------------------------------------------------------ #
+    # Jam, replay, laporan
+    # ------------------------------------------------------------------ #
+    def _clock(self, snap: MarketSnapshot | None = None) -> float:
+        """Waktu acuan: waktu bar pada mode replay, waktu nyata selebihnya."""
+        if self.settings.replay and snap is not None:
+            return float(snap.ts)
+        return time.time()
+
+    def _replay_progress(self) -> dict[str, Any] | None:
+        progress = getattr(self.feed, "progress", None)
+        return dict(progress) if isinstance(progress, dict) else None
+
+    def report(self) -> dict[str, Any]:
+        """Laporan kinerja: metrik, daftar trade, daftar order, breakdown."""
+        curve = [row["equity"] for row in self.audit.equity_curve(600)]
+        snap = self.last_snapshot
+        meta = {
+            "symbol": self.settings.symbol,
+            "timeframe": self.settings.timeframe,
+            "mode": self.mode.value,
+            "sumber_data": snap.source if snap else "—",
+            "quote": self.settings.quote_currency,
+            "replay": "ya" if self.settings.replay else "tidak",
+            "sesi": self.settings.session.describe(),
+            "dibuat": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
+        }
+        return build_report(
+            self.risk.closed,
+            self.audit.recent_orders(300),
+            initial_equity=self.settings.initial_equity,
+            equity_curve=curve or None,
+            meta=meta,
+        )
+
+    def report_markdown(self) -> str:
+        return to_markdown(self.report())
+
+    def report_csv(self) -> str:
+        return to_csv(self.report())
+
+    # ------------------------------------------------------------------ #
     # State untuk dashboard
     # ------------------------------------------------------------------ #
     async def state(self) -> dict[str, Any]:
@@ -171,6 +213,21 @@ class Engine:
                 "max_leverage": self.settings.risk.max_leverage,
             },
             "gate": {"passed": self.last_gate_passed, "summary": self.last_gate_summary},
+            "session": {
+                "jadwal": self.settings.session.describe(),
+                "terbuka": self.settings.session.is_open(self._clock(snap)),
+                "trade_hari_ini": self.risk.trades_today,
+                "batas_harian": self.settings.session.max_trades_per_day,
+            },
+            "instrument": {
+                "pip_size": self.settings.execution.pip_size,
+                "tick_size": self.settings.execution.tick_size,
+                "step_size": self.settings.execution.step_size,
+                "min_notional": self.settings.execution.min_notional,
+                "spread_bps": snap.spread_bps if snap else 0.0,
+                "market": self.settings.market,
+            },
+            "replay": self._replay_progress(),
             "chart": chart,
             "markers": self.markers[-40:],
             "events": self.audit.recent_events(45),
@@ -252,7 +309,8 @@ class Engine:
             fee = pos.size * price * self.settings.execution.taker_fee
             trade = self.risk.close_position(pos, price, fee, reason)
             self.audit.log_position_close(
-                pos.position_id, price, trade.pnl, trade.r_multiple, reason
+                pos.position_id, price, trade.pnl, trade.r_multiple, reason,
+                mae_r=trade.mae_r, mfe_r=trade.mfe_r, fees=trade.fees, entry_fee=trade.entry_fee,
             )
             self.markers.append({"ts": snap.candles["ts"].iloc[-1] if snap else time.time(),
                                  "price": price, "kind": "exit", "side": pos.side})
@@ -271,8 +329,8 @@ class Engine:
     # Siklus
     # ------------------------------------------------------------------ #
     async def _tick(self) -> None:
-        self.risk.roll_day_if_needed()
         snap = self.feed.snapshot(bars=max(self.settings.strategy.min_bars + 40, 400))
+        self.risk.roll_day_if_needed(self._clock(snap))
         self.last_snapshot = snap
         self.last_tick_ts = time.time()
         self.tick_count += 1
@@ -319,9 +377,17 @@ class Engine:
 
         await self.hub.publish(await self.state())
 
+        # 7. Mode replay: majukan jendela data satu bar untuk siklus berikutnya.
+        if self.settings.replay:
+            advance = getattr(self.feed, "advance", None)
+            if callable(advance):
+                advance(self.settings.replay_bars)
+
     def _manage_positions(self, snap: MarketSnapshot, closed_bars: pd.DataFrame) -> None:
         if not self.risk.positions:
             return
+        for pos in self.risk.positions.values():
+            pos.update_excursion(snap.last_price)
         atr_value = 0.0
         if len(closed_bars) > self.settings.strategy.atr_period:
             ind = add_indicators(closed_bars, self.settings.strategy)
@@ -384,7 +450,10 @@ class Engine:
     def _force_close(self, pos: Any, price: float, reason: str) -> None:
         fee = pos.size * price * self.settings.execution.taker_fee
         trade = self.risk.close_position(pos, price, fee, reason)
-        self.audit.log_position_close(pos.position_id, price, trade.pnl, trade.r_multiple, reason)
+        self.audit.log_position_close(
+            pos.position_id, price, trade.pnl, trade.r_multiple, reason,
+            mae_r=trade.mae_r, mfe_r=trade.mfe_r, fees=trade.fees, entry_fee=trade.entry_fee,
+        )
         self.markers.append({"ts": time.time(), "price": price, "kind": "exit", "side": pos.side})
         self.alerts.send(
             "exit", f"{pos.side} {pos.symbol} ditutup ({reason}) PnL {trade.pnl:+.2f}",
@@ -527,6 +596,22 @@ class Engine:
         if self.settings.kill_switch_file.exists():
             self.set_mode(Mode.KILL, "file kill-switch ditemukan")
             return
+
+        clock = self._clock(snap)
+        if not self.settings.session.is_open(clock):
+            self.audit.log_event(
+                "info", "session_closed",
+                f"di luar jadwal sesi ({self.settings.session.describe()}); entry ditahan",
+            )
+            return
+        cap = self.settings.session.max_trades_per_day
+        if cap and self.risk.trades_today >= cap:
+            self.audit.log_event(
+                "warning", "daily_trade_cap",
+                f"batas {cap} trade/hari tercapai ({self.risk.trades_today}); entry ditahan",
+            )
+            return
+
         if any(p.symbol == snap.symbol for p in self.risk.positions.values()):
             return  # satu posisi per simbol
 
@@ -700,6 +785,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval", type=float, default=None, help="jeda antar siklus (detik)")
     parser.add_argument("--port", type=int, default=None, help="port dashboard")
     parser.add_argument("--no-dashboard", action="store_true", help="jalankan tanpa dashboard")
+    parser.add_argument("--replay", action="store_true", help="replay historis bar demi bar dari CSV")
+    parser.add_argument("--speed", type=int, default=None, help="bar per siklus pada mode replay")
     args = parser.parse_args(argv)
 
     settings = load_settings()
@@ -711,6 +798,10 @@ def main(argv: list[str] | None = None) -> int:
         settings = Settings(**{**settings.__dict__, "dashboard_port": args.port})
     if args.no_dashboard:
         settings = Settings(**{**settings.__dict__, "dashboard_enabled": False})
+    if args.replay:
+        settings = Settings(**{**settings.__dict__, "replay": True})
+    if args.speed is not None:
+        settings = Settings(**{**settings.__dict__, "replay_bars": max(1, args.speed)})
 
     _print_banner(settings)
     try:
