@@ -12,13 +12,13 @@ ada di bagian [Batas paket](#batas-paket-dan-langkah-menuju-live).
 > Isi berkas ini bukan nasihat investasi. Tidak ada janji profit di mana pun.
 > Angka pada dashboard adalah hasil simulasi.
 
-**Situs (GitHub Pages):** <https://murohito9-sudo.github.io/aegis-1/>
+**Situs (GitHub Pages):** <https://murohito9-sudo.github.io/aegis-one/>
 
 | Halaman | Isi |
 | --- | --- |
-| [index](https://murohito9-sudo.github.io/aegis-1/) | pemilih mode: demo atau live |
-| [demo.html](https://murohito9-sudo.github.io/aegis-1/demo.html) | console dengan data contoh tertanam + validator strategi JSON |
-| [live.html](https://murohito9-sudo.github.io/aegis-1/live.html) | langkah menjalankan bot sungguhan (lokal/VPS) |
+| [index](https://murohito9-sudo.github.io/aegis-one/) | pemilih mode: demo atau live |
+| [demo.html](https://murohito9-sudo.github.io/aegis-one/demo.html) | console dengan data contoh tertanam + validator strategi JSON |
+| [live.html](https://murohito9-sudo.github.io/aegis-one/live.html) | langkah menjalankan bot sungguhan (lokal/VPS) |
 
 Mode demo tidak memakai backend, tidak mengirim order, dan tidak membuka
 koneksi jaringan — seluruh angkanya simulasi. Console yang benar-benar hidup
