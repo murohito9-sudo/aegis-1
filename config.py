@@ -15,6 +15,7 @@ Aturan keras yang berlaku di modul ini:
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -133,6 +134,76 @@ class ExecutionConfig:
     min_qty: float = 0.00001
     min_notional: float = 5.0
     contract_size: float = 1.0
+    # --- metadata instrumen (penting untuk forex/saham) ---
+    pip_size: float = 0.0001            # 1 pip EURUSD = 0.0001
+    price_decimals: int = 2
+    spread_bps: float = 1.0             # dipakai bila data tidak membawa bid/ask
+    use_data_spread: bool = True        # pakai bid/ask dari data bila tersedia
+
+
+@dataclass(frozen=True)
+class SessionConfig:
+    """Filter waktu & batas aktivitas harian (anti-overtrading).
+
+    ``windows`` berisi pasangan menit UTC ``(mulai, selesai)``, selesai
+    eksklusif. Jendela yang melewati tengah malam (mulai > selesai) dibaca
+    sebagai dua rentang yang menyambung.
+    """
+
+    enabled: bool = False
+    windows: tuple[tuple[int, int], ...] = ()
+    skip_weekend: bool = False
+    max_trades_per_day: int = 0          # 0 = tanpa batas
+
+    def is_open(self, ts: float | None = None) -> bool:
+        stamp = time.time() if ts is None else float(ts)
+        tm = time.gmtime(stamp)
+        if self.skip_weekend and tm.tm_wday >= 5:
+            return False
+        if not self.enabled or not self.windows:
+            return True
+        minute = tm.tm_hour * 60 + tm.tm_min
+        for start, end in self.windows:
+            if start <= end:
+                if start <= minute < end:
+                    return True
+            elif minute >= start or minute < end:
+                return True
+        return False
+
+    def describe(self) -> str:
+        if not self.enabled and not self.windows and not self.skip_weekend:
+            return "24/7"
+        parts: list[str] = []
+        for start, end in self.windows:
+            parts.append(f"{start // 60:02d}:{start % 60:02d}-{end // 60:02d}:{end % 60:02d}")
+        text = ", ".join(parts) if parts else "setiap jam"
+        if self.skip_weekend:
+            text += " (Senin-Jumat)"
+        if self.max_trades_per_day:
+            text += f", maks {self.max_trades_per_day} trade/hari"
+        return text
+
+
+def parse_windows(raw: str) -> tuple[tuple[int, int], ...]:
+    """``"07:00-16:00,13:30-20:00"`` -> ``((420, 960), (810, 1200))``."""
+    windows: list[tuple[int, int]] = []
+    for chunk in (raw or "").split(","):
+        chunk = chunk.strip()
+        if not chunk or "-" not in chunk:
+            continue
+        left, right = chunk.split("-", 1)
+        try:
+            sh, sm = (int(x) for x in left.strip().split(":"))
+            eh, em = (int(x) for x in right.strip().split(":"))
+        except (ValueError, TypeError):
+            continue
+        start = max(0, min(24 * 60, sh * 60 + sm))
+        end = max(0, min(24 * 60, eh * 60 + em))
+        if start == end:
+            continue
+        windows.append((start, end))
+    return tuple(windows)
 
 
 @dataclass(frozen=True)
@@ -156,6 +227,10 @@ class Settings:
     dashboard_enabled: bool = True
     paper_seed: int = 7
     offline: bool = False
+    replay: bool = False
+    replay_bars: int = 1
+    volume_fallback: float | None = None   # isi volume bila CSV tidak punya kolom volume
+    session: SessionConfig = field(default_factory=SessionConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
@@ -197,7 +272,29 @@ def load_settings() -> Settings:
         slippage_bps=_env_float("SLIPPAGE_BPS", ExecutionConfig.slippage_bps),
         step_size=_env_float("STEP_SIZE", ExecutionConfig.step_size),
         min_notional=_env_float("MIN_NOTIONAL", ExecutionConfig.min_notional),
+        min_qty=_env_float("MIN_QTY", ExecutionConfig.min_qty),
+        tick_size=_env_float("TICK_SIZE", ExecutionConfig.tick_size),
+        pip_size=_env_float("PIP_SIZE", ExecutionConfig.pip_size),
+        price_decimals=_env_int("PRICE_DECIMALS", ExecutionConfig.price_decimals),
+        spread_bps=_env_float("SPREAD_BPS", ExecutionConfig.spread_bps),
+        use_data_spread=_env_bool("USE_DATA_SPREAD", ExecutionConfig.use_data_spread),
+        maker_fee=_env_float("MAKER_FEE", ExecutionConfig.maker_fee),
+        taker_fee=_env_float("TAKER_FEE", ExecutionConfig.taker_fee),
     )
+    windows = parse_windows(_env("SESSIONS"))
+    session = SessionConfig(
+        enabled=bool(windows) or _env_bool("SESSION_FILTER", False),
+        windows=windows,
+        skip_weekend=_env_bool("SKIP_WEEKEND", False),
+        max_trades_per_day=_env_int("MAX_TRADES_PER_DAY", 0),
+    )
+    raw_volume = _env("VOLUME_FALLBACK")
+    volume_fallback: float | None = None
+    if raw_volume:
+        try:
+            volume_fallback = float(raw_volume)
+        except ValueError:
+            volume_fallback = None
     # Mode default selalu non-live. LIVE harus diminta eksplisit lewat env.
     mode = Mode.PAPER
     return Settings(
@@ -217,6 +314,10 @@ def load_settings() -> Settings:
         dashboard_port=_env_int("DASHBOARD_PORT", Settings.dashboard_port),
         dashboard_enabled=_env_bool("DASHBOARD_ENABLED", True),
         offline=_env_bool("OFFLINE", False),
+        replay=_env_bool("REPLAY", False),
+        replay_bars=max(1, _env_int("REPLAY_BARS", 1)),
+        volume_fallback=volume_fallback,
+        session=session,
         strategy=strategy,
         risk=risk,
         execution=execution,
