@@ -46,6 +46,10 @@ from execution import (
     build_broker,
 )
 from analytics import build_report, to_csv, to_markdown
+from brain import BriefingInput, compose as compose_briefing
+from evaluation import EvaluationEngine
+from monitor import check_health, write_heartbeat
+from portfolio import Holding, Portfolio
 from indicators import add_indicators
 from logger import Alerts, AuditLog
 from risk import RiskManager
@@ -87,6 +91,8 @@ class Engine:
         self.last_signal: Signal | None = None
         self.last_risk_multiplier: float = 1.0
         self.last_risk_notes: list[str] = []
+        self.heartbeat_path = settings.db_path.parent / "heartbeat.json"
+        self.started_wall = time.time()
         self.markers: list[dict[str, Any]] = []
         self._uvicorn_task: asyncio.Task[Any] | None = None
         self._server: Any = None
@@ -161,6 +167,86 @@ class Engine:
 
     def report_csv(self) -> str:
         return to_csv(self.report())
+
+    # ------------------------------------------------------------------ #
+    # Kesehatan, briefing, portofolio
+    # ------------------------------------------------------------------ #
+    def health(self) -> dict[str, Any]:
+        report = check_health(
+            started_at=self.started_at,
+            last_tick_ts=self.last_tick_ts,
+            tick_count=self.tick_count,
+            consecutive_errors=self.consecutive_errors,
+            last_error=self.last_error,
+            db_path=self.settings.db_path,
+            heartbeat_path=self.heartbeat_path,
+            max_tick_age_s=max(120.0, self.settings.loop_interval_s * 6),
+        )
+        return report.as_dict()
+
+    def _evaluation(self) -> EvaluationEngine:
+        engine = EvaluationEngine()
+        engine.load(
+            {
+                "ts": trade.closed_at,
+                "score": 0.5 + min(0.5, abs(trade.r_multiple) / 4.0),
+                "side": trade.side,
+                "r_multiple": trade.r_multiple,
+                "pnl": trade.pnl,
+                "symbol": trade.symbol,
+                "regime": "—",
+            }
+            for trade in self.risk.closed[-200:]
+        )
+        return engine
+
+    def briefing(self) -> dict[str, Any]:
+        """Ringkasan situasi + keputusan, disusun mesin aturan (bukan LLM)."""
+        signal = self.last_signal
+        snap = self.last_snapshot
+        evaluation = self._evaluation().report().as_dict()
+        payload = BriefingInput(
+            symbol=self.settings.symbol,
+            timeframe=self.settings.timeframe,
+            price=float(snap.last_price) if snap else 0.0,
+            regime=getattr(signal, "regime", "unknown"),
+            score=float(getattr(signal, "score", 0.0)),
+            side=getattr(signal, "side", None),
+            vetoes=list(getattr(signal, "vetoes", [])),
+            htf_trend=getattr(signal, "htf_trend", "flat"),
+            divergence=getattr(signal, "divergence", None),
+            pattern=getattr(signal, "pattern", None),
+            squeeze=bool(getattr(signal, "squeeze", False)),
+            atr_pct_rank=float(getattr(signal, "atr_pct_rank", 0.5)),
+            spread_bps=float(snap.spread_bps) if snap else 0.0,
+            drawdown=self.risk.drawdown(),
+            daily_loss=self.risk.daily_loss(),
+            exposure=self.risk.exposure_ratio({snap.symbol: snap.last_price}) if snap else 0.0,
+            risk_multiplier=self.last_risk_multiplier,
+            brier=evaluation["brier"],
+            hit_rate=evaluation["hit_rate"],
+            drift=evaluation["drift"].get("status", "stabil") if evaluation["drift"] else "stabil",
+            concentration=self._portfolio().concentration(),
+        )
+        briefing = compose_briefing(payload)
+        return {**briefing.as_dict(), "text": briefing.to_text()}
+
+    def _portfolio(self) -> Portfolio:
+        snap = self.last_snapshot
+        price = float(snap.last_price) if snap else 0.0
+        portfolio = Portfolio(quote=self.settings.quote_currency,
+                              cash=max(0.0, self.broker.balance()))
+        for pos in self.risk.positions.values():
+            portfolio.holdings[pos.symbol] = Holding(
+                symbol=pos.symbol,
+                qty=pos.size if pos.is_long else 0.0,
+                cost_basis=pos.entry,
+                price=price or pos.entry,
+            )
+        return portfolio
+
+    def portfolio(self) -> dict[str, Any]:
+        return self._portfolio().as_dict()
 
     # ------------------------------------------------------------------ #
     # State untuk dashboard
@@ -404,6 +490,9 @@ class Engine:
             self.set_mode(Mode.SAFE, f"rugi harian {self.risk.daily_loss():.2%} ≥ batas "
                                      f"{self.settings.risk.max_daily_loss:.0%}")
             self.alerts.send("daily_loss", "Batas rugi harian tercapai; entry dihentikan", "warning")
+
+        with contextlib.suppress(OSError):
+            write_heartbeat(self.heartbeat_path, {"tick": self.tick_count, "mode": self.mode.value})
 
         await self.hub.publish(await self.state())
 
