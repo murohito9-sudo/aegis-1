@@ -32,6 +32,8 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
+from security import RateLimiter
+
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 CONFIRM_PHRASES = {
@@ -94,6 +96,7 @@ def create_app(engine: Any, hub: Hub) -> FastAPI:
     app = FastAPI(title="AEGIS-1 Trading Console", docs_url=None, redoc_url=None)
     csrf_tokens: dict[str, float] = {}
     pending: dict[str, dict[str, Any]] = {}
+    limiter = RateLimiter(capacity=240, window_s=60.0)
 
     def check_csrf(request: Request) -> None:
         token = request.headers.get("X-AEGIS-CSRF", "")
@@ -111,6 +114,9 @@ def create_app(engine: Any, hub: Hub) -> FastAPI:
     @app.get("/api/state")
     async def state(request: Request) -> JSONResponse:
         check_csrf(request)
+        client = request.client.host if request.client else "?"
+        if not limiter.allow(client):
+            raise HTTPException(status_code=429, detail="terlalu banyak permintaan")
         return JSONResponse(await engine.state())
 
     @app.get("/api/history")
@@ -140,6 +146,21 @@ def create_app(engine: Any, hub: Hub) -> FastAPI:
             media_type="text/csv; charset=utf-8",
             headers={"Content-Disposition": 'attachment; filename="aegis-trades.csv"'},
         )
+
+    @app.get("/api/briefing")
+    async def briefing(request: Request) -> JSONResponse:
+        check_csrf(request)
+        return JSONResponse(engine.briefing())
+
+    @app.get("/api/health")
+    async def health(request: Request) -> JSONResponse:
+        check_csrf(request)
+        return JSONResponse(engine.health())
+
+    @app.get("/api/portfolio")
+    async def portfolio(request: Request) -> JSONResponse:
+        check_csrf(request)
+        return JSONResponse(engine.portfolio())
 
     @app.get("/healthz")
     async def healthz() -> JSONResponse:
