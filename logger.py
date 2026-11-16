@@ -12,6 +12,7 @@ masuk ke sini. Tidak ada jalur keputusan yang tidak tercatat.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 import threading
@@ -73,7 +74,25 @@ class AuditLog:
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
+        self._migrate()
         self._conn.commit()
+
+    def _migrate(self) -> None:
+        """Tambahkan kolom baru ke basis data lama tanpa menghapus data."""
+        wanted = {
+            "mae_r": "REAL DEFAULT 0",
+            "mfe_r": "REAL DEFAULT 0",
+            "fees": "REAL DEFAULT 0",
+            "entry_fee": "REAL DEFAULT 0",
+        }
+        try:
+            existing = {row["name"] for row in self._conn.execute("PRAGMA table_info(positions)")}
+        except sqlite3.Error:
+            return
+        for column, decl in wanted.items():
+            if column not in existing:
+                with contextlib.suppress(sqlite3.Error):
+                    self._conn.execute(f"ALTER TABLE positions ADD COLUMN {column} {decl}")
 
     # ------------------------------------------------------------------ #
     # Internal
@@ -177,12 +196,23 @@ class AuditLog:
         )
 
     def log_position_close(
-        self, position_id: str, exit_price: float, pnl: float, r_multiple: float, reason: str
+        self,
+        position_id: str,
+        exit_price: float,
+        pnl: float,
+        r_multiple: float,
+        reason: str,
+        mae_r: float = 0.0,
+        mfe_r: float = 0.0,
+        fees: float = 0.0,
+        entry_fee: float = 0.0,
     ) -> None:
         self._exec(
             """UPDATE positions SET closed_at=?, exit=?, pnl=?, r_multiple=?,
-               close_reason=?, status='closed' WHERE position_id=?""",
-            (time.time(), exit_price, pnl, r_multiple, reason, position_id),
+               close_reason=?, status='closed', mae_r=?, mfe_r=?, fees=?, entry_fee=?
+               WHERE position_id=?""",
+            (time.time(), exit_price, pnl, r_multiple, reason,
+             mae_r, mfe_r, fees, entry_fee, position_id),
         )
 
     def log_action(self, action: str, actor: str, status: str, detail: str = "") -> None:
