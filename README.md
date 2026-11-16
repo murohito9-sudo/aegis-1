@@ -58,10 +58,11 @@ aegis1/
 ├── execution.py         # PaperBroker (fee, slippage, timeout, dedupe) + adapter live yang menolak
 ├── analytics.py         # metrik kinerja, daftar P&L per trade, ekspor CSV/MD
 ├── intelligence.py      # MTF, divergensi RSI, pola candle, squeeze (tanpa look-ahead)
+├── live.py              # adapter eksekusi nyata Binance (default mati, pagar berlapis)
 ├── logger.py            # audit log SQLite + JSONL, alert lokal
 ├── dashboard.py         # backend FastAPI: state, history, aksi dua langkah, WebSocket
 ├── main.py              # loop utama, manajemen posisi, exception handling, graceful shutdown
-├── tests.py             # 74 unit test (sizing, risiko, sinyal, gate, replay, analitik)
+├── tests.py             # 88 unit test (sizing, risiko, sinyal, gate, replay, analitik)
 ├── static/
 │   └── index.html       # "AEGIS-1 Trading Console" — satu file, tanpa CDN
 ├── deploy/
@@ -81,7 +82,7 @@ aegis1/
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # opsional; default sudah aman
-python tests.py                                       # 74 test harus OK
+python tests.py                                       # 88 test harus OK
 ```
 
 Python 3.11+ (diuji pada 3.12). Tidak ada dependensi berbayar.
@@ -410,6 +411,40 @@ posisi searah tidak menumpuk jadi satu taruhan besar.
 Semua angka ini terlihat di dashboard: baris **Pengali risiko (adaptif)** dan
 **Bias HTF · divergensi · pola** di panel risiko, plus `analysis` dan
 `adaptive_risk` di `/api/state`.
+
+## 9e. Eksekusi nyata (opsional, default mati)
+
+`live.py` adalah satu-satunya modul yang bisa mengirim order ke exchange. Ia
+hanya dipakai kalau **seluruh** pagar berikut terpenuhi; gagal satu, start
+ditolak sebelum ada request apa pun:
+
+| Pagar | Variabel | Default |
+| --- | --- | --- |
+| Mode live | `AEGIS_LIVE_MODE` | `false` |
+| Frasa persetujuan risiko | `AEGIS_LIVE_ACK` = `SAYA PAHAM RISIKONYA` | kosong |
+| Kredensial | `EXCHANGE_API_KEY`, `EXCHANGE_API_SECRET` | kosong |
+| Daftar putih simbol | `AEGIS_LIVE_SYMBOLS` (mis. `BTC/USDT`) | kosong |
+| Batas nilai per order | `AEGIS_LIVE_MAX_ORDER_NOTIONAL` | `100` |
+| Order market | `AEGIS_LIVE_ALLOW_MARKET` | `false` |
+| Kirim sungguhan | `AEGIS_LIVE_DRY_RUN=false` | `true` (dry-run) |
+
+Dengan `AEGIS_LIVE_DRY_RUN=true` (default), setiap order tetap melewati seluruh
+validasi — presisi `amount_to_precision`, batas `limits.amount.min`,
+`limits.cost.min` dari `load_markets()`, dan batas notional — lalu dicatat ke
+audit log sebagai `live_dry_run` **tanpa dikirim**. Itu cara menguji jalur
+eksekusi tanpa risiko.
+
+Yang sudah ditangani: `clientOrderId` idempoten (order ganda tidak dikirim
+ulang), presisi instrumen dari metadata exchange, batas notional, penolakan
+simbol di luar daftar putih, `cancel_all()` saat shutdown, `flatten()` dengan
+order `reduceOnly` saat kill-switch, rekonsiliasi order terbuka dan saldo saat
+start, dan kredensial yang hanya dibaca dari environment (nilai key tidak
+pernah masuk log — hanya sidik `abcd…yz (n karakter)`).
+
+Yang belum ada dan tetap menjadi tanggung jawabmu: manajemen posisi di sisi
+exchange saat bot mati mendadak (order SL/TP sudah terpasang, tetapi posisi
+tidak diawasi), penanganan fill parsial lanjutan, dan pemilihan waktu eksekusi
+yang sadar likuiditas. Uji dengan `dry_run`, lalu nominal kecil.
 
 ## 10. Uji
 
