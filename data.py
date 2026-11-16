@@ -162,32 +162,156 @@ class SyntheticFeed:
 
 
 class CSVFeed:
-    """Baca candle dari CSV (kolom: ts,open,high,low,close,volume)."""
+    """Baca candle dari CSV (kolom wajib: ts,open,high,low,close).
 
-    def __init__(self, path: str | Path, symbol: str, timeframe: str) -> None:
+    Kolom opsional yang dipakai bila ada:
+
+    * ``volume`` — bila tidak ada, isi dengan ``volume_fallback`` (mis. volume
+      tick dari broker). Tanpa keduanya, berkas ditolak supaya tidak ada
+      perdagangan yang berdiri di atas data bolong.
+    * ``bid`` dan ``ask``, atau ``spread`` (dalam harga) — dipakai sebagai
+      spread nyata. Kalau tidak ada, spread diambil dari ``spread_bps``.
+    """
+
+    def __init__(
+        self,
+        path: str | Path,
+        symbol: str,
+        timeframe: str,
+        volume_fallback: float | None = None,
+        spread_bps: float = 1.0,
+        use_data_spread: bool = True,
+    ) -> None:
         self.path = Path(path)
         self.symbol = symbol
         self.timeframe = timeframe
+        self.spread_bps = max(0.0, float(spread_bps))
         df = pd.read_csv(self.path)
-        missing = set(OHLCV_COLUMNS) - set(df.columns)
+
+        required = {"ts", "open", "high", "low", "close"}
+        missing = required - set(df.columns)
         if missing:
             raise ValueError(f"CSV kehilangan kolom: {sorted(missing)}")
-        if "ts" in df.columns and df["ts"].dtype == object:
+        if "volume" not in df.columns:
+            if volume_fallback is None:
+                raise ValueError(
+                    "CSV kehilangan kolom: ['volume'] — isi dengan volume tick, "
+                    "atau setel AEGIS_VOLUME_FALLBACK (mis. 1)"
+                )
+            df["volume"] = float(volume_fallback)
+
+        if df["ts"].dtype == object:
             df["ts"] = pd.to_datetime(df["ts"], utc=True).astype("int64") / 1e9
         self._candles = df[OHLCV_COLUMNS].astype(float)
 
+        self._bid = df["bid"].astype(float) if use_data_spread and "bid" in df.columns else None
+        self._ask = df["ask"].astype(float) if use_data_spread and "ask" in df.columns else None
+        self._spread = df["spread"].astype(float) if use_data_spread and "spread" in df.columns else None
+        self._rows = df
+
+    @property
+    def candles(self) -> pd.DataFrame:
+        return self._candles
+
+    def quote_at(self, index: int, price: float) -> tuple[float, float]:
+        """Bid/ask pada bar ke-``index``: dari data bila ada, kalau tidak dari spread_bps."""
+        if self._bid is not None and self._ask is not None:
+            bid = float(self._bid.iloc[index])
+            ask = float(self._ask.iloc[index])
+            if bid > 0 and ask > bid:
+                return bid, ask
+        half = self.spread_bps / 2 / 10_000
+        if self._spread is not None:
+            spread_price = float(self._spread.iloc[index])
+            if spread_price > 0 and price > 0:
+                half = (spread_price / price) / 2
+        return price * (1 - half), price * (1 + half)
+
     def snapshot(self, bars: int) -> MarketSnapshot:
+        idx = len(self._candles) - 1
         candles = self._candles.tail(bars).reset_index(drop=True)
         price = float(candles["close"].iloc[-1])
+        bid, ask = self.quote_at(idx, price)
         return MarketSnapshot(
             symbol=self.symbol,
             timeframe=self.timeframe,
             candles=candles,
-            best_bid=price * 0.99995,
-            best_ask=price * 1.00005,
+            best_bid=bid,
+            best_ask=ask,
             last_price=price,
             ts=time.time(),
             source=f"csv:{self.path.name}",
+        )
+
+
+class ReplayFeed:
+    """Replay historis: satu snapshot per bar, jam mengikuti bar itu sendiri.
+
+    Ini yang membuat data lama bisa dipakai: ``MarketSnapshot.ts`` diisi waktu
+    bar terakhir, bukan waktu sekarang, sehingga pemeriksaan kesegaran data
+    lolos dan filter sesi membaca jam historis yang benar. Mesin memanggil
+    ``advance()`` sekali per siklus.
+    """
+
+    def __init__(
+        self,
+        path: str | Path,
+        symbol: str,
+        timeframe: str,
+        volume_fallback: float | None = None,
+        spread_bps: float = 1.0,
+        use_data_spread: bool = True,
+        start_bars: int = 1,
+    ) -> None:
+        self._base = CSVFeed(
+            path,
+            symbol,
+            timeframe,
+            volume_fallback=volume_fallback,
+            spread_bps=spread_bps,
+            use_data_spread=use_data_spread,
+        )
+        self._df = self._base.candles
+        if self._df.empty:
+            raise ValueError("CSV kosong")
+        self.symbol = symbol
+        self.timeframe = timeframe
+        self.path = Path(path)
+        self._i = max(0, min(len(self._df) - 1, int(start_bars) - 1))
+
+    @property
+    def done(self) -> bool:
+        return self._i >= len(self._df) - 1
+
+    @property
+    def progress(self) -> dict[str, object]:
+        return {
+            "bar": self._i + 1,
+            "total": len(self._df),
+            "selesai": self.done,
+            "ts_bar": float(self._df["ts"].iloc[self._i]),
+        }
+
+    def advance(self, n: int = 1) -> bool:
+        """Maju ``n`` bar. Kembalikan True bila masih ada bar berikutnya."""
+        before = self._i
+        self._i = min(len(self._df) - 1, self._i + max(1, int(n)))
+        return self._i != before
+
+    def snapshot(self, bars: int) -> MarketSnapshot:
+        lo = max(0, self._i + 1 - max(1, bars))
+        candles = self._df.iloc[lo:self._i + 1].reset_index(drop=True)
+        price = float(candles["close"].iloc[-1])
+        bid, ask = self._base.quote_at(self._i, price)
+        return MarketSnapshot(
+            symbol=self.symbol,
+            timeframe=self.timeframe,
+            candles=candles,
+            best_bid=bid,
+            best_ask=ask,
+            last_price=price,
+            ts=float(candles["ts"].iloc[-1]),
+            source=f"replay:{self.path.name} {self._i + 1}/{len(self._df)}",
         )
 
 
@@ -234,7 +358,23 @@ class CCXTFeed:
 
 def build_feed(settings: Settings, csv_path: str | None = None) -> Feed:
     if csv_path:
-        return CSVFeed(csv_path, settings.symbol, settings.timeframe)
+        if settings.replay:
+            return ReplayFeed(
+                csv_path,
+                settings.symbol,
+                settings.timeframe,
+                volume_fallback=settings.volume_fallback,
+                spread_bps=settings.execution.spread_bps,
+                use_data_spread=settings.execution.use_data_spread,
+            )
+        return CSVFeed(
+            csv_path,
+            settings.symbol,
+            settings.timeframe,
+            volume_fallback=settings.volume_fallback,
+            spread_bps=settings.execution.spread_bps,
+            use_data_spread=settings.execution.use_data_spread,
+        )
     if settings.offline:
         return SyntheticFeed(
             symbol=settings.symbol,
