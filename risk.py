@@ -47,6 +47,9 @@ class Position:
     entry_fee: float = 0.0
     stop_order_id: str | None = None
     take_profit_order_id: str | None = None
+    mae_r: float = 0.0
+    mfe_r: float = 0.0
+    fees: float = 0.0
 
     @property
     def is_long(self) -> bool:
@@ -68,6 +71,14 @@ class Position:
     def age_seconds(self, now: float | None = None) -> float:
         return (now or time.time()) - self.opened_at
 
+    def update_excursion(self, price: float) -> None:
+        """Catat MAE/MFE dalam satuan R selama posisi hidup."""
+        r = self.r_multiple(price)
+        if r < self.mae_r:
+            self.mae_r = r
+        if r > self.mfe_r:
+            self.mfe_r = r
+
     def as_dict(self, price: float, now: float | None = None) -> dict[str, object]:
         return {
             "position_id": self.position_id,
@@ -86,6 +97,10 @@ class Position:
             "partial_r_taken": list(self.partial_r_taken),
             "stop_order_id": self.stop_order_id,
             "take_profit_order_id": self.take_profit_order_id,
+            "mae_r": round(self.mae_r, 4),
+            "mfe_r": round(self.mfe_r, 4),
+            "fees": round(self.fees, 6),
+            "realized_pnl": round(self.realized_pnl, 6),
         }
 
 
@@ -101,6 +116,10 @@ class ClosedTrade:
     opened_at: float
     closed_at: float
     reason: str
+    mae_r: float = 0.0
+    mfe_r: float = 0.0
+    fees: float = 0.0
+    entry_fee: float = 0.0
 
 
 @dataclass
@@ -141,6 +160,7 @@ class RiskManager:
         self.cooldown_until_bar_ts: float = 0.0
         self.max_drawdown_seen = 0.0
         self.equity_mtm: float | None = None
+        self.trades_today = 0
 
     # ------------------------------------------------------------------ #
     # Equity & limit
@@ -151,6 +171,7 @@ class RiskManager:
             self.day = today
             self.day_start_equity = self.equity
             self.realized_pnl_today = 0.0
+            self.trades_today = 0
             return True
         return False
 
@@ -359,8 +380,10 @@ class RiskManager:
             opened_at=time.time(),
             risk_per_unit=abs(fill_price - signal.stop),
             entry_fee=fee,
+            fees=fee,
         )
         self.positions[pos.position_id] = pos
+        self.trades_today += 1
         return pos
 
     def plan_management(
@@ -402,6 +425,7 @@ class RiskManager:
         pnl = move * qty - fee
         pos.size = round_down_to_step(pos.size - qty, self.step_size)
         pos.realized_pnl += pnl
+        pos.fees += fee
         pos.partial_r_taken.append(level)
         self.realized_pnl += pnl
         self.realized_pnl_today += pnl
@@ -428,6 +452,10 @@ class RiskManager:
             opened_at=pos.opened_at,
             closed_at=time.time(),
             reason=reason,
+            mae_r=pos.mae_r,
+            mfe_r=pos.mfe_r,
+            fees=pos.fees + fee,
+            entry_fee=pos.entry_fee,
         )
         self.closed.append(trade)
         self.positions.pop(pos.position_id, None)
