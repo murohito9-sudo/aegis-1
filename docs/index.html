@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="aegis-csrf" content="demo-token" />
+<title>AEGIS-1 Trading Console</title>
+<style>
+  #demo-flag{position:fixed;right:14px;bottom:14px;z-index:60;display:flex;gap:8px;align-items:center;
+    padding:7px 12px;border-radius:8px;background:#1b2431;border:1px solid #2c3a4d;
+    color:#9fb3c8;font:600 11px/1.2 system-ui,sans-serif;letter-spacing:.6px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+  #demo-flag b{color:#f59e0b}
+</style>
+
+<script>
+/* ============================================================
+   MODE DEMO — berkas ini berisi data contoh yang tertanam.
+   Tidak ada backend, tidak ada order, tidak ada jaringan.
+   Semua angka adalah simulasi untuk memperlihatkan tampilan.
+   ============================================================ */
+window.__AEGIS_DEMO__ = true;
+const DEMO_STATE = {"ts":1794836700.0,"uptime_s":98765.0,"symbol":"BTC/USDT","timeframe":"15m","exchange":"binance","data_source":"ccxt/public","connected":true,"mode":"PAPER","live_mode":false,"equity":10391.22,"initial_equity":10000.0,"quote":"USDT","balance":10361.86,"unrealized_pnl":29.36,"realized_pnl":361.86,"realized_pnl_today":78.42,"daily_loss":0.0042,"drawdown":0.0134,"exposure_ratio":0.3427,"pending_orders":1,"positions":[{"position_id":"P-1041","symbol":"BTC/USDT","side":"LONG","entry":68412.5,"size":0.021,"initial_size":0.021,"stop":67850.0,"take_profit":69700.0,"price":68930.0,"pnl":10.87,"r_multiple":0.92,"age_s":5400,"trailing_active":true,"partial_r_taken":[],"stop_order_id":"sl-P-1041","take_profit_order_id":"tp-P-1041"},{"position_id":"P-1042","symbol":"ETH/USDT","side":"LONG","entry":3128.4,"size":0.42,"initial_size":0.42,"stop":3080.0,"take_profit":3245.0,"price":3156.2,"pnl":11.68,"r_multiple":0.57,"age_s":2100,"trailing_active":false,"partial_r_taken":[],"stop_order_id":"sl-P-1042","take_profit_order_id":"tp-P-1042"},{"position_id":"P-1043","symbol":"SOL/USDT","side":"SHORT","entry":172.35,"size":4.7,"initial_size":4.7,"stop":176.2,"take_profit":164.5,"price":170.9,"pnl":6.81,"r_multiple":0.38,"age_s":780,"trailing_active":false,"partial_r_taken":[],"stop_order_id":"sl-P-1043","take_profit_order_id":"tp-P-1043"}],"stats":{"trades":27,"wins":17,"losses":10,"win_rate":0.6296,"profit_factor":1.87,"avg_r":0.34,"realized_pnl":361.86,"max_drawdown":0.0134},"risk":{"risk_per_trade":0.005,"max_daily_loss":0.03,"max_total_exposure":0.6,"max_drawdown":0.1,"max_open_positions":3,"max_leverage":3.0},"gate":{"passed":true,"summary":"semua guardrail lolos (5/5)"},"chart":{"close":[66189.25,66214.85,66213.53,66212.42,66189.16,66199.4,66268.34,66311.06,66381.74,66421.1,66467.93,66506.86,66468.53,66536.2,66588.99,66640.98,66600.28,66556.53,66547.74,66555.73,66595.35,66619.48,66666.86,66665.02,66703.04,66744.81,66742.7,66841.2,66891.9,66970.67,66974.44,66974.65,66992.96,67022.73,67084.9,67132.19,67151.26,67149.66,67166.74,67256.93,67261.46,67309.27,67363.34,67335.09,67369.15,67453.33,67394.97,67404.32,67419.08,67400.17,67432.54,67437.49,67379.66,67414.37,67438.91,67471.8,67522.55,67525.45,67516.01,67445.26,67453.63,67409.56,67371.69,67299.56,67240.08,67199.35,67235.68,67133.27,67055.76,67050.3,67096.12,67106.17,67012.5,66893.01,66894.19,66849.06,66787.14,66812.39,66841.68,66829.91,66820.32,66816.99,66860.67,66861.72,66856.98,66852.05,66757.09,66780.96,66790.6,66782.3,66669.19,66613.2,66620.51,66518.16,66486.41,66507.88,66434.53,66487.28,66499.25,66485.59,66495.87,66523.82,66533.51,66590.11,66574.5,66572.67,66635.12,66657.7,66644.55,66710.12,66799.07,66808.97,66780.43,66804.66,66828.51,66846.07,66934.97,66921.44,67003.66,66979.38,66975.12,67030.39,67106.71,67172.11,67216.6,67253.54,67292.15,67350.04,67378.15,67427.29,67490.99,67532.93,67609.22,67679.46,67812.55,67876.84,67911.26,67949.43,68003.75,68098.07,68139.63,68211.24,68343.01,68288.61,68292.95,68352.53,68416.0,68469.79,68492.22,68556.82,68602.17,68610.1,68738.4,68776.05,68772.14,68784.21,68788.17,68796.46,68690.67,68677.24,68725.23,68680.76,68681.88,68725.47,68764.87,68831.01,68763.3,68752.52,68742.56,68773.36,68823.98,68716.03,68766.22,68709.37,68741.19,68680.55,68688.56,68737.66,68728.36,68731.17,68757.1,68753.02,68736.79,68786.19,68812.87,68780.98,68874.78,68803.49,68817.54,68781.18,68761.19,68765.38,68749.94,68753.12,68666.96,68583.61,68591.99,68536.93,68482.34,68412.5],"ema_fast":[66189.25,66191.58,66193.57,66195.29,66194.73,66195.15,66201.81,66211.74,66227.19,66244.82,66265.1,66287.08,66303.58,66324.72,66348.75,66375.32,66395.77,66410.38,66422.87,66434.95,66449.53,66464.98,66483.33,66499.85,66518.32,66538.91,66557.44,66583.23,66611.29,66643.96,66674.01,66701.34,66727.85,66754.66,66784.68,66816.27,66846.72,66874.26,66900.85,66933.22,66963.06,66994.54,67028.06,67055.98,67084.45,67117.98,67143.16,67166.9,67189.83,67208.95,67229.28,67248.21,67260.16,67274.18,67289.15,67305.76,67325.46,67343.64,67359.31,67367.13,67374.99,67378.13,67377.55,67370.46,67358.61,67344.13,67334.27,67316.0,67292.34,67270.34,67254.5,67241.01,67220.24,67190.49,67163.55,67134.96,67103.34,67076.89,67055.51,67035.0,67015.48,66997.44,66985.01,66973.8,66963.18,66953.08,66935.26,66921.23,66909.36,66897.81,66877.02,66853.04,66831.9,66803.38,66774.56,66750.32,66721.61,66700.31,66682.03,66664.17,66648.87,66637.5,66628.05,66624.6,66620.05,66615.74,66617.5,66621.16,66623.28,66631.18,66646.44,66661.21,66672.05,66684.11,66697.24,66710.77,66731.15,66748.45,66771.65,66790.53,66807.31,66827.59,66852.97,66881.98,66912.4,66943.41,66975.12,67009.2,67042.74,67077.7,67115.27,67153.24,67194.69,67238.76,67290.93,67344.19,67395.74,67446.08,67496.78,67551.44,67604.91,67660.03,67722.12,67773.62,67820.83,67869.17,67918.88,67968.96,68016.53,68065.65,68114.42,68159.48,68212.11,68263.38,68309.63,68352.77,68392.36,68429.09,68452.87,68473.27,68496.18,68512.96,68528.31,68546.24,68566.11,68590.19,68605.93,68619.26,68630.47,68643.46,68659.87,68664.97,68674.18,68677.38,68683.18,68682.94,68683.45,68688.38,68692.01,68695.57,68701.17,68705.88,68708.69,68715.74,68724.57,68729.69,68742.88,68748.39,68754.68,68757.09,68757.46,68758.18,68757.43,68757.04,68748.85,68733.83,68720.93,68704.21,68684.04,68659.35],"ema_slow":[66189.25,66190.16,66191.0,66191.76,66191.67,66191.95,66194.68,66198.83,66205.36,66213.07,66222.17,66232.34,66240.77,66251.33,66263.38,66276.87,66288.42,66298.0,66306.92,66315.8,66325.79,66336.27,66348.08,66359.4,66371.67,66385.0,66397.77,66413.61,66430.69,66449.98,66468.71,66486.78,66504.86,66523.35,66543.41,66564.43,66585.39,66605.55,66625.59,66648.14,66670.04,66692.87,66716.82,66738.9,66761.41,66786.12,66807.86,66829.16,66850.23,66869.87,66889.97,66909.52,66926.31,66943.74,66961.43,66979.66,66999.04,67017.85,67035.64,67050.27,67064.67,67076.99,67087.51,67095.09,67100.27,67103.8,67108.51,67109.4,67107.48,67105.44,67105.11,67105.15,67101.84,67094.38,67087.23,67078.72,67068.31,67059.17,67051.4,67043.49,67035.52,67027.72,67021.75,67016.04,67010.35,67004.7,66995.86,66988.18,66981.13,66974.03,66963.14,66950.64,66938.85,66923.83,66908.2,66893.91,66877.5,66863.56,66850.55,66837.52,66825.32,66814.55,66804.51,66796.85,66788.91,66781.19,66775.97,66771.75,66767.21,66765.17,66766.38,66767.9,66768.35,66769.64,66771.75,66774.4,66780.14,66785.18,66792.98,66799.64,66805.91,66813.93,66824.38,66836.8,66850.37,66864.76,66880.03,66896.81,66914.01,66932.34,66952.29,66973.03,66995.75,67020.17,67048.46,67078.05,67107.81,67137.87,67168.79,67201.98,67235.47,67270.31,67308.63,67343.62,67377.53,67412.35,67448.2,67484.68,67520.66,67557.67,67594.97,67631.23,67670.77,67710.24,67748.17,67785.17,67820.99,67855.83,67885.65,67913.92,67942.89,67969.24,67994.7,68020.8,68047.37,68075.36,68099.93,68123.23,68145.35,68167.78,68191.22,68209.96,68229.83,68246.95,68264.6,68279.46,68294.07,68309.91,68324.86,68339.37,68354.29,68368.53,68381.68,68396.13,68411.01,68424.22,68440.31,68453.29,68466.29,68477.54,68487.67,68497.59,68506.6,68515.41,68520.82,68523.06,68525.52,68525.93,68524.37,68520.38],"ts":[1794657600.0,1794658500.0,1794659400.0,1794660300.0,1794661200.0,1794662100.0,1794663000.0,1794663900.0,1794664800.0,1794665700.0,1794666600.0,1794667500.0,1794668400.0,1794669300.0,1794670200.0,1794671100.0,1794672000.0,1794672900.0,1794673800.0,1794674700.0,1794675600.0,1794676500.0,1794677400.0,1794678300.0,1794679200.0,1794680100.0,1794681000.0,1794681900.0,1794682800.0,1794683700.0,1794684600.0,1794685500.0,1794686400.0,1794687300.0,1794688200.0,1794689100.0,1794690000.0,1794690900.0,1794691800.0,1794692700.0,1794693600.0,1794694500.0,1794695400.0,1794696300.0,1794697200.0,1794698100.0,1794699000.0,1794699900.0,1794700800.0,1794701700.0,1794702600.0,1794703500.0,1794704400.0,1794705300.0,1794706200.0,1794707100.0,1794708000.0,1794708900.0,1794709800.0,1794710700.0,1794711600.0,1794712500.0,1794713400.0,1794714300.0,1794715200.0,1794716100.0,1794717000.0,1794717900.0,1794718800.0,1794719700.0,1794720600.0,1794721500.0,1794722400.0,1794723300.0,1794724200.0,1794725100.0,1794726000.0,1794726900.0,1794727800.0,1794728700.0,1794729600.0,1794730500.0,1794731400.0,1794732300.0,1794733200.0,1794734100.0,1794735000.0,1794735900.0,1794736800.0,1794737700.0,1794738600.0,1794739500.0,1794740400.0,1794741300.0,1794742200.0,1794743100.0,1794744000.0,1794744900.0,1794745800.0,1794746700.0,1794747600.0,1794748500.0,1794749400.0,1794750300.0,1794751200.0,1794752100.0,1794753000.0,1794753900.0,1794754800.0,1794755700.0,1794756600.0,1794757500.0,1794758400.0,1794759300.0,1794760200.0,1794761100.0,1794762000.0,1794762900.0,1794763800.0,1794764700.0,1794765600.0,1794766500.0,1794767400.0,1794768300.0,1794769200.0,1794770100.0,1794771000.0,1794771900.0,1794772800.0,1794773700.0,1794774600.0,1794775500.0,1794776400.0,1794777300.0,1794778200.0,1794779100.0,1794780000.0,1794780900.0,1794781800.0,1794782700.0,1794783600.0,1794784500.0,1794785400.0,1794786300.0,1794787200.0,1794788100.0,1794789000.0,1794789900.0,1794790800.0,1794791700.0,1794792600.0,1794793500.0,1794794400.0,1794795300.0,1794796200.0,1794797100.0,1794798000.0,1794798900.0,1794799800.0,1794800700.0,1794801600.0,1794802500.0,1794803400.0,1794804300.0,1794805200.0,1794806100.0,1794807000.0,1794807900.0,1794808800.0,1794809700.0,1794810600.0,1794811500.0,1794812400.0,1794813300.0,1794814200.0,1794815100.0,1794816000.0,1794816900.0,1794817800.0,1794818700.0,1794819600.0,1794820500.0,1794821400.0,1794822300.0,1794823200.0,1794824100.0,1794825000.0,1794825900.0,1794826800.0,1794827700.0,1794828600.0,1794829500.0,1794830400.0,1794831300.0,1794832200.0,1794833100.0,1794834000.0,1794834900.0,1794835800.0,1794836700.0]},"markers":[{"ts":1794780000.0,"price":67911.26,"kind":"entry","side":"LONG"},{"ts":1794813300.0,"price":68709.37,"kind":"entry","side":"SHORT"},{"ts":1794752100.0,"price":66572.67,"kind":"exit","side":"LONG"}],"events":[{"ts":1794836688.0,"level":"info","kind":"tick","message":"siklus 1842 · BTC/USDT 68.930 · regime TREND_UP"},{"ts":1794836652.0,"level":"info","kind":"signal","message":"SOL/USDT SHORT skor 0.71 · R:R 2.1 · dieksekusi"},{"ts":1794836604.0,"level":"warning","kind":"data","message":"latensi feed 1.8s melewati ambang 1.5s, dicoba ulang"},{"ts":1794836520.0,"level":"info","kind":"alert","message":"posisi BTC/USDT melewati 0.8R, trailing stop diaktifkan"},{"ts":1794836380.0,"level":"info","kind":"risk","message":"exposure 34.2% dari batas 60% · lolos gate"},{"ts":1794836245.0,"level":"info","kind":"signal","message":"ETH/USDT LONG skor 0.64 · R:R 2.3 · dieksekusi"},{"ts":1794836100.0,"level":"info","kind":"order","message":"BTC/USDT BUY 0.021 @ 68.412,5 · FILLED · fee 1.44"},{"ts":1794835958.0,"level":"warning","kind":"risk","message":"rugi harian 0.42% dari batas 3.00% · masih aman"},{"ts":1794835800.0,"level":"info","kind":"tick","message":"data feed tersambung ulang · ccxt/public"},{"ts":1794835520.0,"level":"error","kind":"data","message":"1 candle hilang pada 15m, diisi dari snapshot terakhir"},{"ts":1794835300.0,"level":"info","kind":"start","message":"AEGIS-1 mulai · mode PAPER · BTC/USDT 15m"}],"last_tick_ts":1794836700.0,"last_error":null,"tick_count":1842};
+const DEMO_HISTORY = {"orders":[{"ts":1794836688.0,"symbol":"BTC/USDT","side":"BUY","type":"LIMIT","qty":0.021,"avg_price":68412.5,"status":"FILLED","fee":1.44,"slippage_bps":1.2},{"ts":1794836652.0,"symbol":"SOL/USDT","side":"SELL","type":"MARKET","qty":4.7,"avg_price":172.35,"status":"FILLED","fee":0.81,"slippage_bps":2.4},{"ts":1794836245.0,"symbol":"ETH/USDT","side":"BUY","type":"LIMIT","qty":0.42,"avg_price":3128.4,"status":"FILLED","fee":1.31,"slippage_bps":0.9},{"ts":1794836000.0,"symbol":"BTC/USDT","side":"SELL","type":"LIMIT","qty":0.018,"avg_price":68105.0,"status":"CANCELLED","fee":0.0,"slippage_bps":0.0},{"ts":1794835720.0,"symbol":"ETH/USDT","side":"SELL","type":"STOP","qty":0.35,"avg_price":3172.8,"status":"FILLED","fee":1.11,"slippage_bps":3.6},{"ts":1794835460.0,"symbol":"SOL/USDT","side":"BUY","type":"LIMIT","qty":3.2,"avg_price":168.9,"status":"FILLED","fee":0.54,"slippage_bps":1.5},{"ts":1794835100.0,"symbol":"BTC/USDT","side":"BUY","type":"MARKET","qty":0.015,"avg_price":66820.0,"status":"FILLED","fee":1.0,"slippage_bps":2.1},{"ts":1794834890.0,"symbol":"ETH/USDT","side":"BUY","type":"LIMIT","qty":0.3,"avg_price":3055.2,"status":"FILLED","fee":0.92,"slippage_bps":0.7}],"trades":[{"closed_at":1794835740.0,"symbol":"ETH/USDT","side":"LONG","entry":3055.2,"exit":3172.8,"pnl":35.28,"r_multiple":1.42,"close_reason":"take_profit"},{"closed_at":1794835280.0,"symbol":"SOL/USDT","side":"SHORT","entry":176.8,"exit":168.9,"pnl":25.28,"r_multiple":1.1,"close_reason":"trailing_stop"},{"closed_at":1794834690.0,"symbol":"BTC/USDT","side":"LONG","entry":66820.0,"exit":66540.0,"pnl":-4.2,"r_multiple":-1.0,"close_reason":"stop_loss"},{"closed_at":1794834100.0,"symbol":"ETH/USDT","side":"SHORT","entry":3188.0,"exit":3140.5,"pnl":19.95,"r_multiple":1.31,"close_reason":"take_profit"},{"closed_at":1794833400.0,"symbol":"BTC/USDT","side":"LONG","entry":65120.0,"exit":66310.0,"pnl":17.85,"r_multiple":1.68,"close_reason":"partial_tp"},{"closed_at":1794832600.0,"symbol":"SOL/USDT","side":"LONG","entry":165.4,"exit":163.1,"pnl":-10.82,"r_multiple":-1.0,"close_reason":"stop_loss"},{"closed_at":1794831500.0,"symbol":"ETH/USDT","side":"LONG","entry":3042.0,"exit":3098.4,"pnl":16.94,"r_multiple":1.04,"close_reason":"take_profit"},{"closed_at":1794830300.0,"symbol":"BTC/USDT","side":"SHORT","entry":67250.0,"exit":67610.0,"pnl":-7.56,"r_multiple":-1.0,"close_reason":"stop_loss"}],"signals":[{"ts":1794836652.0,"side":"SHORT","score":0.71,"entry":172.35,"stop":176.2,"take_profit":164.5,"reward_risk":2.01,"regime":"TREND_DOWN","action":"EXECUTED"},{"ts":1794836500.0,"side":"LONG","score":0.48,"entry":68930.0,"stop":68400.0,"take_profit":70100.0,"reward_risk":2.2,"regime":"TREND_UP","action":"VETOED"},{"ts":1794836245.0,"side":"LONG","score":0.64,"entry":3128.4,"stop":3080.0,"take_profit":3245.0,"reward_risk":2.41,"regime":"TREND_UP","action":"EXECUTED"},{"ts":1794836010.0,"side":"SHORT","score":0.39,"entry":69110.0,"stop":69550.0,"take_profit":68000.0,"reward_risk":2.52,"regime":"RANGE","action":"WAITING"},{"ts":1794835720.0,"side":"SHORT","score":0.66,"entry":3172.8,"stop":3210.0,"take_profit":3080.0,"reward_risk":2.5,"regime":"TREND_DOWN","action":"EXECUTED"},{"ts":1794835520.0,"side":"LONG","score":0.41,"entry":168.9,"stop":165.4,"take_profit":176.0,"reward_risk":2.03,"regime":"RANGE","action":"VETOED"},{"ts":1794835100.0,"side":"LONG","score":0.58,"entry":66820.0,"stop":66540.0,"take_profit":67600.0,"reward_risk":2.79,"regime":"TREND_UP","action":"EXECUTED"},{"ts":1794834800.0,"side":"SHORT","score":0.52,"entry":67480.0,"stop":67990.0,"take_profit":66200.0,"reward_risk":2.51,"regime":"TREND_DOWN","action":"WAITING"}]};
+
+(function () {
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const jsonResp = (obj) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(clone(obj)) });
+
+  window.fetch = function (url) {
+    const u = String(url);
+    if (u.indexOf("/api/state") === 0) return jsonResp(demoState());
+    if (u.indexOf("/api/history") === 0) return jsonResp(DEMO_HISTORY);
+    if (u.indexOf("/api/actions/") === 0) {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ demo: true, accepted: true }) });
+    }
+    return jsonResp({});
+  };
+
+  /* --- state hidup: harga bergerak sedikit tiap 3 detik --- */
+  let price = DEMO_STATE.chart.close[DEMO_STATE.chart.close.length - 1];
+  const pxMap = {};
+  DEMO_STATE.positions.forEach((p) => { pxMap[p.position_id] = p.price; });
+  let tick = DEMO_STATE.tick_count;
+
+  function demoState() {
+    return DEMO_STATE;
+  }
+
+  function drift() {
+    tick += 1;
+    const step = (Math.random() - 0.48) * 26;
+    price = Math.max(1, price + step);
+
+    const s = DEMO_STATE;
+    const ch = s.chart;
+    ch.close.push(Number(price.toFixed(2)));
+    ch.ema_fast.push(Number((ch.ema_fast[ch.ema_fast.length - 1] * 0.93 + price * 0.07).toFixed(2)));
+    ch.ema_slow.push(Number((ch.ema_slow[ch.ema_slow.length - 1] * 0.97 + price * 0.03).toFixed(2)));
+    ch.ts.push(ch.ts[ch.ts.length - 1] + 900);
+    if (ch.close.length > 200) {
+      ch.close.shift(); ch.ema_fast.shift(); ch.ema_slow.shift(); ch.ts.shift();
+    }
+
+    let unreal = 0;
+    s.positions.forEach((p) => {
+      const cur = p.symbol === "BTC/USDT" ? price : pxMap[p.position_id] * (1 + (Math.random() - 0.5) * 0.0008);
+      pxMap[p.position_id] = cur;
+      p.price = Number(cur.toFixed(2));
+      p.pnl = Number((p.side === "LONG" ? (cur - p.entry) * p.size : (p.entry - cur) * p.size).toFixed(2));
+      const risk = Math.abs(p.entry - p.stop) || 1;
+      p.r_multiple = Number(((p.side === "LONG" ? cur - p.entry : p.entry - cur) / risk).toFixed(2));
+      p.age_s += 3;
+      unreal += p.pnl;
+    });
+    s.unrealized_pnl = Number(unreal.toFixed(2));
+    s.equity = Number((s.initial_equity + s.realized_pnl + unreal).toFixed(2));
+    s.tick_count = tick;
+    s.ts = Date.now() / 1000;
+    s.last_tick_ts = s.ts;
+    s.uptime_s += 3;
+    s.drawdown = Number(Math.max(0, Math.min(0.02, s.drawdown + (Math.random() - 0.5) * 0.0004)).toFixed(4));
+    s.exposure_ratio = Number((s.exposure_ratio * (1 + (Math.random() - 0.5) * 0.01)).toFixed(4));
+  }
+
+  window.WebSocket = function () {
+    const self = this;
+    this.readyState = 1;
+    this.send = function () {};
+    this.close = function () {};
+    const emit = () => {
+      drift();
+      if (self.onmessage) self.onmessage({ data: JSON.stringify(demoState()) });
+    };
+    setTimeout(emit, 900);
+    const timer = setInterval(emit, 3000);
+    this._stop = () => clearInterval(timer);
+    window.addEventListener("beforeunload", () => clearInterval(timer));
+  };
+  window.WebSocket.CONNECTING = 0;
+  window.WebSocket.OPEN = 1;
+  window.WebSocket.CLOSED = 3;
+})();
+</script>
+
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#11161f; --panel-2:#151b26; --line:#1f2836;
+    --text:#d7dee9; --muted:#7c8798; --accent:#4da3ff;
+    --profit:#22c55e; --loss:#ef4444; --warn:#f59e0b; --safe:#38bdf8;
+    --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans)}
+  body{font-size:13px;line-height:1.45}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .up{color:var(--profit)} .down{color:var(--loss)} .flat{color:var(--muted)}
+  header{
+    display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+    padding:12px 18px;background:linear-gradient(180deg,#121823,#0d121a);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{
+    width:30px;height:30px;border-radius:7px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;font-weight:700;font-size:13px
+  }
+  .brand h1{font-size:15px;margin:0;letter-spacing:.4px;font-weight:600}
+  .brand small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.8px;text-transform:uppercase}
+  .hdr-right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;
+    background:var(--panel-2);border:1px solid var(--line);font-size:11.5px;color:var(--muted)
+  }
+  .chip b{color:var(--text);font-weight:600}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .dot.on{background:var(--profit);box-shadow:0 0 8px var(--profit)}
+  .dot.off{background:var(--loss);box-shadow:0 0 8px var(--loss)}
+  .dot.warn{background:var(--warn)}
+  .mode{font-weight:700;letter-spacing:.6px;font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid}
+  .mode.PAPER{color:var(--safe);border-color:#1e4a63;background:#0b2230}
+  .mode.SAFE{color:var(--warn);border-color:#5c4210;background:#2a1e07}
+  .mode.PAUSED{color:#cbd5e1;border-color:#334155;background:#1a2230}
+  .mode.KILL_SWITCH{color:#fff;border-color:#7f1d1d;background:#7f1d1d;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  main{padding:16px 18px 40px;max-width:1560px;margin:0 auto}
+  .grid{display:grid;gap:12px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+  .card .label{font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
+  .card .value{font-family:var(--mono);font-size:19px;margin-top:5px;font-variant-numeric:tabular-nums}
+  .card .sub{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .cols{grid-template-columns:2.05fr 1fr;margin-top:12px}
+  .cols-2{grid-template-columns:1.35fr 1fr;margin-top:12px}
+  @media(max-width:1080px){.cols,.cols-2{grid-template-columns:1fr}}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .panel-head h2{font-size:12px;margin:0;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .panel-head .meta{font-size:10.5px;color:var(--muted);font-family:var(--mono)}
+  canvas{width:100%;height:260px;display:block}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{
+    text-align:left;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);
+    font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap
+  }
+  td{padding:7px 8px;border-bottom:1px solid #161d29;font-family:var(--mono);white-space:nowrap}
+  tbody tr:hover{background:#141a25}
+  .empty{padding:18px 8px;color:var(--muted);font-family:var(--sans);text-align:center;font-size:12px}
+  .side-long{color:var(--profit);font-weight:600}
+  .side-short{color:var(--loss);font-weight:600}
+  .badge{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--line);color:var(--muted);font-family:var(--mono)}
+  .badge.FILLED{color:var(--profit);border-color:#14532d}
+  .badge.OPEN,.badge.PARTIALLY_FILLED{color:var(--accent);border-color:#1e3a5f}
+  .badge.CANCELED,.badge.EXPIRED{color:var(--muted)}
+  .badge.REJECTED{color:var(--loss);border-color:#7f1d1d}
+  .risk-row{margin-bottom:11px}
+  .risk-row .top{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+  .risk-row .top span:last-child{font-family:var(--mono);color:var(--text)}
+  .bar{height:7px;background:#0d131c;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+  .bar > i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s ease}
+  .bar.ok > i{background:var(--profit)} .bar.warn > i{background:var(--warn)} .bar.danger > i{background:var(--loss)}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  button{
+    font-family:var(--sans);font-size:11.5px;font-weight:600;letter-spacing:.5px;
+    padding:9px 14px;border-radius:6px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--text);cursor:pointer;transition:.15s
+  }
+  button:hover:not(:disabled){border-color:#33415a;transform:translateY(-1px)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:#12345c;border-color:#1d4f8a;color:#cfe6ff}
+  button.warn{background:#3a2a08;border-color:#6b4a0d;color:#fcd34d}
+  button.danger{background:#3d1113;border-color:#7f1d1d;color:#fca5a5}
+  button.kill{background:#7f1d1d;border-color:#b91c1c;color:#fff}
+  .log{
+    height:214px;overflow-y:auto;font-family:var(--mono);font-size:11px;
+    background:#0c1119;border:1px solid var(--line);border-radius:6px;padding:8px 10px
+  }
+  .log div{padding:2px 0;border-bottom:1px dashed #141b26;white-space:pre-wrap;word-break:break-word}
+  .log .t{color:#55637a}
+  .log .info{color:#9fb3c8} .log .warn{color:var(--warn)} .log .error{color:var(--loss)}
+  .log .ok{color:var(--profit)}
+  .tabs{display:flex;gap:6px;margin-bottom:8px}
+  .tabs button{padding:5px 10px;font-size:11px}
+  .tabs button.active{background:#12345c;border-color:#1d4f8a;color:#cfe6ff}
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(3,6,10,.78);display:none;
+    place-items:center;z-index:60;padding:18px
+  }
+  .modal-backdrop.show{display:grid}
+  .modal{
+    background:var(--panel);border:1px solid #263243;border-radius:11px;padding:20px;
+    max-width:520px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)
+  }
+  .modal h3{margin:0 0 4px;font-size:15px}
+  .modal p{color:var(--muted);font-size:12px;margin:0 0 14px}
+  .modal .kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a2230;font-size:12px}
+  .modal .kv span:last-child{font-family:var(--mono)}
+  .modal input{
+    width:100%;padding:10px;border-radius:6px;border:1px solid var(--line);
+    background:#0b1017;color:var(--text);font-family:var(--mono);font-size:12px;margin-top:10px
+  }
+  .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .modal .step{font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .notice{
+    background:#20180a;border:1px solid #6b4a0d;color:#fcd34d;border-radius:7px;
+    padding:9px 12px;font-size:11.5px;margin-bottom:12px
+  }
+  .footnote{color:var(--muted);font-size:10.5px;margin-top:14px;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="demo-flag"><b>DEMO</b><span>data simulasi · tanpa backend</span></div>
+
+<header>
+  <div class="brand">
+    <div class="logo">A1</div>
+    <div>
+      <h1>AEGIS-1 Trading Console</h1>
+      <small>Adaptive Execution &amp; Guarded Investment System</small>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="chip"><i class="dot" id="conn-dot"></i><span id="conn-text">menghubungkan…</span></span>
+    <span class="chip">PAIR <b id="hdr-symbol">—</b></span>
+    <span class="chip">TF <b id="hdr-tf">—</b></span>
+    <span class="chip">DATA <b id="hdr-source">—</b></span>
+    <span class="mode" id="mode-badge">PAPER</span>
+    <span class="chip num" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<main>
+  <div class="notice">
+    Mode PAPER: tidak ada order nyata yang dikirim ke exchange. Semua eksekusi disimulasikan
+    dengan fee dan slippage. Angka di layar ini bukan janji hasil.
+  </div>
+
+  <section class="grid kpis">
+    <div class="card"><div class="label">Equity</div><div class="value" id="k-equity">—</div><div class="sub" id="k-equity-sub">awal —</div></div>
+    <div class="card"><div class="label">Available Balance</div><div class="value" id="k-balance">—</div><div class="sub">quote currency</div></div>
+    <div class="card"><div class="label">Unrealized PnL</div><div class="value" id="k-unreal">—</div><div class="sub" id="k-open-count">0 posisi terbuka</div></div>
+    <div class="card"><div class="label">Realized PnL</div><div class="value" id="k-realized">—</div><div class="sub" id="k-today">hari ini —</div></div>
+    <div class="card"><div class="label">Win Rate</div><div class="value" id="k-winrate">—</div><div class="sub" id="k-trades">0 trade</div></div>
+    <div class="card"><div class="label">Profit Factor</div><div class="value" id="k-pf">—</div><div class="sub">gross win / gross loss</div></div>
+    <div class="card"><div class="label">Average R</div><div class="value" id="k-avgr">—</div><div class="sub">per trade tertutup</div></div>
+    <div class="card"><div class="label">Max Drawdown</div><div class="value" id="k-mdd">—</div><div class="sub" id="k-dd-now">sekarang —</div></div>
+  </section>
+
+  <section class="grid cols">
+    <div class="card">
+      <div class="panel-head">
+        <h2>Harga &amp; Indikator</h2>
+        <div class="meta"><span style="color:#f59e0b">— EMA50</span> · <span style="color:#4da3ff">— EMA200</span> · <span style="color:#22c55e">▲ entry</span> · <span style="color:#ef4444">▼ exit</span></div>
+      </div>
+      <canvas id="chart" height="260"></canvas>
+      <div class="meta num" id="chart-meta" style="color:var(--muted);font-size:10.5px;margin-top:6px">—</div>
+    </div>
+
+    <div class="card">
+      <div class="panel-head"><h2>Panel Risiko</h2><div class="meta" id="risk-mode">PAPER</div></div>
+      <div class="risk-row">
+        <div class="top"><span>Risk per trade</span><span id="r-risk">—</span></div>
+        <div class="bar ok"><i id="r-risk-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Daily loss</span><span id="r-daily">—</span></div>
+        <div class="bar" id="r-daily-bar-wrap"><i id="r-daily-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Open exposure</span><span id="r-exposure">—</span></div>
+        <div class="bar" id="r-exp-bar-wrap"><i id="r-exp-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Drawdown</span><span id="r-dd">—</span></div>
+        <div class="bar" id="r-dd-bar-wrap"><i id="r-dd-bar"></i></div>
+      </div>
+      <div class="risk-row">
+        <div class="top"><span>Slot posisi</span><span id="r-slots">—</span></div>
+        <div class="bar ok"><i id="r-slot-bar"></i></div>
+      </div>
+      <div class="actions">
+        <button id="btn-pause" class="warn">PAUSE TRADING</button>
+        <button id="btn-resume" class="primary">RESUME TRADING</button>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button id="btn-closeall" class="danger">CLOSE ALL POSITIONS</button>
+        <button id="btn-kill" class="kill">EMERGENCY KILL-SWITCH</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:12px">
+    <div class="panel-head"><h2>Posisi Terbuka</h2><div class="meta" id="pos-meta">0 posisi</div></div>
+    <table>
+      <thead><tr>
+        <th>Pair</th><th>Side</th><th>Entry</th><th>Size</th><th>SL</th><th>TP</th>
+        <th>Harga</th><th>PnL</th><th>R</th><th>Age</th><th>Trailing</th>
+      </tr></thead>
+      <tbody id="pos-body"><tr><td colspan="11" class="empty">belum ada posisi terbuka</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="grid cols-2">
+    <div class="card">
+      <div class="panel-head"><h2>Riwayat</h2></div>
+      <div class="tabs">
+        <button class="active" data-tab="orders">Order</button>
+        <button data-tab="trades">Trade tertutup</button>
+        <button data-tab="signals">Sinyal</button>
+      </div>
+      <div style="max-height:300px;overflow:auto">
+        <table id="hist-table">
+          <thead id="hist-head"></thead>
+          <tbody id="hist-body"><tr><td class="empty">memuat…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="panel-head"><h2>Log Eksekusi</h2><div class="meta" id="log-meta">—</div></div>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+
+  <div class="footnote">
+    Tidak ada API key, secret, passphrase, atau token exchange yang disimpan di halaman ini
+    maupun di penyimpanan lokal browser. Dashboard hanya membaca state dari proses bot
+    di mesin yang sama. Semua keputusan tercatat di audit log (SQLite + JSONL).
+  </div>
+</main>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="step" id="m-step">Langkah 1 dari 2</div>
+    <h3 id="m-title">Konfirmasi</h3>
+    <p id="m-desc"></p>
+    <div id="m-body"></div>
+    <input id="m-input" placeholder="ketik frasa konfirmasi di atas" autocomplete="off" spellcheck="false" />
+    <div class="foot">
+      <button id="m-cancel">Batal</button>
+      <button id="m-next" class="primary">Lanjut</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const CSRF = document.querySelector('meta[name="aegis-csrf"]').content;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v, d = 2) =>
+    (v === null || v === undefined || Number.isNaN(v)) ? "—" :
+    Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const pct = (v) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : (v * 100).toFixed(2) + "%";
+  const money = (v) => (v === null || v === undefined) ? "—" : (v >= 0 ? "+" : "") + fmt(v, 2);
+  const cls = (v) => v > 0 ? "up" : v < 0 ? "down" : "flat";
+  const age = (s) => {
+    if (s === null || s === undefined) return "—";
+    const t = Math.floor(s);
+    if (t < 60) return t + "s";
+    if (t < 3600) return Math.floor(t / 60) + "m";
+    if (t < 86400) return Math.floor(t / 3600) + "h " + Math.floor((t % 3600) / 60) + "m";
+    return Math.floor(t / 86400) + "d";
+  };
+  const clock = (ts) => new Date(ts * 1000).toLocaleTimeString("en-GB");
+
+  let state = null;
+  let history = { orders: [], trades: [], signals: [] };
+  let activeTab = "orders";
+  let ws = null;
+  let pollTimer = null;
+
+  // ---------------- render ----------------
+  function renderHeader(s) {
+    $("hdr-symbol").textContent = s.symbol || "—";
+    $("hdr-tf").textContent = s.timeframe || "—";
+    $("hdr-source").textContent = s.data_source || "—";
+    const badge = $("mode-badge");
+    badge.textContent = s.mode;
+    badge.className = "mode " + s.mode;
+    $("risk-mode").textContent = s.mode;
+    const dot = $("conn-dot");
+    dot.className = "dot " + (s.connected ? "on" : "off");
+    $("conn-text").textContent = s.connected ? ("terhubung · " + (s.exchange || "paper")) : "terputus";
+  }
+
+  function renderKpis(s) {
+    $("k-equity").textContent = fmt(s.equity, 2);
+    $("k-equity-sub").textContent = "awal " + fmt(s.initial_equity, 2) + " " + (s.quote || "");
+    $("k-balance").textContent = fmt(s.balance, 2);
+    const u = $("k-unreal");
+    u.textContent = money(s.unrealized_pnl);
+    u.className = "value " + cls(s.unrealized_pnl);
+    $("k-open-count").textContent = (s.positions || []).length + " posisi terbuka";
+    const r = $("k-realized");
+    r.textContent = money(s.realized_pnl);
+    r.className = "value " + cls(s.realized_pnl);
+    $("k-today").textContent = "hari ini " + money(s.realized_pnl_today);
+    $("k-winrate").textContent = s.stats ? pct(s.stats.win_rate) : "—";
+    $("k-trades").textContent = (s.stats ? s.stats.trades : 0) + " trade";
+    $("k-pf").textContent = s.stats ? fmt(s.stats.profit_factor, 2) : "—";
+    $("k-avgr").textContent = s.stats ? fmt(s.stats.avg_r, 2) + "R" : "—";
+    $("k-mdd").textContent = s.stats ? pct(s.stats.max_drawdown) : "—";
+    $("k-dd-now").textContent = "sekarang " + pct(s.drawdown);
+  }
+
+  function bar(id, ratio, limit) {
+    const el = $(id);
+    if (!el) return;
+    const r = Math.max(0, Math.min(1, limit > 0 ? ratio / limit : 0));
+    el.style.width = (r * 100).toFixed(1) + "%";
+    const wrap = el.parentElement;
+    wrap.className = "bar " + (r > 0.85 ? "danger" : r > 0.6 ? "warn" : "ok");
+  }
+
+  function renderRisk(s) {
+    const risk = s.risk || {};
+    $("r-risk").textContent = pct(risk.risk_per_trade) + " / trade";
+    bar("r-risk-bar", risk.risk_per_trade || 0, risk.risk_per_trade || 1);
+    $("r-daily").textContent = pct(s.daily_loss) + " dari " + pct(risk.max_daily_loss);
+    bar("r-daily-bar", s.daily_loss || 0, risk.max_daily_loss || 0.03);
+    $("r-exposure").textContent = pct(s.exposure_ratio) + " dari " + pct(risk.max_total_exposure);
+    bar("r-exp-bar", s.exposure_ratio || 0, risk.max_total_exposure || 0.2);
+    $("r-dd").textContent = pct(s.drawdown) + " dari " + pct(risk.max_drawdown);
+    bar("r-dd-bar", s.drawdown || 0, risk.max_drawdown || 0.1);
+    const open = (s.positions || []).length;
+    $("r-slots").textContent = open + " / " + (risk.max_open_positions || 3);
+    bar("r-slot-bar", open, risk.max_open_positions || 3);
+  }
+
+  function renderPositions(s) {
+    const body = $("pos-body");
+    const rows = s.positions || [];
+    $("pos-meta").textContent = rows.length + " posisi";
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="11" class="empty">belum ada posisi terbuka</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(p => `
+      <tr>
+        <td>${p.symbol}</td>
+        <td class="${p.side === "LONG" ? "side-long" : "side-short"}">${p.side}</td>
+        <td>${fmt(p.entry, 2)}</td>
+        <td>${fmt(p.size, 5)}</td>
+        <td class="down">${fmt(p.stop, 2)}</td>
+        <td class="up">${fmt(p.take_profit, 2)}</td>
+        <td>${fmt(p.price, 2)}</td>
+        <td class="${cls(p.pnl)}">${money(p.pnl)}</td>
+        <td class="${cls(p.r_multiple)}">${fmt(p.r_multiple, 2)}R</td>
+        <td>${age(p.age_s)}</td>
+        <td>${p.trailing_active ? '<span class="badge OPEN">aktif</span>' : '<span class="badge">—</span>'}</td>
+      </tr>`).join("");
+  }
+
+  const HEADERS = {
+    orders: ["Waktu", "Pair", "Side", "Tipe", "Qty", "Harga", "Status", "Fee", "Slip"],
+    trades: ["Tutup", "Pair", "Side", "Entry", "Exit", "PnL", "R", "Alasan"],
+    signals: ["Waktu", "Side", "Skor", "Entry", "SL", "TP", "RR", "Regime", "Aksi"],
+  };
+
+  function renderHistory() {
+    const head = $("hist-head");
+    const body = $("hist-body");
+    head.innerHTML = "<tr>" + HEADERS[activeTab].map(h => `<th>${h}</th>`).join("") + "</tr>";
+    const rows = history[activeTab] || [];
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="${HEADERS[activeTab].length}" class="empty">belum ada data</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      if (activeTab === "orders") {
+        return `<tr><td>${clock(r.ts)}</td><td>${r.symbol || "—"}</td>
+          <td class="${r.side === "BUY" ? "side-long" : "side-short"}">${r.side}</td>
+          <td>${r.type}</td><td>${fmt(r.qty, 5)}</td><td>${fmt(r.avg_price || r.price, 2)}</td>
+          <td><span class="badge ${r.status}">${r.status}</span></td>
+          <td>${fmt(r.fee, 4)}</td><td>${fmt(r.slippage_bps, 2)}bp</td></tr>`;
+      }
+      if (activeTab === "trades") {
+        return `<tr><td>${clock(r.closed_at)}</td><td>${r.symbol}</td>
+          <td class="${r.side === "LONG" ? "side-long" : "side-short"}">${r.side}</td>
+          <td>${fmt(r.entry, 2)}</td><td>${fmt(r.exit, 2)}</td>
+          <td class="${cls(r.pnl)}">${money(r.pnl)}</td>
+          <td class="${cls(r.r_multiple)}">${fmt(r.r_multiple, 2)}R</td>
+          <td>${r.close_reason || "—"}</td></tr>`;
+      }
+      return `<tr><td>${clock(r.ts)}</td>
+        <td class="${r.side === "LONG" ? "side-long" : r.side === "SHORT" ? "side-short" : ""}">${r.side || "—"}</td>
+        <td>${fmt(r.score, 2)}</td><td>${fmt(r.entry, 2)}</td><td>${fmt(r.stop, 2)}</td>
+        <td>${fmt(r.take_profit, 2)}</td><td>${fmt(r.reward_risk, 2)}</td>
+        <td>${r.regime || "—"}</td>
+        <td><span class="badge ${r.action === "EXECUTED" ? "FILLED" : ""}">${r.action}</span></td></tr>`;
+    }).join("");
+  }
+
+  function renderLog(s) {
+    const box = $("log");
+    const events = s.events || [];
+    $("log-meta").textContent = events.length + " entri terakhir";
+    box.innerHTML = events.map(e => {
+      const lvl = e.level === "error" ? "error" : e.level === "warning" ? "warn" : e.kind && e.kind.startsWith("alert") ? "ok" : "info";
+      return `<div><span class="t">${clock(e.ts)}</span> <span class="${lvl}">[${e.kind}]</span> ${e.message}</div>`;
+    }).join("") || '<div class="info">belum ada log</div>';
+  }
+
+  // ---------------- chart ----------------
+  function drawChart(s) {
+    const cv = $("chart");
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth, h = 260;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const series = s.chart || { close: [], ema_fast: [], ema_slow: [], ts: [] };
+    const n = series.close.length;
+    $("chart-meta").textContent = n ? (n + " bar · terakhir " + fmt(series.close[n - 1], 2)) : "belum ada data";
+    if (n < 2) {
+      ctx.fillStyle = "#7c8798"; ctx.font = "12px monospace";
+      ctx.fillText("menunggu data candle…", 16, h / 2);
+      return;
+    }
+    const padL = 8, padR = 62, padT = 12, padB = 18;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    const all = series.close.concat(series.ema_fast || [], series.ema_slow || []).filter(v => v !== null && !Number.isNaN(v));
+    let lo = Math.min(...all), hi = Math.max(...all);
+    if (hi === lo) { hi += 1; lo -= 1; }
+    const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const X = (i) => padL + (i / (n - 1)) * plotW;
+    const Y = (v) => padT + (1 - (v - lo) / (hi - lo)) * plotH;
+
+    // grid
+    ctx.strokeStyle = "#161e2b"; ctx.lineWidth = 1;
+    ctx.font = "10px monospace"; ctx.fillStyle = "#55637a";
+    for (let g = 0; g <= 4; g++) {
+      const y = padT + (plotH * g) / 4;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+      const val = hi - ((hi - lo) * g) / 4;
+      ctx.fillText(fmt(val, 0), padL + plotW + 6, y + 3);
+    }
+
+    const line = (arr, color, width) => {
+      ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = width;
+      let started = false;
+      arr.forEach((v, i) => {
+        if (v === null || v === undefined || Number.isNaN(v)) { started = false; return; }
+        const x = X(i), y = Y(v);
+        if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    };
+    line(series.close, "#9fb3c8", 1.4);
+    line(series.ema_fast || [], "#f59e0b", 1.2);
+    line(series.ema_slow || [], "#4da3ff", 1.2);
+
+    (s.markers || []).forEach(m => {
+      // Cari bar terdekat dengan toleransi 1 detik (ts bisa dibulatkan saat JSON).
+      let i = series.ts.findIndex(t => Math.abs(t - m.ts) < 1);
+      if (i < 0) i = series.ts.findIndex(t => Math.abs(t - m.ts) < 60);
+      if (i < 0) return;
+      const x = X(i), y = Y(m.price);
+      ctx.beginPath();
+      if (m.kind === "entry") {
+        ctx.fillStyle = m.side === "SHORT" ? "#ef4444" : "#22c55e";
+        ctx.moveTo(x, y - 7); ctx.lineTo(x - 4, y - 14); ctx.lineTo(x + 4, y - 14);
+      } else {
+        ctx.fillStyle = "#ef4444";
+        ctx.moveTo(x, y + 7); ctx.lineTo(x - 4, y + 14); ctx.lineTo(x + 4, y + 14);
+      }
+      ctx.closePath(); ctx.fill();
+    });
+  }
+
+  // ---------------- data ----------------
+  function apply(s) {
+    state = s;
+    renderHeader(s); renderKpis(s); renderRisk(s); renderPositions(s); renderLog(s); drawChart(s);
+  }
+
+  async function fetchState() {
+    try {
+      const res = await fetch("/api/state", { headers: { "X-AEGIS-CSRF": CSRF } });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      apply(await res.json());
+      setConn(true);
+    } catch (e) {
+      setConn(false);
+    }
+  }
+
+  async function fetchHistory() {
+    try {
+      const res = await fetch("/api/history", { headers: { "X-AEGIS-CSRF": CSRF } });
+      if (!res.ok) return;
+      history = await res.json();
+      renderHistory();
+    } catch (e) { /* biarkan data lama */ }
+  }
+
+  function setConn(on) {
+    const dot = $("conn-dot");
+    if (on) { dot.className = "dot on"; $("conn-text").textContent = "terhubung"; }
+    else { dot.className = "dot off"; $("conn-text").textContent = "terputus"; }
+  }
+
+  function connectWs() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/ws?csrf=${encodeURIComponent(CSRF)}`);
+    ws.onmessage = (ev) => {
+      try { apply(JSON.parse(ev.data)); setConn(true); } catch (e) {}
+    };
+    ws.onclose = () => { setConn(false); setTimeout(connectWs, 3000); };
+    ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  }
+
+  // ---------------- actions ----------------
+  const ACTIONS = {
+    pause: {
+      title: "PAUSE TRADING",
+      desc: "Entry baru dihentikan. Posisi terbuka tetap dikelola (stop, target, trailing).",
+      phrase: "PAUSE AEGIS-1",
+      detail: (s) => [["Mode sekarang", s.mode], ["Posisi terbuka", (s.positions || []).length]],
+    },
+    resume: {
+      title: "RESUME TRADING",
+      desc: "Entry baru diizinkan kembali bila seluruh guardrail lolos.",
+      phrase: "RESUME AEGIS-1",
+      detail: (s) => [["Mode sekarang", s.mode], ["Drawdown", pct(s.drawdown)], ["Rugi harian", pct(s.daily_loss)]],
+    },
+    close_all: {
+      title: "CLOSE ALL POSITIONS",
+      desc: "Seluruh posisi terbuka ditutup pada harga pasar berikutnya. PnL direalisasikan.",
+      phrase: "TUTUP SEMUA POSISI",
+      detail: (s) => (s.positions || []).map(p => [p.symbol + " " + p.side, fmt(p.size, 5) + " @ " + fmt(p.price, 2)]),
+    },
+    kill: {
+      title: "EMERGENCY KILL-SWITCH",
+      desc: "Menghentikan entry, membatalkan semua order pending, dan menutup seluruh posisi. Bot masuk mode KILL-SWITCH dan tidak kembali sendiri.",
+      phrase: "AKTIFKAN KILL SWITCH",
+      detail: (s) => [["Posisi terbuka", (s.positions || []).length], ["Order pending", (s.pending_orders || 0)]],
+    },
+  };
+
+  let pending = null; // {action, token, step}
+
+  function openModal(action) {
+    const spec = ACTIONS[action];
+    pending = { action, token: null, step: 1 };
+    $("m-step").textContent = "Langkah 1 dari 2";
+    $("m-title").textContent = spec.title;
+    $("m-desc").textContent = spec.desc;
+    const rows = spec.detail(state || {});
+    $("m-body").innerHTML = rows.length
+      ? rows.map(([k, v]) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`).join("")
+      : '<div class="kv"><span>tidak ada yang terdampak</span><span>—</span></div>';
+    $("m-input").style.display = "none";
+    $("m-input").value = "";
+    $("m-next").textContent = "Lanjut";
+    $("modal").classList.add("show");
+  }
+
+  async function stepTwo() {
+    const spec = ACTIONS[pending.action];
+    try {
+      const res = await fetch(`/api/actions/${pending.action}/request`, {
+        method: "POST",
+        headers: { "X-AEGIS-CSRF": CSRF, "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "permintaan ditolak");
+      pending.token = data.token;
+      pending.step = 2;
+      $("m-step").textContent = "Langkah 2 dari 2";
+      $("m-desc").innerHTML = `Ketik frasa berikut untuk mengonfirmasi: <b style="color:#fca5a5">${spec.phrase}</b>`;
+      $("m-input").style.display = "block";
+      $("m-input").placeholder = spec.phrase;
+      $("m-next").textContent = "Eksekusi";
+      $("m-input").focus();
+    } catch (e) {
+      alert("Gagal: " + e.message);
+    }
+  }
+
+  async function confirm() {
+    const spec = ACTIONS[pending.action];
+    if ($("m-input").value.trim().toUpperCase() !== spec.phrase.toUpperCase()) {
+      alert("Frasa konfirmasi tidak cocok.");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/actions/${pending.action}/confirm`, {
+        method: "POST",
+        headers: { "X-AEGIS-CSRF": CSRF, "Content-Type": "application/json" },
+        body: JSON.stringify({ token: pending.token, phrase: $("m-input").value.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "ditolak");
+      closeModal();
+      await fetchState();
+      await fetchHistory();
+    } catch (e) {
+      alert("Gagal: " + e.message);
+    }
+  }
+
+  function closeModal() { $("modal").classList.remove("show"); pending = null; }
+
+  $("btn-pause").onclick = () => openModal("pause");
+  $("btn-resume").onclick = () => openModal("resume");
+  $("btn-closeall").onclick = () => openModal("close_all");
+  $("btn-kill").onclick = () => openModal("kill");
+  $("m-cancel").onclick = closeModal;
+  $("m-next").onclick = () => { if (!pending) return; pending.step === 1 ? stepTwo() : confirm(); };
+  $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+
+  document.querySelectorAll(".tabs button").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      activeTab = b.dataset.tab;
+      renderHistory();
+    };
+  });
+
+  setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString("en-GB"); }, 1000);
+  window.addEventListener("resize", () => { if (state) drawChart(state); });
+
+  // Muat awal: polling cepat sampai WS tersambung.
+  fetchState(); fetchHistory();
+  setInterval(fetchHistory, 5000);
+  pollTimer = setInterval(() => { if (!ws || ws.readyState !== 1) fetchState(); }, 3000);
+  connectWs();
+})();
+</script>
+</body>
+</html>
