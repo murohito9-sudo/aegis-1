@@ -231,6 +231,11 @@ class Engine:
                 "market": self.settings.market,
             },
             "replay": self._replay_progress(),
+            "broker": {
+                "name": self.broker.name,
+                "live": (self.broker.status.as_dict()
+                         if hasattr(self.broker, "status") else None),
+            },
             "analysis": {
                 "htf_trend": getattr(self.last_signal, "htf_trend", "flat"),
                 "htf_strength": round(getattr(self.last_signal, "htf_strength", 0.0), 4),
@@ -323,6 +328,14 @@ class Engine:
             for oid in (pos.stop_order_id, pos.take_profit_order_id):
                 if oid:
                     self.broker.cancel(oid)
+            flatten = getattr(self.broker, "flatten", None)
+            if callable(flatten):
+                if not flatten(pos.symbol, pos.size, pos.is_long):
+                    self.audit.log_event(
+                        "error", "live_flatten",
+                        f"{pos.symbol} gagal ditutup di exchange; posisi masih terbuka di sana",
+                    )
+                    continue
             fee = pos.size * price * self.settings.execution.taker_fee
             trade = self.risk.close_position(pos, price, fee, reason)
             self.audit.log_position_close(
@@ -809,6 +822,17 @@ class Engine:
         self.running = False
         self.audit.log_event("info", "shutdown", f"berhenti: {why}")
         self.alerts.send("shutdown", f"AEGIS-1 berhenti ({why})")
+        cancel_all = getattr(self.broker, "cancel_all", None)
+        if callable(cancel_all):
+            try:
+                count = cancel_all()
+                if count:
+                    self.audit.log_event(
+                        "warning", "shutdown_orders",
+                        f"{count} order terbuka dibatalkan saat bot berhenti",
+                    )
+            except Exception as exc:  # noqa: BLE001
+                self.audit.log_event("error", "shutdown_orders", f"cancel_all gagal: {exc}")
         if self._server is not None:
             self._server.should_exit = True
         if self._uvicorn_task is not None:
