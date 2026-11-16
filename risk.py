@@ -50,6 +50,7 @@ class Position:
     mae_r: float = 0.0
     mfe_r: float = 0.0
     fees: float = 0.0
+    breakeven_done: bool = False
 
     @property
     def is_long(self) -> bool:
@@ -119,6 +120,7 @@ class ClosedTrade:
     mae_r: float = 0.0
     mfe_r: float = 0.0
     fees: float = 0.0
+    breakeven_done: bool = False
     entry_fee: float = 0.0
 
 
@@ -229,7 +231,13 @@ class RiskManager:
     # ------------------------------------------------------------------ #
     # Position sizing
     # ------------------------------------------------------------------ #
-    def position_size(self, entry: float, stop: float, equity: float | None = None) -> SizingResult:
+    def position_size(
+        self,
+        entry: float,
+        stop: float,
+        equity: float | None = None,
+        risk_multiplier: float = 1.0,
+    ) -> SizingResult:
         """``size = (equity * risk%) / |entry - stop|`` lalu dibulatkan ke bawah.
 
         Setelah itu dibatasi oleh:
@@ -242,7 +250,8 @@ class RiskManager:
         if stop_distance <= 0 or equity <= 0:
             return SizingResult(0.0, 0.0, 0.0, stop_distance, "invalid", False, "stop distance nol")
 
-        risk_amount = equity * self.cfg.risk_per_trade
+        multiplier = max(0.0, float(risk_multiplier))
+        risk_amount = equity * self.cfg.risk_per_trade * multiplier
         raw_qty = risk_amount / stop_distance
         capped_by = "risk"
 
@@ -275,6 +284,76 @@ class RiskManager:
         )
 
     # ------------------------------------------------------------------ #
+    # Risiko adaptif
+    # ------------------------------------------------------------------ #
+    def recent_expectancy(self, lookback: int = 20) -> float:
+        """Rata-rata R dari trade tertutup terakhir. 0.0 bila belum ada."""
+        if not self.closed or lookback <= 0:
+            return 0.0
+        tail = self.closed[-lookback:]
+        return sum(t.r_multiple for t in tail) / len(tail)
+
+    def adaptive_multiplier(
+        self, score: float = 0.0, atr_pct_rank: float = 0.5
+    ) -> tuple[float, list[str]]:
+        """Pengali risiko per trade dari kualitas sinyal dan kondisi portofolio.
+
+        Tidak pernah melewati batas keras: hasilnya dijepit di
+        ``[min_mult, max_mult]`` dan hanya dipakai sebagai pengali
+        ``risk_per_trade``. Guardrail exposure, drawdown, dan rugi harian tetap
+        diperiksa terpisah setelahnya.
+        """
+        cfg = self.cfg.adaptive
+        if not cfg.enabled:
+            return 1.0, ["risiko adaptif dimatikan"]
+        notes: list[str] = []
+        mult = 1.0
+
+        # 1) Kualitas sinyal: skor di antara floor..ceiling menaikkan risiko.
+        span = max(1e-9, cfg.quality_ceiling - cfg.quality_floor)
+        quality = max(0.0, min(1.0, (float(score) - cfg.quality_floor) / span))
+        quality_mult = 0.85 + 0.35 * quality
+        mult *= quality_mult
+        notes.append(f"kualitas sinyal {score:.2f} → ×{quality_mult:.2f}")
+
+        # 2) Volatilitas: makin tinggi ATR persentil, makin kecil risiko.
+        vol = max(0.0, min(1.0, float(atr_pct_rank)))
+        vol_mult = 1.0 - cfg.vol_penalty * vol
+        mult *= vol_mult
+        notes.append(f"ATR persentil {vol:.2f} → ×{vol_mult:.2f}")
+
+        # 3) Drawdown: kurangi bertahap sebelum batas keras tercapai.
+        dd_limit = max(1e-9, self.cfg.max_drawdown)
+        dd_ratio = self.drawdown() / dd_limit
+        if dd_ratio > cfg.dd_throttle_start:
+            span_dd = max(1e-9, 1.0 - cfg.dd_throttle_start)
+            cut = cfg.dd_throttle_max * min(1.0, (dd_ratio - cfg.dd_throttle_start) / span_dd)
+            dd_mult = 1.0 - cut
+            mult *= dd_mult
+            notes.append(f"drawdown {dd_ratio:.0%} dari batas → ×{dd_mult:.2f}")
+
+        # 4) Kinerja terakhir: expectancy negatif memotong risiko.
+        expectancy = self.recent_expectancy(cfg.expectancy_lookback)
+        if expectancy < 0:
+            mult *= cfg.negative_expectancy_mult
+            notes.append(
+                f"expectancy {expectancy:+.2f}R pada {cfg.expectancy_lookback} trade terakhir → "
+                f"×{cfg.negative_expectancy_mult:.2f}"
+            )
+
+        mult = max(cfg.min_mult, min(cfg.max_mult, mult))
+        notes.append(f"pengali akhir ×{mult:.2f} (batas {cfg.min_mult:.2f}-{cfg.max_mult:.2f})")
+        return mult, notes
+
+    def directional_exposure(self, side: str, price_map: dict[str, float]) -> float:
+        """Notional posisi terbuka yang searah ``side``."""
+        total = 0.0
+        for pos in self.positions.values():
+            if pos.side == side:
+                total += pos.notional(price_map.get(pos.symbol, pos.entry))
+        return total
+
+    # ------------------------------------------------------------------ #
     # Pre-trade checklist
     # ------------------------------------------------------------------ #
     def pre_trade_check(
@@ -286,6 +365,7 @@ class RiskManager:
         pending_orders: int,
         live_approved: bool = False,
         news_block: bool = False,
+        risk_multiplier: float = 1.0,
     ) -> list[Check]:
         """Checklist wajib sebelum order. Urutan mengikuti spesifikasi."""
         cfg = self.cfg
@@ -306,7 +386,7 @@ class RiskManager:
                   f"RR {signal.reward_risk:.2f} (min {cfg.min_reward_risk:.1f})")
         )
 
-        sizing = self.position_size(signal.entry, signal.stop)
+        sizing = self.position_size(signal.entry, signal.stop, risk_multiplier=risk_multiplier)
         checks.append(
             Check("4_ukuran_posisi", sizing.valid and sizing.qty > 0, sizing.detail)
         )
@@ -340,11 +420,18 @@ class RiskManager:
             Check("10_drawdown", not self.drawdown_breached(),
                   f"drawdown {self.drawdown():.2%} (maks {cfg.max_drawdown:.0%})")
         )
+        same_side = self.directional_exposure(signal.side or "", price_map) + sizing.notional
+        same_side_ratio = same_side / max(self.equity, 1e-9)
         checks.append(
-            Check("11_kualitas_data", gate_passed, "gate data lolos")
+            Check("11_exposure_arah",
+                  same_side_ratio <= cfg.directional_exposure_cap + 1e-9,
+                  f"satu arah {same_side_ratio:.1%} (maks {cfg.directional_exposure_cap:.0%})")
         )
         checks.append(
-            Check("12_tanpa_order_ganda", pending_orders == 0,
+            Check("12_kualitas_data", gate_passed, "gate data lolos")
+        )
+        checks.append(
+            Check("13_tanpa_order_ganda", pending_orders == 0,
                   f"{pending_orders} order pending")
         )
         checks.append(
@@ -387,7 +474,7 @@ class RiskManager:
         return pos
 
     def plan_management(
-        self, pos: Position, price: float, atr_value: float
+        self, pos: Position, price: float, atr_value: float, tf_seconds: float = 0.0
     ) -> dict[str, object]:
         """Putuskan aksi: partial TP, trailing stop, atau biarkan.
 
@@ -406,7 +493,18 @@ class RiskManager:
                     out.update(action="partial_tp", qty=qty, level=level)
                     return out
 
-        # 2) Trailing stop setelah mencapai trailing_after_r.
+        # 2) Breakeven: setelah R tertentu, stop pindah ke harga entry.
+        if (
+            self.cfg.breakeven_after_r > 0
+            and not pos.breakeven_done
+            and r >= self.cfg.breakeven_after_r
+        ):
+            better = pos.entry > pos.stop if pos.is_long else pos.entry < pos.stop
+            if better:
+                out.update(action="breakeven", new_stop=pos.entry)
+                return out
+
+        # 3) Trailing stop setelah mencapai trailing_after_r.
         if r >= self.cfg.trailing_after_r:
             trail = (
                 price - self.cfg.trailing_atr_mult * atr_value
@@ -418,6 +516,14 @@ class RiskManager:
             sane = abs(price - trail) >= 0.3 * atr_value
             if better and sane:
                 out.update(action="trail", new_stop=round(trail, 8))
+                return out
+
+        # 4) Time stop: trade yang tidak bergerak setelah N bar dilepas.
+        if self.cfg.max_bars_in_trade and tf_seconds > 0:
+            bars_held = pos.age_seconds() / tf_seconds
+            if bars_held >= self.cfg.max_bars_in_trade and r < 0.5:
+                out.update(action="time_stop", bars_held=bars_held)
+                return out
         return out
 
     def register_partial(self, pos: Position, qty: float, price: float, fee: float, level: float) -> float:
