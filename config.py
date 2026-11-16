@@ -177,6 +177,18 @@ class ExecutionConfig:
 
 
 @dataclass(frozen=True)
+class LiveConfig:
+    """Pagar eksekusi nyata. Semua default-nya menolak, bukan mengizinkan."""
+
+    enabled: bool = False
+    dry_run: bool = True                  # true = validasi & catat, TIDAK mengirim
+    ack: str = ""                         # frasa persetujuan risiko
+    max_order_notional: float = 100.0     # batas nilai satu order (quote)
+    symbols: tuple[str, ...] = ()         # daftar putih simbol
+    allow_market: bool = False            # order market untuk entry/flatten
+
+
+@dataclass(frozen=True)
 class SessionConfig:
     """Filter waktu & batas aktivitas harian (anti-overtrading).
 
@@ -265,6 +277,7 @@ class Settings:
     replay: bool = False
     replay_bars: int = 1
     volume_fallback: float | None = None   # isi volume bila CSV tidak punya kolom volume
+    live: LiveConfig = field(default_factory=LiveConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
@@ -338,6 +351,14 @@ def load_settings() -> Settings:
         skip_weekend=_env_bool("SKIP_WEEKEND", False),
         max_trades_per_day=_env_int("MAX_TRADES_PER_DAY", 0),
     )
+    live = LiveConfig(
+        enabled=_env_bool("LIVE_MODE", False),
+        dry_run=_env_bool("LIVE_DRY_RUN", True),
+        ack=_env("LIVE_ACK"),
+        max_order_notional=_env_float("LIVE_MAX_ORDER_NOTIONAL", LiveConfig.max_order_notional),
+        symbols=tuple(x.strip() for x in _env("LIVE_SYMBOLS").split(",") if x.strip()),
+        allow_market=_env_bool("LIVE_ALLOW_MARKET", False),
+    )
     raw_volume = _env("VOLUME_FALLBACK")
     volume_fallback: float | None = None
     if raw_volume:
@@ -367,6 +388,7 @@ def load_settings() -> Settings:
         replay=_env_bool("REPLAY", False),
         replay_bars=max(1, _env_int("REPLAY_BARS", 1)),
         volume_fallback=volume_fallback,
+        live=live,
         session=session,
         strategy=strategy,
         risk=risk,
