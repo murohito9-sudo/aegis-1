@@ -481,5 +481,200 @@ class TestFeedAndLogging(TempProject):
         self.assertTrue(self.settings.jsonl_path.exists())
 
 
+class TestForexAndReplay(TempProject):
+    """Fondasi forex: replay historis, metadata instrumen, spread dari data."""
+
+    def _csv(self, rows: int = 40, with_volume: bool = True, with_spread: bool = False) -> Path:
+        import csv as _csv
+
+        path = self.tmp / "eurusd.csv"
+        start = 1_700_000_000
+        with path.open("w", newline="", encoding="utf-8") as fh:
+            writer = _csv.writer(fh)
+            header = ["ts", "open", "high", "low", "close"]
+            if with_volume:
+                header.append("volume")
+            if with_spread:
+                header.append("spread")
+            writer.writerow(header)
+            price = 1.0850
+            for i in range(rows):
+                price += 0.00012 * ((i % 7) - 3)
+                row = [start + i * 3600, price, price + 0.0004, price - 0.0004, price]
+                if with_volume:
+                    row.append(1000 + i)
+                if with_spread:
+                    row.append(0.00008)
+                writer.writerow(row)
+        return path
+
+    def test_replay_serves_bar_clock_not_wall_clock(self) -> None:
+        from data import ReplayFeed
+
+        path = self._csv()
+        feed = ReplayFeed(path, "EUR/USD", "1h", start_bars=10)
+        snap = feed.snapshot(300)
+        self.assertEqual(len(snap.candles), 10)
+        # jam mengikuti bar terakhir, bukan waktu sekarang
+        self.assertAlmostEqual(snap.ts, float(snap.candles["ts"].iloc[-1]), places=3)
+        self.assertLess(snap.ts, time.time() - 3600)
+        self.assertIn("replay:", snap.source)
+
+    def test_replay_advance_moves_one_bar_and_stops_at_end(self) -> None:
+        from data import ReplayFeed
+
+        path = self._csv(rows=6)
+        feed = ReplayFeed(path, "EUR/USD", "1h", start_bars=2)
+        first = feed.snapshot(300).ts
+        self.assertTrue(feed.advance())
+        self.assertGreater(feed.snapshot(300).ts, first)
+        for _ in range(10):
+            feed.advance()
+        self.assertTrue(feed.done)
+        self.assertEqual(feed.progress["bar"], feed.progress["total"])
+
+    def test_replay_gate_passes_on_old_data(self) -> None:
+        """Data lama tetap lolos gate karena jam snapshot = jam bar."""
+        from data import ReplayFeed
+
+        path = self._csv(rows=400)
+        feed = ReplayFeed(path, "EUR/USD", "1h", start_bars=400)
+        snap = feed.snapshot(400)
+        settings = Settings(
+            db_path=self.tmp / "r.sqlite3",
+            jsonl_path=self.tmp / "r.jsonl",
+            symbol="EUR/USD",
+            timeframe="1h",
+            initial_equity=10_000.0,
+            offline=True,
+        )
+        result = DataQualityGate(settings).check(snap)
+        freshness = [c for c in result.checks if c.name == "kesegaran_data"][0]
+        self.assertTrue(freshness.ok, freshness.detail)
+
+    def test_volume_fallback_allows_csv_without_volume(self) -> None:
+        from data import CSVFeed
+
+        path = self._csv(with_volume=False)
+        with self.assertRaises(ValueError):
+            CSVFeed(path, "EUR/USD", "1h")
+        feed = CSVFeed(path, "EUR/USD", "1h", volume_fallback=1.0)
+        snap = feed.snapshot(30)
+        self.assertTrue((snap.candles["volume"] > 0).all())
+
+    def test_spread_comes_from_data_when_available(self) -> None:
+        from data import CSVFeed
+
+        path = self._csv(with_spread=True)
+        feed = CSVFeed(path, "EUR/USD", "1h", spread_bps=50.0)
+        snap = feed.snapshot(30)
+        # spread 0.00008 pada harga ~1.08 = ~0.74 bps, bukan 50 bps dari config
+        self.assertLess(snap.spread_bps, 2.0)
+        self.assertGreater(snap.spread_bps, 0.1)
+
+    def test_session_windows_and_weekend(self) -> None:
+        from config import SessionConfig, parse_windows
+
+        windows = parse_windows("07:00-16:00")
+        session = SessionConfig(enabled=True, windows=windows)
+        monday_10 = 1_700_000_000 - (1_700_000_000 % 86400) + 10 * 3600  # 2023-11-14 10:00 UTC
+        self.assertTrue(session.is_open(monday_10))
+        self.assertFalse(session.is_open(monday_10 + 8 * 3600))  # 18:00
+        weekend = SessionConfig(skip_weekend=True)
+        saturday = monday_10 + 5 * 86400
+        self.assertFalse(weekend.is_open(saturday))
+
+    def test_session_overnight_window(self) -> None:
+        from config import SessionConfig, parse_windows
+
+        session = SessionConfig(enabled=True, windows=parse_windows("22:00-02:00"))
+        base = 1_700_000_000 - (1_700_000_000 % 86400)
+        self.assertTrue(session.is_open(base + 23 * 3600))
+        self.assertTrue(session.is_open(base + 1 * 3600))
+        self.assertFalse(session.is_open(base + 12 * 3600))
+
+
+class TestAnalytics(unittest.TestCase):
+    def _trade(self, pnl: float, r: float, **kw: object) -> dict[str, object]:
+        row = {
+            "symbol": "BTC/USDT", "side": "LONG", "entry": 100.0, "exit": 100.0 + pnl,
+            "size": 1.0, "pnl": pnl, "r_multiple": r, "opened_at": 1000.0,
+            "closed_at": 2000.0, "reason": "take_profit", "mae_r": -0.2, "mfe_r": r,
+            "fees": 0.5, "entry_fee": 0.2,
+        }
+        row.update(kw)
+        return row
+
+    def test_metrics_math(self) -> None:
+        import analytics
+
+        trades = [
+            self._trade(10.0, 2.0),
+            self._trade(-5.0, -1.0, reason="stop_loss"),
+            self._trade(20.0, 4.0),
+            self._trade(-5.0, -1.0, reason="stop_loss"),
+        ]
+        m = analytics.metrics(trades, initial_equity=1000.0)
+        self.assertEqual(m["trades"], 4)
+        self.assertEqual(m["wins"], 2)
+        self.assertEqual(m["losses"], 2)
+        self.assertAlmostEqual(m["win_rate"], 0.5)
+        self.assertAlmostEqual(m["gross_pnl"], 20.0)
+        self.assertAlmostEqual(m["net_pnl"], 20.0 - 4 * 0.2)
+        self.assertAlmostEqual(m["profit_factor"], (30 - 0.4) / (10 + 0.4), places=6)
+        self.assertAlmostEqual(m["expectancy_money"], (20.0 - 0.8) / 4)
+        self.assertAlmostEqual(m["expectancy_r"], 1.0)
+        self.assertAlmostEqual(m["payoff"], ((30 - 0.4) / 2) / ((10 + 0.4) / 2))
+        self.assertEqual(m["max_win_streak"], 1)
+        self.assertEqual(m["max_loss_streak"], 1)
+        self.assertGreater(m["max_drawdown"], 0.0)
+
+    def test_empty_metrics_are_safe(self) -> None:
+        import analytics
+
+        m = analytics.metrics([])
+        self.assertEqual(m["trades"], 0)
+        self.assertEqual(m["profit_factor"], 0.0)
+        self.assertEqual(m["sharpe_trade"], 0.0)
+
+    def test_report_groups_and_exports(self) -> None:
+        import analytics
+
+        trades = [self._trade(10.0, 2.0), self._trade(-4.0, -1.0, symbol="ETH/USDT")]
+        orders = [{"ts": 1500.0, "symbol": "BTC/USDT", "side": "BUY", "type": "LIMIT",
+                   "qty": 0.5, "avg_price": 100.0, "status": "FILLED", "fee": 0.1,
+                   "slippage_bps": 1.2}]
+        report = analytics.build_report(trades, orders, initial_equity=1000.0,
+                                        meta={"symbol": "BTC/USDT"})
+        self.assertEqual(len(report["by_symbol"]), 2)
+        self.assertTrue(report["by_reason"])
+        md = analytics.to_markdown(report)
+        self.assertIn("# Laporan kinerja AEGIS-1", md)
+        self.assertIn("Profit factor", md)
+        self.assertIn("Daftar trade", md)
+        csv_text = analytics.to_csv(report)
+        self.assertTrue(csv_text.startswith("waktu_tutup"))
+        self.assertEqual(len(csv_text.strip().splitlines()), 3)
+
+    def test_trade_cap_and_excursion_tracking(self) -> None:
+        from strategy import Signal
+
+        risk = RiskManager(RiskConfig(risk_per_trade=0.01), 10_000.0,
+                           step_size=0.00001, min_qty=0.00001, min_notional=1.0)
+        signal = Signal(symbol="BTC/USDT", bar_ts=1.0, side="LONG", score=0.8,
+                        entry=100.0, stop=95.0, take_profit=115.0, reward_risk=3.0,
+                        regime="trending_up", atr=1.0)
+        pos = risk.open_position(signal, qty=1.0, fill_price=100.0, fee=0.1)
+        self.assertEqual(risk.trades_today, 1)
+        pos.update_excursion(97.0)   # turun 3 poin = -0.6R
+        pos.update_excursion(106.0)  # naik 6 poin = +1.2R
+        self.assertAlmostEqual(pos.mae_r, -0.6, places=6)
+        self.assertAlmostEqual(pos.mfe_r, 1.2, places=6)
+        trade = risk.close_position(pos, 106.0, fee=0.2, reason="take_profit")
+        self.assertAlmostEqual(trade.mae_r, -0.6, places=6)
+        self.assertAlmostEqual(trade.fees, 0.3, places=6)
+        self.assertAlmostEqual(trade.entry_fee, 0.1, places=6)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
