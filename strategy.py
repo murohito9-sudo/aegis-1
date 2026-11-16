@@ -21,7 +21,15 @@ import numpy as np
 import pandas as pd
 
 from config import Regime, RiskConfig, StrategyConfig
+from data import timeframe_seconds
 from indicators import add_indicators, market_structure
+from intelligence import (
+    atr_percentile,
+    candle_pattern,
+    htf_bias,
+    rsi_divergence,
+    squeeze_state,
+)
 
 LONG = "LONG"
 SHORT = "SHORT"
@@ -41,6 +49,12 @@ class Signal:
     atr: float
     reasons: list[str] = field(default_factory=list)
     vetoes: list[str] = field(default_factory=list)
+    htf_trend: str = "flat"
+    htf_strength: float = 0.0
+    divergence: str | None = None
+    pattern: str | None = None
+    squeeze: bool = False
+    atr_pct_rank: float = 0.5
 
     @property
     def actionable(self) -> bool:
@@ -67,6 +81,12 @@ class Signal:
             "atr": self.atr,
             "reasons": self.reasons,
             "vetoes": self.vetoes,
+            "htf_trend": self.htf_trend,
+            "htf_strength": round(self.htf_strength, 4),
+            "divergence": self.divergence,
+            "pattern": self.pattern,
+            "squeeze": self.squeeze,
+            "atr_pct_rank": round(self.atr_pct_rank, 4),
             "actionable": self.actionable,
             "signal_id": self.signal_id,
         }
@@ -104,14 +124,36 @@ def detect_regime(df: pd.DataFrame, cfg: StrategyConfig) -> Regime:
 # --------------------------------------------------------------------------- #
 # Evaluasi
 # --------------------------------------------------------------------------- #
+# Bobot konfluensi per regime. Setiap baris berjumlah 1.00 dan diverifikasi
+# di tests.py — bobot yang tidak berjumlah 1 membuat ambang min_confluence
+# kehilangan arti.
 WEIGHTS = {
-    "trend": 0.25,
-    "momentum": 0.15,
-    "macd": 0.15,
-    "volume": 0.15,
-    "structure": 0.20,
-    "roc": 0.10,
+    "trend": 0.24, "momentum": 0.12, "macd": 0.12, "volume": 0.12,
+    "structure": 0.18, "roc": 0.08, "htf": 0.11, "pattern": 0.03,
 }
+
+WEIGHTS_BY_REGIME: dict[str, dict[str, float]] = {
+    Regime.TRENDING_UP.value: dict(WEIGHTS),
+    Regime.TRENDING_DOWN.value: dict(WEIGHTS),
+    Regime.RANGING.value: {
+        "trend": 0.14, "momentum": 0.15, "macd": 0.12, "volume": 0.12,
+        "structure": 0.24, "roc": 0.06, "htf": 0.11, "pattern": 0.06,
+    },
+    Regime.HIGH_VOLATILITY.value: {
+        "trend": 0.22, "momentum": 0.12, "macd": 0.12, "volume": 0.13,
+        "structure": 0.17, "roc": 0.08, "htf": 0.13, "pattern": 0.03,
+    },
+}
+
+# Ambang tambahan per regime (di atas cfg.min_confluence).
+REQUIRED_BONUS = {
+    Regime.RANGING.value: 0.05,
+    Regime.HIGH_VOLATILITY.value: 0.10,
+}
+
+
+def weights_for(regime: str) -> dict[str, float]:
+    return WEIGHTS_BY_REGIME.get(regime, WEIGHTS)
 
 
 def _no_signal(symbol: str, bar_ts: float, reason: str, regime: str, atr_v: float = 0.0) -> Signal:
@@ -135,6 +177,7 @@ def evaluate(
     cfg: StrategyConfig,
     risk_cfg: RiskConfig,
     symbol: str = "BTC/USDT",
+    timeframe: str = "15m",
 ) -> Signal:
     """Hitung sinyal dari candle yang SUDAH selesai (bar terakhir dianggap closed).
 
@@ -168,6 +211,18 @@ def evaluate(
         return _no_signal(symbol, bar_ts, f"likuiditas rendah (rel-vol {rel_vol:.2f})", regime.value, atr_v)
     if regime == Regime.UNKNOWN:
         return _no_signal(symbol, bar_ts, "regime tidak dapat ditentukan", regime.value, atr_v)
+
+    # ---- Lapisan analisis tambahan (semua dari bar yang sudah tutup) ----
+    tf_seconds = timeframe_seconds(timeframe)
+    htf = (
+        htf_bias(ind, tf_seconds, cfg.mtf_factor, cfg.mtf_fast, cfg.mtf_slow)
+        if cfg.mtf_enabled
+        else None
+    )
+    divergence = rsi_divergence(ind, cfg.divergence_lookback) if cfg.divergence_enabled else None
+    pattern = candle_pattern(ind) if cfg.pattern_enabled else None
+    in_squeeze, squeeze_rank = squeeze_state(ind) if cfg.squeeze_enabled else (False, 0.5)
+    atr_rank = atr_percentile(ind)
 
     long_votes: dict[str, bool] = {}
     short_votes: dict[str, bool] = {}
@@ -242,8 +297,41 @@ def evaluate(
     if short_votes["roc"]:
         short_reasons.append(f"rate of change {roc_v:+.2f}% dalam {cfg.roc_period} bar")
 
-    long_score = sum(WEIGHTS[k] for k, v in long_votes.items() if v)
-    short_score = sum(WEIGHTS[k] for k, v in short_votes.items() if v)
+    # ---- Konfirmasi timeframe lebih tinggi ----
+    if htf is not None:
+        long_votes["htf"] = htf.trend == "up"
+        short_votes["htf"] = htf.trend == "down"
+        if htf.trend == "up":
+            long_reasons.append("bias HTF naik: " + htf.detail)
+        elif htf.trend == "down":
+            short_reasons.append("bias HTF turun: " + htf.detail)
+    else:
+        long_votes["htf"] = short_votes["htf"] = False
+
+    # ---- Pola candle ----
+    long_votes["pattern"] = pattern in ("bullish_engulfing", "hammer")
+    short_votes["pattern"] = pattern in ("bearish_engulfing", "shooting_star")
+    if long_votes["pattern"]:
+        long_reasons.append(f"pola candle {pattern} mendukung kelanjutan naik")
+    if short_votes["pattern"]:
+        short_reasons.append(f"pola candle {pattern} mendukung kelanjutan turun")
+
+    weights = weights_for(regime.value)
+    long_score = sum(weights.get(k, 0.0) for k, v in long_votes.items() if v)
+    short_score = sum(weights.get(k, 0.0) for k, v in short_votes.items() if v)
+
+    # Breakout dari kompresi volatilitas dinilai lebih tinggi, maksimal 0.05.
+    squeeze_bonus = 0.0
+    if in_squeeze and bos in ("bullish", "bearish"):
+        squeeze_bonus = 0.05
+        if bos == "bullish":
+            long_score += squeeze_bonus
+            long_reasons.append(f"breakout dari kompresi volatilitas (rank {squeeze_rank:.2f})")
+        else:
+            short_score += squeeze_bonus
+            short_reasons.append(f"breakdown dari kompresi volatilitas (rank {squeeze_rank:.2f})")
+    long_score = min(1.0, long_score)
+    short_score = min(1.0, short_score)
 
     # Arah dipilih dari skor tertinggi; kalau seri, tidak ada sinyal.
     if abs(long_score - short_score) < 1e-9:
@@ -263,13 +351,26 @@ def evaluate(
     if not votes["structure"]:
         vetoes.append("tidak ada struktur pasar yang mendukung")
 
-    required_score = cfg.min_confluence
+    required_score = cfg.min_confluence + REQUIRED_BONUS.get(regime.value, 0.0)
     if regime == Regime.HIGH_VOLATILITY:
-        required_score += 0.10
         reasons.append("regime volatilitas tinggi: ambang konfluensi dinaikkan")
     if regime == Regime.RANGING:
+        reasons.append("regime ranging: bobot struktur dinaikkan, ambang +0.05")
         if bos not in ("bullish", "bearish"):
             vetoes.append("regime ranging tanpa break of structure")
+
+    # Melawan bias HTF butuh konfluensi ekstra.
+    if htf is not None and htf.trend != "flat" and not votes.get("htf", False):
+        required_score += 0.05
+        reasons.append(f"melawan bias HTF ({htf.trend}): ambang +0.05")
+
+    # Divergensi yang melawan arah bukan larangan, tetapi menaikkan ambang:
+    # setup tetap boleh jalan hanya bila konfluensinya benar-benar kuat.
+    if (divergence == "bearish" and side == LONG) or (divergence == "bullish" and side == SHORT):
+        required_score += 0.10
+        reasons.append(
+            f"divergensi RSI {divergence} melawan arah: ambang konfluensi +0.10"
+        )
     # Melawan tren utama butuh konfirmasi kuat.
     if regime == Regime.TRENDING_DOWN and side == LONG:
         required_score += 0.10
@@ -348,4 +449,10 @@ def evaluate(
         atr=atr_v,
         reasons=reasons,
         vetoes=vetoes,
+        htf_trend=htf.trend if htf else "flat",
+        htf_strength=htf.strength if htf else 0.0,
+        divergence=divergence,
+        pattern=pattern,
+        squeeze=in_squeeze,
+        atr_pct_rank=atr_rank,
     )
