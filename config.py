@@ -94,6 +94,36 @@ class StrategyConfig:
     atr_percentile_window: int = 100
     high_vol_percentile: float = 0.90     # ATR di atas persentil ini = volatil
     low_liquidity_ratio: float = 0.55     # rel-vol di bawah ini = sepi
+    # --- lapisan analisis tambahan ---
+    mtf_enabled: bool = True              # konfirmasi timeframe lebih tinggi
+    mtf_factor: int = 4                   # 15m -> 1h, 1h -> 4h
+    mtf_fast: int = 20
+    mtf_slow: int = 50
+    divergence_enabled: bool = True       # divergensi RSI sebagai veto
+    divergence_lookback: int = 60
+    pattern_enabled: bool = True          # engulfing / hammer / shooting star
+    squeeze_enabled: bool = True          # bonus saat breakout dari kompresi
+
+
+@dataclass(frozen=True)
+class AdaptiveRisk:
+    """Penyesuaian risiko per trade berdasarkan kualitas sinyal dan kondisi.
+
+    Semua pengali dikalikan lalu dijepit di ``[min_mult, max_mult]``. Tidak ada
+    jalur yang boleh melewati batas keras ``max_total_exposure`` atau
+    ``max_drawdown`` — pengali ini hanya memperkecil atau menormalkan.
+    """
+
+    enabled: bool = True
+    min_mult: float = 0.25
+    max_mult: float = 1.50
+    quality_floor: float = 0.60           # skor di bawah ini tidak menambah risiko
+    quality_ceiling: float = 0.90
+    vol_penalty: float = 0.35             # ATR persentil 1.0 -> risiko -35%
+    dd_throttle_start: float = 0.50       # mulai kurangi saat DD 50% dari batas
+    dd_throttle_max: float = 0.50         # pengurangan maksimum dari drawdown
+    expectancy_lookback: int = 20
+    negative_expectancy_mult: float = 0.50
 
 
 @dataclass(frozen=True)
@@ -117,6 +147,11 @@ class RiskConfig:
     min_relative_volume: float = 1.0
     cooldown_bars_after_loss: int = 3      # anti revenge-trading
     max_orders_per_bar: int = 1            # anti duplicate order
+    # --- manajemen risiko tambahan ---
+    directional_exposure_cap: float = 0.12  # maks notional satu arah / ekuitas
+    max_bars_in_trade: int = 0              # 0 = tanpa batas; time stop
+    breakeven_after_r: float = 1.0          # stop dipindah ke entry setelah R ini
+    adaptive: AdaptiveRisk = field(default_factory=AdaptiveRisk)
 
 
 @dataclass(frozen=True)
@@ -257,6 +292,11 @@ def load_settings() -> Settings:
         ema_slow=_env_int("EMA_SLOW", StrategyConfig.ema_slow),
         min_confluence=_env_float("MIN_CONFLUENCE", StrategyConfig.min_confluence),
         min_bars=_env_int("MIN_BARS", StrategyConfig.min_bars),
+        mtf_enabled=_env_bool("MTF_ENABLED", StrategyConfig.mtf_enabled),
+        mtf_factor=max(2, _env_int("MTF_FACTOR", StrategyConfig.mtf_factor)),
+        divergence_enabled=_env_bool("DIVERGENCE_ENABLED", StrategyConfig.divergence_enabled),
+        pattern_enabled=_env_bool("PATTERN_ENABLED", StrategyConfig.pattern_enabled),
+        squeeze_enabled=_env_bool("SQUEEZE_ENABLED", StrategyConfig.squeeze_enabled),
     )
     risk = RiskConfig(
         risk_per_trade=_env_float("RISK_PER_TRADE", RiskConfig.risk_per_trade),
@@ -267,6 +307,16 @@ def load_settings() -> Settings:
         min_reward_risk=_env_float("MIN_REWARD_RISK", RiskConfig.min_reward_risk),
         max_leverage=_env_float("MAX_LEVERAGE", RiskConfig.max_leverage),
         max_spread_bps=_env_float("MAX_SPREAD_BPS", RiskConfig.max_spread_bps),
+        directional_exposure_cap=_env_float(
+            "DIRECTIONAL_CAP", RiskConfig.directional_exposure_cap),
+        max_bars_in_trade=_env_int("MAX_BARS_IN_TRADE", RiskConfig.max_bars_in_trade),
+        breakeven_after_r=_env_float("BREAKEVEN_AFTER_R", RiskConfig.breakeven_after_r),
+        adaptive=AdaptiveRisk(
+            enabled=_env_bool("ADAPTIVE_RISK", True),
+            min_mult=_env_float("RISK_MIN_MULT", AdaptiveRisk.min_mult),
+            max_mult=_env_float("RISK_MAX_MULT", AdaptiveRisk.max_mult),
+            vol_penalty=_env_float("RISK_VOL_PENALTY", AdaptiveRisk.vol_penalty),
+        ),
     )
     execution = ExecutionConfig(
         slippage_bps=_env_float("SLIPPAGE_BPS", ExecutionConfig.slippage_bps),
