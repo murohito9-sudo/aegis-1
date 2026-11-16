@@ -84,6 +84,9 @@ class Engine:
         self.last_gate_passed = False
         self.last_gate_summary = "belum dijalankan"
         self.last_bar_evaluated: float = 0.0
+        self.last_signal: Signal | None = None
+        self.last_risk_multiplier: float = 1.0
+        self.last_risk_notes: list[str] = []
         self.markers: list[dict[str, Any]] = []
         self._uvicorn_task: asyncio.Task[Any] | None = None
         self._server: Any = None
@@ -228,6 +231,20 @@ class Engine:
                 "market": self.settings.market,
             },
             "replay": self._replay_progress(),
+            "analysis": {
+                "htf_trend": getattr(self.last_signal, "htf_trend", "flat"),
+                "htf_strength": round(getattr(self.last_signal, "htf_strength", 0.0), 4),
+                "divergence": getattr(self.last_signal, "divergence", None),
+                "pattern": getattr(self.last_signal, "pattern", None),
+                "squeeze": getattr(self.last_signal, "squeeze", False),
+                "atr_pct_rank": round(getattr(self.last_signal, "atr_pct_rank", 0.5), 4),
+            },
+            "adaptive_risk": {
+                "multiplier": round(self.last_risk_multiplier, 4),
+                "notes": self.last_risk_notes,
+                "expectancy": round(
+                    self.risk.recent_expectancy(self.settings.risk.adaptive.expectancy_lookback), 4),
+            },
             "chart": chart,
             "markers": self.markers[-40:],
             "events": self.audit.recent_events(45),
@@ -394,9 +411,12 @@ class Engine:
             last_atr = ind["atr"].iloc[-1]
             atr_value = float(last_atr) if not pd.isna(last_atr) else 0.0
 
+        tf_seconds = timeframe_seconds(self.settings.timeframe)
         for pos in list(self.risk.positions.values()):
             price = snap.last_price
-            plan = self.risk.plan_management(pos, price, atr_value or pos.risk_per_unit)
+            plan = self.risk.plan_management(
+                pos, price, atr_value or pos.risk_per_unit, tf_seconds=tf_seconds
+            )
 
             if plan["action"] == "partial_tp":
                 qty = float(plan["qty"])
@@ -417,6 +437,28 @@ class Engine:
                     self._process_fills(self.broker.on_price(snap), snap)
                 except OrderRejected as exc:
                     self.audit.log_event("warning", "order_rejected", f"partial TP ditolak: {exc}")
+
+            elif plan["action"] == "breakeven" and plan["new_stop"] is not None:
+                entry_stop = float(plan["new_stop"])
+                if pos.stop_order_id:
+                    self.broker.modify(pos.stop_order_id, stop_price=entry_stop)
+                pos.stop = entry_stop
+                pos.breakeven_done = True
+                self.audit.log_event(
+                    "info", "breakeven",
+                    f"stop {pos.symbol} dipindah ke harga entry {entry_stop:.4f} "
+                    f"(R {plan['r']:.2f})",
+                )
+
+            elif plan["action"] == "time_stop":
+                bars_held = float(plan.get("bars_held", 0.0))
+                self.audit.log_event(
+                    "info", "time_stop",
+                    f"{pos.symbol} dilepas setelah {bars_held:.0f} bar tanpa kemajuan "
+                    f"(R {plan['r']:.2f})",
+                )
+                self._force_close(pos, price, "time_stop")
+                continue
 
             elif plan["action"] == "trail" and plan["new_stop"] is not None:
                 new_stop = float(plan["new_stop"])
@@ -616,8 +658,10 @@ class Engine:
             return  # satu posisi per simbol
 
         signal = evaluate(
-            closed_bars, self.settings.strategy, self.settings.risk, snap.symbol
+            closed_bars, self.settings.strategy, self.settings.risk, snap.symbol,
+            timeframe=self.settings.timeframe,
         )
+        self.last_signal = signal
         self.audit.log_signal(signal.as_dict(), "EVALUATED")
 
         if not signal.actionable:
@@ -630,6 +674,11 @@ class Engine:
         pending_entries = [
             o for o in self.broker.open_orders() if o.type in (OrderType.LIMIT, OrderType.MARKET)
         ]
+        risk_mult, risk_notes = self.risk.adaptive_multiplier(
+            signal.score, signal.atr_pct_rank
+        )
+        self.last_risk_multiplier = risk_mult
+        self.last_risk_notes = risk_notes
         checks = self.risk.pre_trade_check(
             signal=signal,
             snap=snap,
@@ -637,6 +686,7 @@ class Engine:
             gate_passed=self.last_gate_passed,
             pending_orders=len(pending_entries),
             live_approved=False,
+            risk_multiplier=risk_mult,
         )
         failed = [c for c in checks if not c.ok]
         if failed:
@@ -648,7 +698,9 @@ class Engine:
             )
             return
 
-        sizing = self.risk.position_size(signal.entry, signal.stop)
+        sizing = self.risk.position_size(
+            signal.entry, signal.stop, risk_multiplier=risk_mult
+        )
         if not sizing.valid:
             self.audit.log_signal(signal.as_dict(), "BLOCKED")
             self.audit.log_event("warning", "sizing_invalid", sizing.detail)
@@ -661,12 +713,16 @@ class Engine:
             "info", "order_summary",
             f"{signal.side} {snap.symbol} @ {signal.entry:.2f} qty {sizing.qty:.6f} "
             f"SL {signal.stop:.2f} TP {signal.take_profit:.2f} "
-            f"risiko {risk_money:.2f} {self.settings.quote_currency} fee est {fee_est:.2f}",
+            f"risiko {risk_money:.2f} {self.settings.quote_currency} fee est {fee_est:.2f} "
+            f"pengali risiko ×{risk_mult:.2f} (HTF {signal.htf_trend})",
             {
                 "pair": snap.symbol, "side": signal.side, "entry": signal.entry,
                 "qty": sizing.qty, "stop": signal.stop, "take_profit": signal.take_profit,
                 "risk_money": risk_money, "fee_estimate": fee_est,
                 "reward_risk": signal.reward_risk, "score": signal.score,
+                "risk_multiplier": round(risk_mult, 4), "risk_notes": risk_notes,
+                "htf_trend": signal.htf_trend, "divergence": signal.divergence,
+                "pattern": signal.pattern, "squeeze": signal.squeeze,
                 "checks": [c.as_dict() for c in checks],
             },
         )
