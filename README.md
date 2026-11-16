@@ -481,13 +481,12 @@ Telegram, token bot, atau dependensi jaringan tambahan.
 | 13 | Portfolio Management | ada | `portfolio.py` — bobot, HHI, DCA, rebalancing |
 | 14 | AI Evaluation | ada | `evaluation.py` — kalibrasi, Brier, drift |
 | 15 | Automation Engine | ada | `monitor.Scheduler` + `deploy/aegis1.service` |
-| 16 | Telegram System | **tidak diikutkan** | — |
-| 17 | Voice System | ada | `voice.py` — narasi + TTS opsional (`espeak`/`say`) |
-| 18 | Web Dashboard | ada | `dashboard.py` + `static/index.html` |
-| 19 | Database & Memory | ada | `logger.py` (SQLite + JSONL) + migrasi kolom |
-| 20 | Security & Reliability | ada | `security.py` — hash chain, rate limit, pemindai rahasia |
-| 21 | Monitoring & Recovery | ada | `monitor.py` — health, heartbeat, backup/restore |
-| 22 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, 122 test |
+| 16 | Voice System | ada | `voice.py` — narasi + TTS opsional (`espeak`/`say`) |
+| 17 | Web Dashboard | ada | `dashboard.py` + `static/index.html` |
+| 18 | Database & Memory | ada | `logger.py` (SQLite + JSONL) + migrasi kolom |
+| 19 | Security & Reliability | ada | `security.py` — hash chain, rate limit, pemindai rahasia |
+| 20 | Monitoring & Recovery | ada | `monitor.py` — health, heartbeat, backup/restore |
+| 21 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, 122 test |
 
 Endpoint baru: `GET /api/briefing` (situasi, bukti, keputusan, keyakinan),
 `GET /api/health` (umur tick, error beruntun, disk, heartbeat),
