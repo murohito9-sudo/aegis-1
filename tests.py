@@ -206,9 +206,15 @@ class TestRiskLimits(TempProject):
         from strategy import Signal
         sig = Signal("BTC/USDT", 1.0, LONG, 0.9, 100.0, 98.0, 110.0, 2.0, "trending_up", 1.0)
         pos = rm.open_position(sig, 1.0, 100.0, 0.1)
+        # Breakeven lebih dulu: stop pindah ke harga entry, bukan melewatinya.
         plan = rm.plan_management(pos, 103.0, atr_value=1.0)
-        self.assertEqual(plan["action"], "trail")
-        self.assertGreater(plan["new_stop"], pos.stop)
+        self.assertEqual(plan["action"], "breakeven")
+        self.assertAlmostEqual(plan["new_stop"], pos.entry, places=8)
+        pos.stop = plan["new_stop"]
+        pos.breakeven_done = True
+        plan2 = rm.plan_management(pos, 104.0, atr_value=1.0)
+        self.assertEqual(plan2["action"], "trail")
+        self.assertGreater(plan2["new_stop"], pos.stop)
 
 
 # --------------------------------------------------------------------------- #
@@ -224,7 +230,7 @@ class TestPreTradeChecklist(TempProject):
                                     gate_passed=True, pending_orders=0)
         failed = [c for c in checks if not c.ok]
         self.assertEqual(failed, [], [f"{c.name}: {c.detail}" for c in failed])
-        self.assertEqual(len(checks), 16)
+        self.assertEqual(len(checks), 17)
 
     def test_kill_switch_blocks(self) -> None:
         rm = RiskManager(RiskConfig(), initial_equity=10_000)
@@ -252,14 +258,14 @@ class TestPreTradeChecklist(TempProject):
         checks = {c.name: c for c in rm.pre_trade_check(
             self._signal(), self.snapshot(make_df()), Mode.PAPER,
             gate_passed=False, pending_orders=0)}
-        self.assertFalse(checks["11_kualitas_data"].ok)
+        self.assertFalse(checks["12_kualitas_data"].ok)
 
     def test_pending_order_blocks(self) -> None:
         rm = RiskManager(RiskConfig(), initial_equity=10_000)
         checks = {c.name: c for c in rm.pre_trade_check(
             self._signal(), self.snapshot(make_df()), Mode.PAPER,
             gate_passed=True, pending_orders=1)}
-        self.assertFalse(checks["12_tanpa_order_ganda"].ok)
+        self.assertFalse(checks["13_tanpa_order_ganda"].ok)
 
     def test_duplicate_bar_blocks(self) -> None:
         rm = RiskManager(RiskConfig(), initial_equity=10_000)
@@ -674,6 +680,189 @@ class TestAnalytics(unittest.TestCase):
         self.assertAlmostEqual(trade.mae_r, -0.6, places=6)
         self.assertAlmostEqual(trade.fees, 0.3, places=6)
         self.assertAlmostEqual(trade.entry_fee, 0.1, places=6)
+
+
+class TestIntelligence(unittest.TestCase):
+    """Lapisan analisis: MTF, divergensi, pola, squeeze — tanpa look-ahead."""
+
+    def _bars(self, n=40, step=60, start=None, price=100.0):
+        if start is None:
+            start = (1_700_000_000 // 240) * 240  # sejajar bucket 4 menit
+        rows = []
+        for i in range(n):
+            rows.append({
+                "ts": start + i * step, "open": price, "high": price + 1,
+                "low": price - 1, "close": price, "volume": 10.0,
+            })
+            price += 0.5
+        return pd.DataFrame(rows)
+
+    def test_resample_drops_incomplete_bucket(self) -> None:
+        from intelligence import resample_closed
+
+        df = self._bars(n=10)  # 10 bar 1 menit
+        htf = resample_closed(df, base_tf_seconds=60, factor=4)
+        # 10 bar -> 2 bucket penuh (0-3, 4-7), bucket 8-11 belum lengkap
+        self.assertEqual(len(htf), 2)
+        self.assertAlmostEqual(float(htf["close"].iloc[-1]), float(df["close"].iloc[7]))
+
+    def test_resample_never_uses_last_partial_bar(self) -> None:
+        from intelligence import resample_closed
+
+        df = self._bars(n=8)
+        htf = resample_closed(df, base_tf_seconds=60, factor=4)
+        self.assertEqual(len(htf), 2)
+        # bar terakhir (indeks 7) adalah bar penutup bucket kedua, jadi boleh dipakai
+        self.assertAlmostEqual(float(htf["close"].iloc[-1]), float(df["close"].iloc[7]))
+        df_more = self._bars(n=9)
+        htf_more = resample_closed(df_more, base_tf_seconds=60, factor=4)
+        # tambahan 1 bar tidak menambah bucket lengkap
+        self.assertEqual(len(htf_more), 2)
+
+    def test_htf_bias_direction(self) -> None:
+        from intelligence import htf_bias
+
+        up = htf_bias(self._bars(n=400), base_tf_seconds=60, factor=4, fast=10, slow=20)
+        self.assertEqual(up.trend, "up")
+        down = htf_bias(self._bars(n=400, price=400.0).assign(
+            close=lambda d: 400.0 - (d.index * 0.5),
+            high=lambda d: 401.0 - (d.index * 0.5),
+            low=lambda d: 399.0 - (d.index * 0.5),
+        ), base_tf_seconds=60, factor=4, fast=10, slow=20)
+        self.assertEqual(down.trend, "down")
+
+    def _divergence_frame(self, kind: str) -> pd.DataFrame:
+        """Dua ekstrem bersih: puncak/lembah di indeks 10 dan 30 saja."""
+        n = 40
+        idx = np.arange(n, dtype=float)
+        bump = lambda center, height: height * np.exp(-((idx - center) / 2.0) ** 2)
+        if kind == "bearish":
+            high = 100.0 + bump(10, 15.0) + bump(30, 20.0)   # higher high
+            low = high - 5.0
+            rsi = 50.0 + bump(10, 30.0) + bump(30, 20.0)     # RSI lebih rendah
+        else:
+            low = 100.0 - bump(10, 20.0) - bump(30, 25.0)    # lower low
+            high = low + 5.0
+            rsi = 50.0 - bump(10, 30.0) - bump(30, 20.0)     # RSI lebih tinggi
+        return pd.DataFrame({"ts": idx, "open": high, "high": high, "low": low,
+                             "close": high, "volume": [1.0] * n, "rsi": rsi})
+
+    def test_rsi_divergence_bearish(self) -> None:
+        from intelligence import rsi_divergence
+
+        self.assertEqual(rsi_divergence(self._divergence_frame("bearish")), "bearish")
+
+    def test_rsi_divergence_bullish(self) -> None:
+        from intelligence import rsi_divergence
+
+        self.assertEqual(rsi_divergence(self._divergence_frame("bullish")), "bullish")
+
+    def test_candle_pattern_engulfing(self) -> None:
+        from intelligence import candle_pattern
+
+        df = pd.DataFrame([
+            {"ts": 1, "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.5, "volume": 1.0},
+            {"ts": 2, "open": 101.0, "high": 101.2, "low": 98.5, "close": 99.0, "volume": 1.0},
+            {"ts": 3, "open": 98.6, "high": 102.0, "low": 98.4, "close": 101.5, "volume": 1.0},
+        ])
+        self.assertEqual(candle_pattern(df), "bullish_engulfing")
+
+    def test_squeeze_detects_compression(self) -> None:
+        from intelligence import squeeze_state
+
+        wide = pd.DataFrame({"close": [100 + 0.01 * i * i for i in range(120)]})
+        squeezed = pd.DataFrame({
+            "close": [100 + (i % 10) * 5 for i in range(80)] + [100 + i * 0.001 for i in range(40)]
+        })
+        self.assertTrue(squeeze_state(squeezed)[0])
+        self.assertFalse(squeeze_state(wide)[0])
+
+    def test_weights_sum_to_one_per_regime(self) -> None:
+        from strategy import WEIGHTS, WEIGHTS_BY_REGIME
+
+        self.assertAlmostEqual(sum(WEIGHTS.values()), 1.0, places=6)
+        for regime, weights in WEIGHTS_BY_REGIME.items():
+            self.assertAlmostEqual(sum(weights.values()), 1.0, places=6, msg=regime)
+
+    def test_signal_exposes_analysis_and_no_lookahead(self) -> None:
+        from strategy import evaluate
+
+        df = make_df(n=400, trend=0.0006, noise=0.0025, seed=5)
+        closed = df.iloc[:-1].reset_index(drop=True)
+        sig = evaluate(closed, StrategyConfig(), RiskConfig(), "BTC/USDT", "15m")
+        self.assertAlmostEqual(sig.bar_ts, float(closed["ts"].iloc[-1]), places=3)
+        self.assertIn(sig.htf_trend, ("up", "down", "flat"))
+        self.assertGreaterEqual(sig.atr_pct_rank, 0.0)
+        self.assertLessEqual(sig.atr_pct_rank, 1.0)
+
+
+class TestAdaptiveRisk(TempProject):
+    def test_multiplier_stays_inside_bounds(self) -> None:
+        rm = RiskManager(RiskConfig(), initial_equity=10_000.0)
+        for score in (0.0, 0.5, 0.7, 1.0):
+            for rank in (0.0, 0.5, 1.0):
+                mult, notes = rm.adaptive_multiplier(score, rank)
+                self.assertGreaterEqual(mult, rm.cfg.adaptive.min_mult - 1e-9)
+                self.assertLessEqual(mult, rm.cfg.adaptive.max_mult + 1e-9)
+                self.assertTrue(notes)
+
+    def test_negative_expectancy_reduces_risk(self) -> None:
+        from risk import ClosedTrade
+
+        rm = RiskManager(RiskConfig(), initial_equity=10_000.0)
+        base, _ = rm.adaptive_multiplier(0.85, 0.4)
+        rm.closed = [ClosedTrade("BTC/USDT", "LONG", 100.0, 98.0, 1.0, -2.0, -1.0,
+                                 1.0, 2.0, "stop_loss") for _ in range(5)]
+        worse, _ = rm.adaptive_multiplier(0.85, 0.4)
+        self.assertLess(worse, base)
+
+    def test_sizing_scales_with_multiplier_when_risk_binds(self) -> None:
+        rm = RiskManager(
+            RiskConfig(risk_per_trade=0.01, max_total_exposure=0.9, max_open_positions=1),
+            initial_equity=10_000.0, step_size=0.00001, min_qty=0.00001, min_notional=1.0)
+        full = rm.position_size(entry=1000.0, stop=950.0)          # 1% / 50 = 2 unit
+        half = rm.position_size(entry=1000.0, stop=950.0, risk_multiplier=0.5)
+        self.assertAlmostEqual(full.qty, 2.0, places=6)
+        self.assertAlmostEqual(half.qty, 1.0, places=6)
+
+    def test_directional_exposure_cap_blocks_second_position(self) -> None:
+        from strategy import Signal
+
+        cfg = RiskConfig(directional_exposure_cap=0.10, max_total_exposure=0.9,
+                         max_open_positions=3)
+        rm = RiskManager(cfg, initial_equity=10_000.0, step_size=0.00001,
+                         min_qty=0.00001, min_notional=1.0)
+        sig = Signal("BTC/USDT", 1.0, "LONG", 0.9, 100.0, 95.0, 110.0, 2.0, "trending_up", 1.0)
+        rm.open_position(sig, qty=15.0, fill_price=100.0, fee=0.0)   # notional 1.500 = 15%
+        snap = self.snapshot(make_df())
+        snap = MarketSnapshot(symbol="BTC/USDT", timeframe="15m", candles=snap.candles,
+                              best_bid=99.9, best_ask=100.1, last_price=100.0,
+                              ts=snap.ts, source="test")
+        checks = {c.name: c for c in rm.pre_trade_check(
+            sig, snap, Mode.PAPER, gate_passed=True, pending_orders=0)}
+        self.assertFalse(checks["11_exposure_arah"].ok)
+
+    def test_time_stop_closes_stale_trade(self) -> None:
+        import time as _time
+
+        from strategy import Signal
+
+        rm = RiskManager(RiskConfig(max_bars_in_trade=10), initial_equity=10_000.0,
+                         step_size=0.00001, min_qty=0.00001, min_notional=1.0)
+        sig = Signal("BTC/USDT", 1.0, "LONG", 0.9, 100.0, 95.0, 120.0, 4.0, "trending_up", 1.0)
+        pos = rm.open_position(sig, qty=1.0, fill_price=100.0, fee=0.0)
+        pos.opened_at = _time.time() - 12 * 900
+        plan = rm.plan_management(pos, 100.5, atr_value=1.0, tf_seconds=900)
+        self.assertEqual(plan["action"], "time_stop")
+
+    def test_adaptive_risk_can_be_disabled(self) -> None:
+        from config import AdaptiveRisk
+
+        rm = RiskManager(RiskConfig(adaptive=AdaptiveRisk(enabled=False)),
+                         initial_equity=10_000.0)
+        mult, notes = rm.adaptive_multiplier(0.2, 1.0)
+        self.assertEqual(mult, 1.0)
+        self.assertTrue(notes)
 
 
 if __name__ == "__main__":
