@@ -57,10 +57,11 @@ aegis1/
 ├── risk.py              # position sizing, SL/TP, trailing, partial TP, batas harian, drawdown
 ├── execution.py         # PaperBroker (fee, slippage, timeout, dedupe) + adapter live yang menolak
 ├── analytics.py         # metrik kinerja, daftar P&L per trade, ekspor CSV/MD
+├── intelligence.py      # MTF, divergensi RSI, pola candle, squeeze (tanpa look-ahead)
 ├── logger.py            # audit log SQLite + JSONL, alert lokal
 ├── dashboard.py         # backend FastAPI: state, history, aksi dua langkah, WebSocket
 ├── main.py              # loop utama, manajemen posisi, exception handling, graceful shutdown
-├── tests.py             # 59 unit test (sizing, risiko, sinyal, gate, replay, analitik)
+├── tests.py             # 74 unit test (sizing, risiko, sinyal, gate, replay, analitik)
 ├── static/
 │   └── index.html       # "AEGIS-1 Trading Console" — satu file, tanpa CDN
 ├── deploy/
@@ -80,7 +81,7 @@ aegis1/
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # opsional; default sudah aman
-python tests.py                                       # 59 test harus OK
+python tests.py                                       # 74 test harus OK
 ```
 
 Python 3.11+ (diuji pada 3.12). Tidak ada dependensi berbayar.
@@ -359,6 +360,56 @@ Catatan jujur: guardrail exposure tetap dihitung sebagai fraksi ekuitas, jadi
 forex dengan stop rapat akan sering dibatasi `max_total_exposure` sebelum
 risiko per trade tercapai. Itu perilaku pengaman, bukan bug; melonggarkannya
 adalah keputusan risiko yang harus disengaja.
+
+## 9d. Kecerdasan analisis dan risiko adaptif
+
+Empat lapisan baru di atas strategi dasar. Semuanya membaca bar yang sudah
+tutup, dan `tests.py` memeriksa bahwa bar terakhir yang dipakai memang bar
+terakhir yang tertutup.
+
+**1. Konfirmasi multi-timeframe (`intelligence.htf_bias`).** Bar digabung ke
+timeframe lebih tinggi (`AEGIS_MTF_FACTOR=4`, jadi 15m → 1h) dan hanya bucket
+yang **lengkap** yang dipakai. Bias HTF menjadi satu suara berbobot, dan
+melawan bias HTF menaikkan ambang konfluensi +0.05.
+
+**2. Bobot konfluensi per regime.** Bobot tidak lagi tetap: di regime trending,
+tren dan HTF lebih berat; di regime ranging, struktur pasar yang lebih berat
+(0.24) karena level lebih berarti daripada momentum. Setiap baris bobot
+berjumlah 1.00 dan diverifikasi unit test — kalau tidak, ambang
+`min_confluence` kehilangan arti.
+
+**3. Divergensi RSI dan pola candle.** Divergensi yang melawan arah menaikkan
+ambang +0.10, bukan memblokir entry: setup tetap boleh jalan hanya bila
+konfluensinya benar-benar kuat. Pola engulfing/hammer/shooting star menjadi
+suara berbobot kecil (0.03–0.06), dan breakout dari kompresi volatilitas
+(squeeze) memberi bonus 0.05.
+
+**4. Risiko adaptif (`RiskManager.adaptive_multiplier`).** Ukuran posisi
+dikalikan dengan:
+
+| Faktor | Efek |
+| --- | --- |
+| Kualitas sinyal (skor 0.60–0.90) | ×0.85 sampai ×1.20 |
+| ATR persentil (0–1) | sampai ×0.65 pada volatilitas tertinggi |
+| Drawdown terhadap batas | potong sampai 50% setelah separuh batas |
+| Expectancy 20 trade terakhir | ×0.50 bila negatif |
+
+Hasilnya dijepit di `[AEGIS_RISK_MIN_MULT, AEGIS_RISK_MAX_MULT]` (0.25–1.50) dan
+hanya mengalikan `risk_per_trade`. Guardrail keras — exposure total, exposure
+satu arah, drawdown, rugi harian — tetap diperiksa sesudahnya dan tidak bisa
+ditembus oleh pengali ini.
+
+**Manajemen posisi tambahan.** Stop dipindah ke harga entry setelah
+`AEGIS_BREAKEVEN_AFTER_R` (default 1R), lalu trailing jalan seperti biasa.
+`AEGIS_MAX_BARS_IN_TRADE` (0 = mati) melepas trade yang tidak bergerak setelah
+N bar dan belum mencapai +0.5R — time stop, supaya modal tidak menganggur.
+Checklist pra-trade kini 17 poin: tambahan `11_exposure_arah` membatasi
+notional satu arah (`AEGIS_DIRECTIONAL_CAP`, default 12% ekuitas) agar dua
+posisi searah tidak menumpuk jadi satu taruhan besar.
+
+Semua angka ini terlihat di dashboard: baris **Pengali risiko (adaptif)** dan
+**Bias HTF · divergensi · pola** di panel risiko, plus `analysis` dan
+`adaptive_risk` di `/api/state`.
 
 ## 10. Uji
 
