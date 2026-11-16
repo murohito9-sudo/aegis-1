@@ -12,10 +12,27 @@ ada di bagian [Batas paket](#batas-paket-dan-langkah-menuju-live).
 > Isi berkas ini bukan nasihat investasi. Tidak ada janji profit di mana pun.
 > Angka pada dashboard adalah hasil simulasi.
 
-**Demo tampilan (tanpa install):** <https://murohito9-sudo.github.io/aegis-1/>
-— satu halaman statis berisi data contoh yang tertanam. Tidak ada backend,
-tidak ada order, tidak ada koneksi jaringan. Untuk console yang benar-benar
-hidup, jalankan `python main.py` lalu buka `http://127.0.0.1:8787`.
+**Situs (GitHub Pages):** <https://murohito9-sudo.github.io/aegis-1/>
+
+| Halaman | Isi |
+| --- | --- |
+| [index](https://murohito9-sudo.github.io/aegis-1/) | pemilih mode: demo atau live |
+| [demo.html](https://murohito9-sudo.github.io/aegis-1/demo.html) | console dengan data contoh tertanam + validator strategi JSON |
+| [live.html](https://murohito9-sudo.github.io/aegis-1/live.html) | langkah menjalankan bot sungguhan (lokal/VPS) |
+
+Mode demo tidak memakai backend, tidak mengirim order, dan tidak membuka
+koneksi jaringan — seluruh angkanya simulasi. Console yang benar-benar hidup
+tetap dijalankan lokal: `python main.py` lalu buka `http://127.0.0.1:8787`
+(lihat `live.html`).
+
+**Strategi JSON.** Halaman demo menerima berkas strategi dari pengguna
+(parameter indikator, filter, bobot konfluensi, setelan risiko) dan
+memeriksanya di browser: rentang nilai, aturan silang seperti `ema_fast <
+ema_slow`, total bobot = 1, dan kunci tak dikenal. Hasilnya juga berupa potongan
+`.env` siap tempel untuk parameter yang punya variabel lingkungan
+(`AEGIS_EMA_FAST`, `AEGIS_MIN_CONFLUENCE`, `AEGIS_RISK_PER_TRADE`, dst).
+Halaman statis hanya memvalidasi dan menampilkan — bot tidak berubah karena
+unggahan itu; parameter tanpa env var harus diubah di `config.py`.
 
 ---
 
