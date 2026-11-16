@@ -54,6 +54,21 @@
   .hint{font-size:11.5px;color:var(--muted);margin-top:8px}
   .kw{display:inline-block;padding:2px 7px;border-radius:5px;background:#151f2b;border:1px solid #243040;
     font:11px/1.6 var(--mono);color:#9fb3c8;margin:2px 3px 0 0}
+
+  .sel{width:100%;padding:8px 10px;border-radius:7px;background:#0d1219;color:var(--text);
+    border:1px solid #2b3a4d;font:12.5px/1.3 var(--sans)}
+  .sel:focus{outline:none;border-color:var(--accent)}
+  #banding{margin-top:22px;scroll-margin-top:64px}
+  #banding .shead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  #banding h2{font-size:12px;margin:0;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted)}
+  .metric{display:grid;grid-template-columns:1fr auto auto;gap:0 10px;font-size:12px;align-items:center}
+  .metric .m{color:#9fb3c8;padding:5px 0;border-bottom:1px solid #161e29}
+  .metric .v{padding:5px 0;border-bottom:1px solid #161e29;font-family:var(--mono);text-align:right;min-width:74px}
+  .metric .h{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);
+    font-weight:600;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .metric .best{color:#22c55e}
+  .diffrow td{background:#1a1608}
+  .diffrow td.k{color:#f59e0b}
 </style>
 <style>
   #demo-flag{position:fixed;right:14px;bottom:14px;z-index:60;display:flex;gap:8px;align-items:center;
@@ -70,7 +85,10 @@
    ============================================================ */
 window.__AEGIS_DEMO__ = true;
 const DEMO_STATE = {"ts":1794837600.0,"uptime_s":98765.0,"symbol":"BTC/USDT","timeframe":"15m","exchange":"binance","data_source":"ccxt/public","connected":true,"mode":"PAPER","live_mode":false,"equity":10391.22,"initial_equity":10000.0,"quote":"USDT","balance":10361.86,"unrealized_pnl":29.36,"realized_pnl":361.86,"realized_pnl_today":78.42,"daily_loss":0.0042,"drawdown":0.0134,"exposure_ratio":0.3427,"pending_orders":1,"positions":[{"position_id":"P-1041","symbol":"BTC/USDT","side":"LONG","entry":68412.5,"size":0.021,"initial_size":0.021,"stop":67850.0,"take_profit":69700.0,"price":68930.0,"pnl":10.87,"r_multiple":0.92,"age_s":5400,"trailing_active":true,"partial_r_taken":[],"stop_order_id":"sl-P-1041","take_profit_order_id":"tp-P-1041"},{"position_id":"P-1042","symbol":"ETH/USDT","side":"LONG","entry":3128.4,"size":0.42,"initial_size":0.42,"stop":3080.0,"take_profit":3245.0,"price":3156.2,"pnl":11.68,"r_multiple":0.57,"age_s":2100,"trailing_active":false,"partial_r_taken":[],"stop_order_id":"sl-P-1042","take_profit_order_id":"tp-P-1042"},{"position_id":"P-1043","symbol":"SOL/USDT","side":"SHORT","entry":172.35,"size":4.7,"initial_size":4.7,"stop":176.2,"take_profit":164.5,"price":170.9,"pnl":6.81,"r_multiple":0.38,"age_s":780,"trailing_active":false,"partial_r_taken":[],"stop_order_id":"sl-P-1043","take_profit_order_id":"tp-P-1043"}],"stats":{"trades":27,"wins":17,"losses":10,"win_rate":0.6296,"profit_factor":1.87,"avg_r":0.34,"realized_pnl":361.86,"max_drawdown":0.0134},"risk":{"risk_per_trade":0.005,"max_daily_loss":0.03,"max_total_exposure":0.6,"max_drawdown":0.1,"max_open_positions":3,"max_leverage":3.0},"gate":{"passed":true,"summary":"semua guardrail lolos (5/5)"},"chart":{"close":[66189.25,66214.85,66213.53,66212.42,66189.16,66199.4,66268.34,66311.06,66381.74,66421.1,66467.93,66506.86,66468.53,66536.2,66588.99,66640.98,66600.28,66556.53,66547.74,66555.73,66595.35,66619.48,66666.86,66665.02,66703.04,66744.81,66742.7,66841.2,66891.9,66970.67,66974.44,66974.65,66992.96,67022.73,67084.9,67132.19,67151.26,67149.66,67166.74,67256.93,67261.46,67309.27,67363.34,67335.09,67369.15,67453.33,67394.97,67404.32,67419.08,67400.17,67432.54,67437.49,67379.66,67414.37,67438.91,67471.8,67522.55,67525.45,67516.01,67445.26,67453.63,67409.56,67371.69,67299.56,67240.08,67199.35,67235.68,67133.27,67055.76,67050.3,67096.12,67106.17,67012.5,66893.01,66894.19,66849.06,66787.14,66812.39,66841.68,66829.91,66820.32,66816.99,66860.67,66861.72,66856.98,66852.05,66757.09,66780.96,66790.6,66782.3,66669.19,66613.2,66620.51,66518.16,66486.41,66507.88,66434.53,66487.28,66499.25,66485.59,66495.87,66523.82,66533.51,66590.11,66574.5,66572.67,66635.12,66657.7,66644.55,66710.12,66799.07,66808.97,66780.43,66804.66,66828.51,66846.07,66934.97,66921.44,67003.66,66979.38,66975.12,67030.39,67106.71,67172.11,67216.6,67253.54,67292.15,67350.04,67378.15,67427.29,67490.99,67532.93,67609.22,67679.46,67812.55,67876.84,67911.26,67949.43,68003.75,68098.07,68139.63,68211.24,68343.01,68288.61,68292.95,68352.53,68416.0,68469.79,68492.22,68556.82,68602.17,68610.1,68738.4,68776.05,68772.14,68784.21,68788.17,68796.46,68690.67,68677.24,68725.23,68680.76,68681.88,68725.47,68764.87,68831.01,68763.3,68752.52,68742.56,68773.36,68823.98,68716.03,68766.22,68709.37,68741.19,68680.55,68688.56,68737.66,68728.36,68731.17,68757.1,68753.02,68736.79,68786.19,68812.87,68780.98,68874.78,68803.49,68817.54,68781.18,68761.19,68765.38,68749.94,68753.12,68666.96,68583.61,68591.99,68536.93,68482.34,68412.5],"ema_fast":[66189.25,66191.58,66193.57,66195.29,66194.73,66195.15,66201.81,66211.74,66227.19,66244.82,66265.1,66287.08,66303.58,66324.72,66348.75,66375.32,66395.77,66410.38,66422.87,66434.95,66449.53,66464.98,66483.33,66499.85,66518.32,66538.91,66557.44,66583.23,66611.29,66643.96,66674.01,66701.34,66727.85,66754.66,66784.68,66816.27,66846.72,66874.26,66900.85,66933.22,66963.06,66994.54,67028.06,67055.98,67084.45,67117.98,67143.16,67166.9,67189.83,67208.95,67229.28,67248.21,67260.16,67274.18,67289.15,67305.76,67325.46,67343.64,67359.31,67367.13,67374.99,67378.13,67377.55,67370.46,67358.61,67344.13,67334.27,67316.0,67292.34,67270.34,67254.5,67241.01,67220.24,67190.49,67163.55,67134.96,67103.34,67076.89,67055.51,67035.0,67015.48,66997.44,66985.01,66973.8,66963.18,66953.08,66935.26,66921.23,66909.36,66897.81,66877.02,66853.04,66831.9,66803.38,66774.56,66750.32,66721.61,66700.31,66682.03,66664.17,66648.87,66637.5,66628.05,66624.6,66620.05,66615.74,66617.5,66621.16,66623.28,66631.18,66646.44,66661.21,66672.05,66684.11,66697.24,66710.77,66731.15,66748.45,66771.65,66790.53,66807.31,66827.59,66852.97,66881.98,66912.4,66943.41,66975.12,67009.2,67042.74,67077.7,67115.27,67153.24,67194.69,67238.76,67290.93,67344.19,67395.74,67446.08,67496.78,67551.44,67604.91,67660.03,67722.12,67773.62,67820.83,67869.17,67918.88,67968.96,68016.53,68065.65,68114.42,68159.48,68212.11,68263.38,68309.63,68352.77,68392.36,68429.09,68452.87,68473.27,68496.18,68512.96,68528.31,68546.24,68566.11,68590.19,68605.93,68619.26,68630.47,68643.46,68659.87,68664.97,68674.18,68677.38,68683.18,68682.94,68683.45,68688.38,68692.01,68695.57,68701.17,68705.88,68708.69,68715.74,68724.57,68729.69,68742.88,68748.39,68754.68,68757.09,68757.46,68758.18,68757.43,68757.04,68748.85,68733.83,68720.93,68704.21,68684.04,68659.35],"ema_slow":[66189.25,66190.16,66191.0,66191.76,66191.67,66191.95,66194.68,66198.83,66205.36,66213.07,66222.17,66232.34,66240.77,66251.33,66263.38,66276.87,66288.42,66298.0,66306.92,66315.8,66325.79,66336.27,66348.08,66359.4,66371.67,66385.0,66397.77,66413.61,66430.69,66449.98,66468.71,66486.78,66504.86,66523.35,66543.41,66564.43,66585.39,66605.55,66625.59,66648.14,66670.04,66692.87,66716.82,66738.9,66761.41,66786.12,66807.86,66829.16,66850.23,66869.87,66889.97,66909.52,66926.31,66943.74,66961.43,66979.66,66999.04,67017.85,67035.64,67050.27,67064.67,67076.99,67087.51,67095.09,67100.27,67103.8,67108.51,67109.4,67107.48,67105.44,67105.11,67105.15,67101.84,67094.38,67087.23,67078.72,67068.31,67059.17,67051.4,67043.49,67035.52,67027.72,67021.75,67016.04,67010.35,67004.7,66995.86,66988.18,66981.13,66974.03,66963.14,66950.64,66938.85,66923.83,66908.2,66893.91,66877.5,66863.56,66850.55,66837.52,66825.32,66814.55,66804.51,66796.85,66788.91,66781.19,66775.97,66771.75,66767.21,66765.17,66766.38,66767.9,66768.35,66769.64,66771.75,66774.4,66780.14,66785.18,66792.98,66799.64,66805.91,66813.93,66824.38,66836.8,66850.37,66864.76,66880.03,66896.81,66914.01,66932.34,66952.29,66973.03,66995.75,67020.17,67048.46,67078.05,67107.81,67137.87,67168.79,67201.98,67235.47,67270.31,67308.63,67343.62,67377.53,67412.35,67448.2,67484.68,67520.66,67557.67,67594.97,67631.23,67670.77,67710.24,67748.17,67785.17,67820.99,67855.83,67885.65,67913.92,67942.89,67969.24,67994.7,68020.8,68047.37,68075.36,68099.93,68123.23,68145.35,68167.78,68191.22,68209.96,68229.83,68246.95,68264.6,68279.46,68294.07,68309.91,68324.86,68339.37,68354.29,68368.53,68381.68,68396.13,68411.01,68424.22,68440.31,68453.29,68466.29,68477.54,68487.67,68497.59,68506.6,68515.41,68520.82,68523.06,68525.52,68525.93,68524.37,68520.38],"ts":[1794658500.0,1794659400.0,1794660300.0,1794661200.0,1794662100.0,1794663000.0,1794663900.0,1794664800.0,1794665700.0,1794666600.0,1794667500.0,1794668400.0,1794669300.0,1794670200.0,1794671100.0,1794672000.0,1794672900.0,1794673800.0,1794674700.0,1794675600.0,1794676500.0,1794677400.0,1794678300.0,1794679200.0,1794680100.0,1794681000.0,1794681900.0,1794682800.0,1794683700.0,1794684600.0,1794685500.0,1794686400.0,1794687300.0,1794688200.0,1794689100.0,1794690000.0,1794690900.0,1794691800.0,1794692700.0,1794693600.0,1794694500.0,1794695400.0,1794696300.0,1794697200.0,1794698100.0,1794699000.0,1794699900.0,1794700800.0,1794701700.0,1794702600.0,1794703500.0,1794704400.0,1794705300.0,1794706200.0,1794707100.0,1794708000.0,1794708900.0,1794709800.0,1794710700.0,1794711600.0,1794712500.0,1794713400.0,1794714300.0,1794715200.0,1794716100.0,1794717000.0,1794717900.0,1794718800.0,1794719700.0,1794720600.0,1794721500.0,1794722400.0,1794723300.0,1794724200.0,1794725100.0,1794726000.0,1794726900.0,1794727800.0,1794728700.0,1794729600.0,1794730500.0,1794731400.0,1794732300.0,1794733200.0,1794734100.0,1794735000.0,1794735900.0,1794736800.0,1794737700.0,1794738600.0,1794739500.0,1794740400.0,1794741300.0,1794742200.0,1794743100.0,1794744000.0,1794744900.0,1794745800.0,1794746700.0,1794747600.0,1794748500.0,1794749400.0,1794750300.0,1794751200.0,1794752100.0,1794753000.0,1794753900.0,1794754800.0,1794755700.0,1794756600.0,1794757500.0,1794758400.0,1794759300.0,1794760200.0,1794761100.0,1794762000.0,1794762900.0,1794763800.0,1794764700.0,1794765600.0,1794766500.0,1794767400.0,1794768300.0,1794769200.0,1794770100.0,1794771000.0,1794771900.0,1794772800.0,1794773700.0,1794774600.0,1794775500.0,1794776400.0,1794777300.0,1794778200.0,1794779100.0,1794780000.0,1794780900.0,1794781800.0,1794782700.0,1794783600.0,1794784500.0,1794785400.0,1794786300.0,1794787200.0,1794788100.0,1794789000.0,1794789900.0,1794790800.0,1794791700.0,1794792600.0,1794793500.0,1794794400.0,1794795300.0,1794796200.0,1794797100.0,1794798000.0,1794798900.0,1794799800.0,1794800700.0,1794801600.0,1794802500.0,1794803400.0,1794804300.0,1794805200.0,1794806100.0,1794807000.0,1794807900.0,1794808800.0,1794809700.0,1794810600.0,1794811500.0,1794812400.0,1794813300.0,1794814200.0,1794815100.0,1794816000.0,1794816900.0,1794817800.0,1794818700.0,1794819600.0,1794820500.0,1794821400.0,1794822300.0,1794823200.0,1794824100.0,1794825000.0,1794825900.0,1794826800.0,1794827700.0,1794828600.0,1794829500.0,1794830400.0,1794831300.0,1794832200.0,1794833100.0,1794834000.0,1794834900.0,1794835800.0,1794836700.0,1794837600.0]},"markers":[{"ts":1794780900.0,"price":67911.26,"kind":"entry","side":"LONG"},{"ts":1794814200.0,"price":68709.37,"kind":"entry","side":"SHORT"},{"ts":1794753000.0,"price":66572.67,"kind":"exit","side":"LONG"}],"events":[{"ts":1794837588.0,"level":"info","kind":"tick","message":"siklus 1842 · BTC/USDT 68.930 · regime TREND_UP"},{"ts":1794837552.0,"level":"info","kind":"signal","message":"SOL/USDT SHORT skor 0.71 · R:R 2.1 · dieksekusi"},{"ts":1794837504.0,"level":"warning","kind":"data","message":"latensi feed 1.8s melewati ambang 1.5s, dicoba ulang"},{"ts":1794837420.0,"level":"info","kind":"alert","message":"posisi BTC/USDT melewati 0.8R, trailing stop diaktifkan"},{"ts":1794837280.0,"level":"info","kind":"risk","message":"exposure 34.2% dari batas 60% · lolos gate"},{"ts":1794837145.0,"level":"info","kind":"signal","message":"ETH/USDT LONG skor 0.64 · R:R 2.3 · dieksekusi"},{"ts":1794837000.0,"level":"info","kind":"order","message":"BTC/USDT BUY 0.021 @ 68.412,5 · FILLED · fee 1.44"},{"ts":1794836858.0,"level":"warning","kind":"risk","message":"rugi harian 0.42% dari batas 3.00% · masih aman"},{"ts":1794836700.0,"level":"info","kind":"tick","message":"data feed tersambung ulang · ccxt/public"},{"ts":1794836420.0,"level":"error","kind":"data","message":"1 candle hilang pada 15m, diisi dari snapshot terakhir"},{"ts":1794836200.0,"level":"info","kind":"start","message":"AEGIS-1 mulai · mode PAPER · BTC/USDT 15m"}],"last_tick_ts":1794837600.0,"last_error":null,"tick_count":1842};
-const DEMO_HISTORY = {"orders":[{"ts":1794837588.0,"symbol":"BTC/USDT","side":"BUY","type":"LIMIT","qty":0.021,"avg_price":68412.5,"status":"FILLED","fee":1.44,"slippage_bps":1.2},{"ts":1794837552.0,"symbol":"SOL/USDT","side":"SELL","type":"MARKET","qty":4.7,"avg_price":172.35,"status":"FILLED","fee":0.81,"slippage_bps":2.4},{"ts":1794837145.0,"symbol":"ETH/USDT","side":"BUY","type":"LIMIT","qty":0.42,"avg_price":3128.4,"status":"FILLED","fee":1.31,"slippage_bps":0.9},{"ts":1794836900.0,"symbol":"BTC/USDT","side":"SELL","type":"LIMIT","qty":0.018,"avg_price":68105.0,"status":"CANCELLED","fee":0.0,"slippage_bps":0.0},{"ts":1794836620.0,"symbol":"ETH/USDT","side":"SELL","type":"STOP","qty":0.35,"avg_price":3172.8,"status":"FILLED","fee":1.11,"slippage_bps":3.6},{"ts":1794836360.0,"symbol":"SOL/USDT","side":"BUY","type":"LIMIT","qty":3.2,"avg_price":168.9,"status":"FILLED","fee":0.54,"slippage_bps":1.5},{"ts":1794836000.0,"symbol":"BTC/USDT","side":"BUY","type":"MARKET","qty":0.015,"avg_price":66820.0,"status":"FILLED","fee":1.0,"slippage_bps":2.1},{"ts":1794835790.0,"symbol":"ETH/USDT","side":"BUY","type":"LIMIT","qty":0.3,"avg_price":3055.2,"status":"FILLED","fee":0.92,"slippage_bps":0.7}],"trades":[{"closed_at":1794836640.0,"symbol":"ETH/USDT","side":"LONG","entry":3055.2,"exit":3172.8,"pnl":35.28,"r_multiple":1.42,"close_reason":"take_profit"},{"closed_at":1794836180.0,"symbol":"SOL/USDT","side":"SHORT","entry":176.8,"exit":168.9,"pnl":25.28,"r_multiple":1.1,"close_reason":"trailing_stop"},{"closed_at":1794835590.0,"symbol":"BTC/USDT","side":"LONG","entry":66820.0,"exit":66540.0,"pnl":-4.2,"r_multiple":-1.0,"close_reason":"stop_loss"},{"closed_at":1794835000.0,"symbol":"ETH/USDT","side":"SHORT","entry":3188.0,"exit":3140.5,"pnl":19.95,"r_multiple":1.31,"close_reason":"take_profit"},{"closed_at":1794834300.0,"symbol":"BTC/USDT","side":"LONG","entry":65120.0,"exit":66310.0,"pnl":17.85,"r_multiple":1.68,"close_reason":"partial_tp"},{"closed_at":1794833500.0,"symbol":"SOL/USDT","side":"LONG","entry":165.4,"exit":163.1,"pnl":-10.82,"r_multiple":-1.0,"close_reason":"stop_loss"},{"closed_at":1794832400.0,"symbol":"ETH/USDT","side":"LONG","entry":3042.0,"exit":3098.4,"pnl":16.94,"r_multiple":1.04,"close_reason":"take_profit"},{"closed_at":1794831200.0,"symbol":"BTC/USDT","side":"SHORT","entry":67250.0,"exit":67610.0,"pnl":-7.56,"r_multiple":-1.0,"close_reason":"stop_loss"}],"signals":[{"ts":1794837552.0,"side":"SHORT","score":0.71,"entry":172.35,"stop":176.2,"take_profit":164.5,"reward_risk":2.01,"regime":"TREND_DOWN","action":"EXECUTED"},{"ts":1794837400.0,"side":"LONG","score":0.48,"entry":68930.0,"stop":68400.0,"take_profit":70100.0,"reward_risk":2.2,"regime":"TREND_UP","action":"VETOED"},{"ts":1794837145.0,"side":"LONG","score":0.64,"entry":3128.4,"stop":3080.0,"take_profit":3245.0,"reward_risk":2.41,"regime":"TREND_UP","action":"EXECUTED"},{"ts":1794836910.0,"side":"SHORT","score":0.39,"entry":69110.0,"stop":69550.0,"take_profit":68000.0,"reward_risk":2.52,"regime":"RANGE","action":"WAITING"},{"ts":1794836620.0,"side":"SHORT","score":0.66,"entry":3172.8,"stop":3210.0,"take_profit":3080.0,"reward_risk":2.5,"regime":"TREND_DOWN","action":"EXECUTED"},{"ts":1794836420.0,"side":"LONG","score":0.41,"entry":168.9,"stop":165.4,"take_profit":176.0,"reward_risk":2.03,"regime":"RANGE","action":"VETOED"},{"ts":1794836000.0,"side":"LONG","score":0.58,"entry":66820.0,"stop":66540.0,"take_profit":67600.0,"reward_risk":2.79,"regime":"TREND_UP","action":"EXECUTED"},{"ts":1794835700.0,"side":"SHORT","score":0.52,"entry":67480.0,"stop":67990.0,"take_profit":66200.0,"reward_risk":2.51,"regime":"TREND_DOWN","action":"WAITING"}]};
+const DEMO_HISTORY = {"orders":[{"ts":1794837588.0,"symbol":"BTC/USDT","side":"BUY","type":"LIMIT","qty":0.021,"avg_price":68412.5,"status":"FILLED","fee":1.44,"slippage_bps":1.2},{"ts":1794837552.0,"symbol":"SOL/USDT","side":"SELL","type":"MARKET","qty":4.7,"avg_price":172.35,"status":"FILLED","fee":0.81,"slippage_bps":2.4},{"ts":1794837145.0,"symbol":"ETH/USDT","side":"BUY","type":"LIMIT","qty":0.42,"avg_price":3128.4,"status":"FILLED","fee":1.31,"slippage_bps":0.9},{"ts":1794836900.0,"symbol":"BTC/USDT","side":"SELL","type":"LIMIT","qty":0.018,"avg_price":68105.0,"status":"CANCELLED","fee":0.0,"slippage_bps":0.0},{"ts":1794836620.0,"symbol":"ETH/USDT","side":"SELL","type":"STOP","qty":0.35,"avg_price":3172.8,"status":"FILLED","fee":1.11,"slippage_bps":3.6},{"ts":1794836360.0,"symbol":"SOL/USDT","side":"BUY","type":"LIMIT","qty":3.2,"avg_price":168.9,"status":"FILLED","fee":0.54,"slippage_bps":1.5},{"ts":1794836000.0,"symbol":"BTC/USDT","side":"BUY","type":"MARKET","qty":0.015,"avg_price":66820.0,"status":"FILLED","fee":1.0,"slippage_bps":2.1},{"ts":1794835790.0,"symbol":"ETH/USDT","side":"BUY","type":"LIMIT","qty":0.3,"avg_price":3055.2,"status":"FILLED","fee":0.92,"slippage_bps":0.7}],"trades":[{"closed_at":1794836640.0,"symbol":"ETH/USDT","side":"LONG","entry":3055.2,"exit":3172.8,"pnl":35.28,"r_multiple":1.42,"close_reason":"take_profit"},{"closed_at":1794836180.0,"symbol":"SOL/USDT","side":"SHORT","entry":176.8,"exit":168.9,"pnl":25.28,"r_multiple":1.1,"close_reason":"trailing_stop"},{"closed_at":1794835590.0,"symbol":"BTC/USDT","side":"LONG","entry":66820.0,"exit":66540.0,"pnl":-4.2,"r_multiple":-1.0,"close_reason":"stop_loss"},{"closed_at":1794835000.0,"symbol":"ETH/USDT","side":"SHORT","entry":3188.0,"exit":3140.5,"pnl":19.95,"r_multiple":1.31,"close_reason":"take_profit"},{"closed_at":1794834300.0,"symbol":"BTC/USDT","side":"LONG","entry":65120.0,"exit":66310.0,"pnl":17.85,"r_multiple":1.68,"close_reason":"partial_tp"},{"closed_at":1794833500.0,"symbol":"SOL/USDT","side":"LONG","entry":165.4,"exit":163.1,"pnl":-10.82,"r_multiple":-1.0,"close_reason":"stop_loss"},{"closed_at":1794832400.0,"symbol":"ETH/USDT","side":"LONG","entry":3042.0,"exit":3098.4,"pnl":16.94,"r_multiple":1.04,"close_reason":"take_profit"},{"closed_at":1794831200.0,"symbol":"BTC/USDT","side":"SHORT","entry":67250.0,"exit":67610.0,"pnl":-7.56,"r_multiple":-1.0,"close_reason":"stop_loss"}],"signals":[{"ts":1794837552.0,"side":"SHORT","score":0.71,"entry":172.35,"stop":176.2,"take_profit":164.5,"reward_risk":2.01,"regime":"TREND_DOWN","action":"EXECUTED"},{"ts":1794837400.0,"side":"LONG","score":0.6,"entry":68930.0,"stop":68400.0,"take_profit":70100.0,"reward_risk":2.2,"regime":"TREND_UP","action":"VETOED"},{"ts":1794837145.0,"side":"LONG","score":0.74,"entry":3128.4,"stop":3080.0,"take_profit":3245.0,"reward_risk":2.41,"regime":"TREND_UP","action":"EXECUTED"},{"ts":1794836910.0,"side":"SHORT","score":0.39,"entry":69110.0,"stop":69550.0,"take_profit":68000.0,"reward_risk":2.52,"regime":"RANGE","action":"VETOED"},{"ts":1794836620.0,"side":"SHORT","score":0.78,"entry":3172.8,"stop":3210.0,"take_profit":3080.0,"reward_risk":2.5,"regime":"TREND_DOWN","action":"EXECUTED"},{"ts":1794836420.0,"side":"LONG","score":0.41,"entry":168.9,"stop":165.4,"take_profit":176.0,"reward_risk":2.03,"regime":"RANGE","action":"VETOED"},{"ts":1794836000.0,"side":"LONG","score":0.72,"entry":66820.0,"stop":66540.0,"take_profit":67600.0,"reward_risk":2.79,"regime":"TREND_UP","action":"EXECUTED"},{"ts":1794835700.0,"side":"SHORT","score":0.7,"entry":67480.0,"stop":67990.0,"take_profit":66200.0,"reward_risk":2.51,"regime":"TREND_DOWN","action":"EXECUTED"}]};
+/* dipakai juga oleh panel strategi di halaman yang sama */
+window.DEMO_STATE = DEMO_STATE;
+window.DEMO_HISTORY = DEMO_HISTORY;
 
 (function () {
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -134,6 +152,7 @@ const DEMO_HISTORY = {"orders":[{"ts":1794837588.0,"symbol":"BTC/USDT","side":"B
 
   window.WebSocket = function () {
     const self = this;
+    window.__demoWs = self;
     this.readyState = 1;
     this.send = function () {};
     this.close = function () {};
@@ -278,7 +297,7 @@ const DEMO_HISTORY = {"orders":[{"ts":1794837588.0,"symbol":"BTC/USDT","side":"B
 </style>
 </head>
 <body>
-<div class="demo-nav"><a href="./index.html">&larr; Mode</a><span class="sep"></span><a href="./live.html">Live</a><a href="#strategi">Strategi JSON</a><a href="https://github.com/murohito9-sudo/aegis-1">Repo</a></div>
+<div class="demo-nav"><a href="./index.html">&larr; Mode</a><span class="sep"></span><a href="./live.html">Live</a><a href="#banding">Bandingkan</a><a href="#strategi">Strategi JSON</a><a href="https://github.com/murohito9-sudo/aegis-1">Repo</a></div>
 
 <div id="demo-flag"><b>DEMO</b><span>data simulasi · tanpa backend</span></div>
 
@@ -397,6 +416,40 @@ const DEMO_HISTORY = {"orders":[{"ts":1794837588.0,"symbol":"BTC/USDT","side":"B
     maupun di penyimpanan lokal browser. Dashboard hanya membaca state dari proses bot
     di mesin yang sama. Semua keputusan tercatat di audit log (SQLite + JSONL).
   </div>
+
+<section id="banding">
+  <div class="shead">
+    <h2>Strategi aktif &amp; perbandingan</h2>
+    <span class="hint">dihitung ulang di browser atas data contoh yang sama</span>
+  </div>
+  <div class="sgrid">
+    <div class="card">
+      <div class="hint" style="margin:0 0 6px">Strategi aktif — mengubah console di atas</div>
+      <select id="b-active" class="sel"></select>
+      <div class="row">
+        <button class="sbtn primary" id="b-apply">Terapkan ke console</button>
+        <button class="sbtn" id="b-reset">Kembalikan bawaan</button>
+      </div>
+      <div class="hint" id="b-apply-note">Console masih memakai parameter bawaan paket.</div>
+
+      <div class="hint" style="margin:16px 0 6px">Bandingkan dua strategi</div>
+      <div class="row" style="margin-top:0">
+        <select id="b-a" class="sel" style="flex:1;min-width:130px"></select>
+        <select id="b-b" class="sel" style="flex:1;min-width:130px"></select>
+      </div>
+      <div class="row">
+        <button class="sbtn primary" id="b-compare">Bandingkan</button>
+        <button class="sbtn" id="b-export" disabled>Ekspor ringkasan .md</button>
+      </div>
+      <div class="hint">Strategi hasil unggahan otomatis masuk daftar setelah lolos validasi.</div>
+    </div>
+    <div class="card" id="b-result">
+      <span class="sstatus idle" id="b-status">belum dibandingkan</span>
+      <div id="b-metrics"></div>
+      <div id="b-diff"></div>
+    </div>
+  </div>
+</section>
 
 <section id="strategi">
   <div class="shead">
@@ -1088,6 +1141,13 @@ const DEMO_HISTORY = {"orders":[{"ts":1794837588.0,"symbol":"BTC/USDT","side":"B
     }
     const res = validate(obj);
     render(res, obj);
+    if (!res.errors.length) {
+      try {
+        window.dispatchEvent(new CustomEvent("aegis:valid", {
+          detail: { name: obj.name || "tanpa nama", obj: obj, values: res.values }
+        }));
+      } catch (e) { /* diabaikan */ }
+    }
   }
 
   /* ---- interaksi ---- */
@@ -1141,6 +1201,351 @@ const DEMO_HISTORY = {"orders":[{"ts":1794837588.0,"symbol":"BTC/USDT","side":"B
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("hot"); }));
   drop.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) readFile(e.dataTransfer.files[0]); });
   drop.addEventListener("click", (e) => { if (e.target.id !== "s-file") file.click(); });
+
+  /* dipakai bagian perbandingan strategi */
+  window.AEGIS_STRAT = { validate: validate, SPEC: SPEC };
+})();
+</script>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  /* nilai bawaan config.py — dipakai kalau berkas tidak menyebutkan parameter */
+  const DEFAULTS = {
+    "indicators.ema_fast": 50, "indicators.ema_slow": 200, "indicators.rsi_period": 14,
+    "indicators.macd_fast": 12, "indicators.macd_slow": 26, "indicators.macd_signal": 9,
+    "indicators.atr_period": 14, "indicators.roc_period": 10, "indicators.volume_lookback": 20,
+    "indicators.swing_lookback": 5,
+    "filters.rsi_overbought": 78, "filters.rsi_oversold": 22, "filters.min_confluence": 0.7,
+    "filters.min_bars": 260, "filters.high_vol_percentile": 0.9, "filters.low_liquidity_ratio": 0.55,
+    "risk.risk_per_trade": 0.01, "risk.min_reward_risk": 2.0, "risk.atr_stop_mult": 1.8,
+    "risk.trailing_after_r": 1.0, "risk.trailing_atr_mult": 1.5,
+    "risk.partial_take_profit_r": [1, 2], "risk.partial_take_profit_fraction": 0.5,
+    "weights.trend": 0.25, "weights.momentum": 0.15, "weights.macd": 0.15,
+    "weights.volume": 0.15, "weights.structure": 0.20, "weights.roc": 0.10
+  };
+  const WKEYS = ["trend", "momentum", "macd", "volume", "structure", "roc"];
+  const LABELS = {
+    "indicators.ema_fast": "EMA cepat", "indicators.ema_slow": "EMA lambat",
+    "filters.min_confluence": "Skor konfluensi minimum", "filters.min_bars": "Bar minimum",
+    "risk.risk_per_trade": "Risiko per trade", "risk.min_reward_risk": "Reward:risk minimum",
+    "risk.atr_stop_mult": "Pengali stop ATR", "filters.rsi_overbought": "RSI overbought",
+    "filters.rsi_oversold": "RSI oversold", "filters.high_vol_percentile": "Persentil volatil",
+    "filters.low_liquidity_ratio": "Ambang likuiditas", "risk.trailing_after_r": "Trailing aktif di R",
+    "risk.trailing_atr_mult": "Pengali trailing ATR", "risk.partial_take_profit_r": "Partial TP di R",
+    "risk.partial_take_profit_fraction": "Porsi partial TP", "indicators.rsi_period": "Periode RSI",
+    "indicators.macd_fast": "MACD cepat", "indicators.macd_slow": "MACD lambat",
+    "indicators.macd_signal": "MACD signal", "indicators.atr_period": "Periode ATR",
+    "indicators.roc_period": "Periode ROC", "indicators.volume_lookback": "Lookback volume",
+    "indicators.swing_lookback": "Lookback swing", "weights.trend": "Bobot tren",
+    "weights.momentum": "Bobot momentum", "weights.macd": "Bobot MACD", "weights.volume": "Bobot volume",
+    "weights.structure": "Bobot struktur", "weights.roc": "Bobot ROC"
+  };
+
+  const PRESETS = [
+    { name: "Momentum Trend 15m (bawaan)", obj: {
+        name: "Momentum Trend 15m", version: 1, symbol: "BTC/USDT", timeframe: "15m",
+        indicators: { ema_fast: 50, ema_slow: 200, rsi_period: 14, macd_fast: 12, macd_slow: 26,
+                      macd_signal: 9, atr_period: 14, roc_period: 10, volume_lookback: 20, swing_lookback: 5 },
+        filters: { rsi_overbought: 78, rsi_oversold: 22, min_confluence: 0.7, min_bars: 260,
+                   high_vol_percentile: 0.9, low_liquidity_ratio: 0.55 },
+        risk: { risk_per_trade: 0.01, min_reward_risk: 2.0, atr_stop_mult: 1.8, trailing_after_r: 1.0,
+                trailing_atr_mult: 1.5, partial_take_profit_r: [1, 2], partial_take_profit_fraction: 0.5 },
+        weights: { trend: 0.25, momentum: 0.15, macd: 0.15, volume: 0.15, structure: 0.2, roc: 0.1 } } },
+    { name: "Konservatif 1h", obj: {
+        name: "Konservatif 1h", version: 1, symbol: "BTC/USDT", timeframe: "1h",
+        indicators: { ema_fast: 100, ema_slow: 400, rsi_period: 14, macd_fast: 12, macd_slow: 26,
+                      macd_signal: 9, atr_period: 14, roc_period: 20, volume_lookback: 30, swing_lookback: 8 },
+        filters: { rsi_overbought: 80, rsi_oversold: 20, min_confluence: 0.85, min_bars: 450,
+                   high_vol_percentile: 0.85, low_liquidity_ratio: 0.7 },
+        risk: { risk_per_trade: 0.005, min_reward_risk: 3.0, atr_stop_mult: 2.2, trailing_after_r: 1.5,
+                trailing_atr_mult: 2.0, partial_take_profit_r: [1.5, 3], partial_take_profit_fraction: 0.4 },
+        weights: { trend: 0.3, momentum: 0.1, macd: 0.1, volume: 0.15, structure: 0.25, roc: 0.1 } } },
+    { name: "Agresif Range 5m", obj: {
+        name: "Agresif Range 5m", version: 1, symbol: "BTC/USDT", timeframe: "5m",
+        indicators: { ema_fast: 21, ema_slow: 55, rsi_period: 9, macd_fast: 8, macd_slow: 21,
+                      macd_signal: 5, atr_period: 10, roc_period: 6, volume_lookback: 12, swing_lookback: 3 },
+        filters: { rsi_overbought: 75, rsi_oversold: 25, min_confluence: 0.55, min_bars: 120,
+                   high_vol_percentile: 0.95, low_liquidity_ratio: 0.4 },
+        risk: { risk_per_trade: 0.02, min_reward_risk: 1.2, atr_stop_mult: 1.2, trailing_after_r: 0.8,
+                trailing_atr_mult: 1.0, partial_take_profit_r: [0.8, 1.6], partial_take_profit_fraction: 0.5 },
+        weights: { trend: 0.15, momentum: 0.25, macd: 0.2, volume: 0.15, structure: 0.15, roc: 0.1 } } }
+  ];
+
+  const lib = PRESETS.slice();
+  let activeIdx = 0;
+  let lastCompare = null;
+
+  function paramsOf(obj) {
+    let v = {};
+    try { v = (window.AEGIS_STRAT ? window.AEGIS_STRAT.validate(obj).values : {}); } catch (e) { v = {}; }
+    return Object.assign({}, DEFAULTS, v);
+  }
+  function fmtV(v) {
+    if (Array.isArray(v)) return "[" + v.join(", ") + "]";
+    if (typeof v === "number") return String(Number(v.toFixed(6)));
+    return String(v);
+  }
+  function pctTxt(v) { return (v * 100).toFixed(2) + "%"; }
+
+  function fillSelects() {
+    const opts = lib.map((s, i) => '<option value="' + i + '">' + esc(s.name) + "</option>").join("");
+    $("b-active").innerHTML = opts;
+    $("b-a").innerHTML = opts;
+    $("b-b").innerHTML = opts;
+    $("b-active").value = String(activeIdx);
+    $("b-a").value = "0";
+    $("b-b").value = String(Math.min(1, lib.length - 1));
+  }
+
+  /* ---------------- metrik ---------------- */
+  function metrics(obj) {
+    const p = paramsOf(obj);
+    const sigs = (window.DEMO_HISTORY && DEMO_HISTORY.signals) || [];
+    const minConf = p["filters.min_confluence"], minRR = p["risk.min_reward_risk"];
+    const pass = sigs.filter((s) => s.score >= minConf && s.reward_risk >= minRR);
+    const vetoScore = sigs.filter((s) => s.score < minConf).length;
+    const vetoRR = sigs.filter((s) => s.score >= minConf && s.reward_risk < minRR).length;
+    const avgRR = pass.length ? pass.reduce((a, s) => a + s.reward_risk, 0) / pass.length : 0;
+
+    const st = window.DEMO_STATE;
+    const eq = st.initial_equity + st.realized_pnl;
+    const n = Math.max(1, st.positions.length);
+    const pos = st.positions[0];
+    const dist = Math.abs(pos.entry - pos.stop) || 1;
+    const riskSize = (eq * p["risk.risk_per_trade"]) / dist;
+    const capSize = (eq * (st.risk.max_total_exposure || 0.6)) / n / pos.entry;
+    const size = Math.min(riskSize, capSize);
+    const wsum = WKEYS.reduce((a, k) => a + (p["weights." + k] || 0), 0);
+
+    return {
+      total: sigs.length, pass: pass.length, vetoScore, vetoRR, avgRR,
+      risk: p["risk.risk_per_trade"], minConf, minRR,
+      size, notional: size * pos.entry, riskSize, riskNotional: riskSize * pos.entry,
+      capped: capSize < riskSize,
+      wsum, params: p
+    };
+  }
+
+  /* ---------------- terapkan ke console demo ---------------- */
+  function applyStrategy(obj, label) {
+    const st = window.DEMO_STATE, hist = window.DEMO_HISTORY;
+    if (!st) return false;
+    const p = paramsOf(obj);
+    const eq = st.initial_equity + st.realized_pnl;
+    const n = Math.max(1, st.positions.length);
+    const maxExp = st.risk.max_total_exposure || 0.6;
+    let capped = 0;
+
+    st.positions.forEach((pos) => {
+      const dist = Math.abs(pos.entry - pos.stop) || 1e-9;
+      const riskSize = (eq * p["risk.risk_per_trade"]) / dist;
+      const capSize = (eq * maxExp) / n / pos.entry;
+      let size = Math.min(riskSize, capSize);
+      if (capSize < riskSize) capped += 1;
+      size = Math.floor(size * 1e5) / 1e5;
+      if (!(size > 0)) size = 0.00001;
+      pos.size = size;
+      pos.initial_size = size;
+      const px = pos.price;
+      pos.pnl = Number(((pos.side === "LONG" ? px - pos.entry : pos.entry - px) * size).toFixed(2));
+      pos.r_multiple = Number((((pos.side === "LONG" ? px - pos.entry : pos.entry - px) / dist) || 0).toFixed(2));
+    });
+
+    st.unrealized_pnl = Number(st.positions.reduce((a, x) => a + x.pnl, 0).toFixed(2));
+    st.equity = Number((st.initial_equity + st.realized_pnl + st.unrealized_pnl).toFixed(2));
+    st.exposure_ratio = Number(
+      (st.positions.reduce((a, x) => a + x.entry * x.size, 0) / (st.equity || 1)).toFixed(4));
+    st.strategy_name = label;
+
+    if (hist) {
+      hist.signals.forEach((sig) => {
+        if (sig.score < p["filters.min_confluence"]) sig.action = "VETOED";
+        else if (sig.reward_risk < p["risk.min_reward_risk"]) sig.action = "VETOED";
+        else sig.action = "EXECUTED";
+      });
+    }
+
+    /* chip di header console */
+    let el = $("active-strat");
+    if (!el) {
+      const hdr = document.querySelector(".hdr-right");
+      if (hdr) {
+        const span = document.createElement("span");
+        span.className = "chip";
+        span.innerHTML = 'STRATEGI <b id="active-strat">—</b>';
+        hdr.insertBefore(span, hdr.firstChild);
+        el = $("active-strat");
+      }
+    }
+    if (el) el.textContent = label;
+
+    /* segarkan console sekarang, tanpa menunggu tick berikutnya */
+    if (window.__demoWs && window.__demoWs.onmessage) {
+      window.__demoWs.onmessage({ data: JSON.stringify(st) });
+    }
+    $("b-apply-note").innerHTML = "Diterapkan: <b>" + esc(label) + "</b> · risiko "
+      + pctTxt(p["risk.risk_per_trade"]) + "/trade · skor min " + p["filters.min_confluence"]
+      + " · R:R min " + p["risk.min_reward_risk"]
+      + (capped ? " · " + capped + " posisi dibatasi exposure" : "");
+    return true;
+  }
+
+  /* ---------------- perbandingan ---------------- */
+  function compare() {
+    const A = lib[Number($("b-a").value)], B = lib[Number($("b-b").value)];
+    if (!A || !B) return;
+    const ma = metrics(A.obj), mb = metrics(B.obj);
+
+    const rows = [
+      ["Sinyal contoh", ma.total, mb.total, "n"],
+      ["Lolos filter", ma.pass, mb.pass, "hi"],
+      ["Ditolak skor konfluensi", ma.vetoScore, mb.vetoScore, "lo"],
+      ["Ditolak reward:risk", ma.vetoRR, mb.vetoRR, "lo"],
+      ["Rata-rata R:R yang lolos", ma.avgRR.toFixed(2), mb.avgRR.toFixed(2), "hi"],
+      ["Risiko per trade", pctTxt(ma.risk), pctTxt(mb.risk), "lo"],
+      ["Ukuran dari risiko (BTC)", ma.riskSize.toFixed(5), mb.riskSize.toFixed(5), "n"],
+      ["Ukuran final (BTC)", ma.size.toFixed(5), mb.size.toFixed(5), "n"],
+      ["Notional final", ma.notional.toFixed(0) + " USDT", mb.notional.toFixed(0) + " USDT", "lo"],
+      ["Dibatasi exposure", ma.capped ? "ya" : "tidak", mb.capped ? "ya" : "tidak", "n"],
+      ["Total bobot konfluensi", ma.wsum.toFixed(2), mb.wsum.toFixed(2), "n"]
+    ];
+
+    let html = '<div class="metric">'
+      + '<div class="h">Metrik</div><div class="h" style="text-align:right">' + esc(shortName(A.name)) + "</div>"
+      + '<div class="h" style="text-align:right">' + esc(shortName(B.name)) + "</div>";
+    rows.forEach((r) => {
+      const a = String(r[1]), b = String(r[2]);
+      let ca = "", cb = "";
+      if (r[3] === "hi") { if (Number(a) > Number(b)) ca = " best"; else if (Number(b) > Number(a)) cb = " best"; }
+      if (r[3] === "lo") { if (Number(a) < Number(b)) ca = " best"; else if (Number(b) < Number(a)) cb = " best"; }
+      html += '<div class="m">' + r[0] + '</div><div class="v' + ca + '">' + a + '</div><div class="v' + cb + '">' + b + "</div>";
+    });
+    html += "</div>";
+
+    /* tabel selisih parameter */
+    const keys = Object.keys(DEFAULTS);
+    const diff = keys.filter((k) => JSON.stringify(ma.params[k]) !== JSON.stringify(mb.params[k]));
+    let dh = '<table class="tbl"><thead><tr><th colspan="3">Parameter berbeda (' + diff.length + " dari " + keys.length + ")</th></tr></thead><tbody>";
+    if (!diff.length) {
+      dh += '<tr><td colspan="3" style="color:#7c8798">kedua strategi memakai parameter identik</td></tr>';
+    } else {
+      diff.forEach((k) => {
+        dh += '<tr class="diffrow"><td class="k">' + esc(LABELS[k] || k) + "</td><td>"
+          + esc(fmtV(ma.params[k])) + "</td><td>" + esc(fmtV(mb.params[k])) + "</td></tr>";
+      });
+    }
+    dh += "</tbody></table>";
+    dh += '<div class="hint">Kolom kiri = ' + esc(A.name) + ", kolom kanan = " + esc(B.name)
+      + ". Parameter yang sama tidak ditampilkan.</div>";
+
+    $("b-metrics").innerHTML = html;
+    $("b-diff").innerHTML = dh;
+    const st = $("b-status");
+    st.className = "sstatus " + (ma.pass !== mb.pass ? "warn" : "ok");
+    st.textContent = "lolos " + ma.pass + " vs " + mb.pass + " sinyal";
+    $("b-export").disabled = false;
+    lastCompare = { A, B, ma, mb, diff };
+  }
+
+  function shortName(n) {
+    return n.length > 22 ? n.slice(0, 21) + "…" : n;
+  }
+
+  /* ---------------- ekspor ---------------- */
+  function buildMarkdown() {
+    const c = lastCompare;
+    const now = new Date();
+    let md = "# Ringkasan strategi AEGIS-1 (demo)\n\n";
+    md += "Dibuat: " + now.toISOString() + "\n";
+    md += "Sumber angka: data contoh yang tertanam di demo.html, dihitung di browser. "
+        + "Bukan backtest dan bukan hasil trading nyata.\n\n";
+    if (c) {
+      md += "## " + c.A.name + " vs " + c.B.name + "\n\n";
+      md += "| Metrik | " + c.A.name + " | " + c.B.name + " |\n| --- | --- | --- |\n";
+      const rows = [
+        ["Sinyal contoh", c.ma.total, c.mb.total],
+        ["Lolos filter", c.ma.pass, c.mb.pass],
+        ["Ditolak skor", c.ma.vetoScore, c.mb.vetoScore],
+        ["Ditolak R:R", c.ma.vetoRR, c.mb.vetoRR],
+        ["Rata-rata R:R lolos", c.ma.avgRR.toFixed(2), c.mb.avgRR.toFixed(2)],
+        ["Risiko per trade", pctTxt(c.ma.risk), pctTxt(c.mb.risk)],
+        ["Ukuran dari risiko (BTC)", c.ma.riskSize.toFixed(5), c.mb.riskSize.toFixed(5)],
+        ["Ukuran final (BTC)", c.ma.size.toFixed(5), c.mb.size.toFixed(5)],
+        ["Notional final (USDT)", c.ma.notional.toFixed(0), c.mb.notional.toFixed(0)],
+        ["Dibatasi exposure", c.ma.capped ? "ya" : "tidak", c.mb.capped ? "ya" : "tidak"],
+        ["Total bobot konfluensi", c.ma.wsum.toFixed(2), c.mb.wsum.toFixed(2)]
+      ];
+      rows.forEach((r) => { md += "| " + r[0] + " | " + r[1] + " | " + r[2] + " |\n"; });
+      md += "\n## Parameter berbeda (" + c.diff.length + ")\n\n";
+      md += "| Parameter | " + c.A.name + " | " + c.B.name + " |\n| --- | --- | --- |\n";
+      if (!c.diff.length) md += "| — | identik | identik |\n";
+      c.diff.forEach((k) => {
+        md += "| " + (LABELS[k] || k) + " | " + fmtV(c.ma.params[k]) + " | " + fmtV(c.mb.params[k]) + " |\n";
+      });
+    } else {
+      const s = lib[activeIdx], m = metrics(s.obj);
+      md += "## Strategi aktif: " + s.name + "\n\n";
+      md += "| Parameter | Nilai |\n| --- | --- |\n";
+      Object.keys(DEFAULTS).forEach((k) => { md += "| " + (LABELS[k] || k) + " | " + fmtV(m.params[k]) + " |\n"; });
+      md += "\nLolos filter: " + m.pass + " dari " + m.total + " sinyal contoh.\n";
+    }
+    md += "\n## Catatan\n";
+    md += "- Angka demo memakai 8 sinyal contoh dan 3 posisi terbuka fiktif.\n";
+    md += "- Untuk memakai parameter di bot: pasang lewat .env untuk variabel yang tersedia, "
+        + "sisanya ubah di config.py.\n";
+    md += "- Bukan nasihat investasi.\n";
+    return md;
+  }
+
+  function exportMd() {
+    const md = buildMarkdown();
+    const blob = new Blob([md], { type: "text/markdown" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const name = lastCompare ? (lastCompare.A.name + "-vs-" + lastCompare.B.name) : lib[activeIdx].name;
+    a.download = "aegis-ringkasan-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".md";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+
+  /* ---------------- interaksi ---------------- */
+  fillSelects();
+
+  $("b-apply").addEventListener("click", () => {
+    activeIdx = Number($("b-active").value);
+    applyStrategy(lib[activeIdx].obj, lib[activeIdx].name);
+    $("b-export").disabled = false;
+  });
+  $("b-reset").addEventListener("click", () => {
+    activeIdx = 0;
+    $("b-active").value = "0";
+    applyStrategy(lib[0].obj, "bawaan paket");
+    $("b-apply-note").textContent = "Console kembali ke parameter bawaan paket.";
+  });
+  $("b-compare").addEventListener("click", compare);
+  $("b-export").addEventListener("click", exportMd);
+
+  window.addEventListener("aegis:valid", (ev) => {
+    const d = ev.detail || {};
+    if (!d.obj) return;
+    const name = (d.name || "tanpa nama").trim();
+    const i = lib.findIndex((s) => s.name === name);
+    if (i >= 0) lib[i] = { name: name, obj: d.obj };
+    else lib.push({ name: name, obj: d.obj });
+    const keepA = $("b-a").value, keepB = $("b-b").value, keepAct = $("b-active").value;
+    fillSelects();
+    $("b-a").value = keepA;
+    $("b-b").value = keepB;
+    $("b-active").value = keepAct;
+    $("b-apply-note").innerHTML = 'Strategi <b>' + esc(name) + "</b> masuk pustaka — pilih di daftar lalu terapkan.";
+  });
+
+  /* default: pakai bawaan supaya angka konsisten */
+  setTimeout(() => applyStrategy(lib[0].obj, "bawaan paket"), 1200);
 })();
 </script>
 
