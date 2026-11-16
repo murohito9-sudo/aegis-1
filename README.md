@@ -56,10 +56,11 @@ aegis1/
 ├── strategy.py          # regime detection, skor konfluensi, sinyal + alasan & veto
 ├── risk.py              # position sizing, SL/TP, trailing, partial TP, batas harian, drawdown
 ├── execution.py         # PaperBroker (fee, slippage, timeout, dedupe) + adapter live yang menolak
+├── analytics.py         # metrik kinerja, daftar P&L per trade, ekspor CSV/MD
 ├── logger.py            # audit log SQLite + JSONL, alert lokal
 ├── dashboard.py         # backend FastAPI: state, history, aksi dua langkah, WebSocket
 ├── main.py              # loop utama, manajemen posisi, exception handling, graceful shutdown
-├── tests.py             # 48 unit test (sizing, limit risiko, sinyal, gate, eksekusi)
+├── tests.py             # 59 unit test (sizing, risiko, sinyal, gate, replay, analitik)
 ├── static/
 │   └── index.html       # "AEGIS-1 Trading Console" — satu file, tanpa CDN
 ├── deploy/
@@ -79,7 +80,7 @@ aegis1/
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # opsional; default sudah aman
-python tests.py                                       # 48 test harus OK
+python tests.py                                       # 59 test harus OK
 ```
 
 Python 3.11+ (diuji pada 3.12). Tidak ada dependensi berbayar.
@@ -301,6 +302,7 @@ ketik frasa konfirmasi (`PAUSE AEGIS-1`, `TUTUP SEMUA POSISI`,
 hangus bila frasa salah.
 
 Endpoint: `GET /`, `GET /api/state`, `GET /api/history`, `GET /healthz`,
+`GET /api/report`, `GET /api/report.csv`, `GET /api/report.md`,
 `WS /ws?csrf=…`, `POST /api/actions/{pause|resume|close_all|kill}/request`,
 `POST /api/actions/{action}/confirm`. Setiap request butuh header `X-AEGIS-CSRF`
 dari `<meta name="aegis-csrf">`; WebSocket tanpa token ditolak (kode 4403).
@@ -309,6 +311,54 @@ Kill-switch melakukan tiga hal sekaligus: menghentikan entry, membatalkan semua
 order pending, menutup semua posisi — lalu menulis file `data/KILL_SWITCH`.
 Selama file itu ada, bot tidak kembali sendiri; hapus file dan restart secara
 sadar. Resume saat mode KILL ditolak dengan HTTP 409.
+
+## 9b. Laporan kinerja
+
+Bagian **Laporan Kinerja** di dashboard (dan `analytics.py` di baliknya)
+menjawab pertanyaan "berapa untung-rugi tiap order":
+
+* kartu metrik: PnL bersih (setelah fee masuk), win rate, profit factor,
+  payoff, expectancy per trade (uang dan R), Sharpe & Sortino per trade,
+  max drawdown, recovery factor, total fee, rata-rata durasi trade;
+* tabel trade tertutup: waktu, pair, arah, entry, exit, PnL, net, R, MAE, MFE,
+  fee, alasan tutup;
+* agregat per simbol, per arah, per jam tutup (UTC), dan per alasan tutup;
+* tabel order: qty, harga, notional, status, fee, slippage bps;
+* unduhan: `GET /api/report.csv` (tabel trade) dan `GET /api/report.md`
+  (laporan Markdown lengkap dengan tabel).
+
+Definisi angka tertulis di kepala `analytics.py`: `gross_pnl` sudah dipotong fee
+keluar dan fee partial tetapi belum fee masuk; `net_pnl` memotong semuanya.
+Sharpe/Sortino dihitung per trade dari return terhadap ekuitas awal dan
+**tidak disetahunkan** — jumlah trade per tahun berbeda antar pasar, jadi angka
+setahunannya akan menyesatkan. MAE/MFE dicatat selama posisi hidup, dalam R.
+
+## 9c. Forex, replay historis, dan filter sesi
+
+Pasar non-crypto tidak punya feed sendiri; jalurnya CSV (atau CSV + replay).
+
+* **Metadata instrumen.** `AEGIS_TICK_SIZE`, `AEGIS_STEP_SIZE`,
+  `AEGIS_MIN_QTY`, `AEGIS_MIN_NOTIONAL`, `AEGIS_PIP_SIZE`,
+  `AEGIS_PRICE_DECIMALS`, `AEGIS_QUOTE_CURRENCY`. Default paket ini untuk
+  crypto; untuk EURUSD setel tick `0.00001` dan step ke satuan unit/lot.
+* **Spread dari data.** Kolom `bid`/`ask` atau `spread` di CSV dipakai apa
+  adanya (`AEGIS_USE_DATA_SPREAD=true`). Kalau tidak ada, spread diambil dari
+  `AEGIS_SPREAD_BPS` — bukan lagi dipalsukan.
+* **Volume hilang.** CSV tanpa kolom `volume` diterima hanya bila
+  `AEGIS_VOLUME_FALLBACK` diisi (mis. volume tick). Tanpa itu berkas ditolak.
+* **Replay historis.** `python main.py --csv data/EURUSD_1h.csv --replay`
+  menjalankan bar demi bar dengan jam mengikuti bar terakhir, sehingga data lama
+  lolos gate kesegaran dan filter sesi membaca jam historis yang benar.
+  `--speed N` memajukan N bar per siklus. Progresnya tampil di `/api/state`.
+* **Filter sesi & batas harian.** `AEGIS_SESSIONS=07:00-16:00,13:30-20:00`
+  (UTC, boleh melewati tengah malam), `AEGIS_SKIP_WEEKEND=true`,
+  `AEGIS_MAX_TRADES_PER_DAY=2`. Entry di luar jadwal atau di atas batas
+ditahan dan dicatat sebagai `session_closed` / `daily_trade_cap` di audit log.
+
+Catatan jujur: guardrail exposure tetap dihitung sebagai fraksi ekuitas, jadi
+forex dengan stop rapat akan sering dibatasi `max_total_exposure` sebelum
+risiko per trade tercapai. Itu perilaku pengaman, bukan bug; melonggarkannya
+adalah keputusan risiko yang harus disengaja.
 
 ## 10. Uji
 
