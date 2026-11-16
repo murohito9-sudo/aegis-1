@@ -342,10 +342,18 @@ class LiveBrokerAdapter:
 
 
 def build_broker(settings: Settings, audit: AuditLog) -> Broker:
-    """Pabrik broker. Fail closed: LIVE_MODE selalu ditolak di paket ini."""
+    """Pabrik broker. Fail closed: tanpa pagar lengkap, live ditolak.
+
+    Live hanya dibangun bila ``AEGIS_LIVE_MODE=true`` **dan** seluruh pagar di
+    ``live.LiveBroker._check_gates`` terpenuhi (frasa persetujuan, kredensial,
+    daftar putih simbol, batas notional). Kalau salah satu gagal, start ditolak
+    sebelum ada satu pun request ke exchange.
+    """
     if settings.live_mode:
-        raise LiveBrokerUnavailable(
-            "LIVE_MODE=true diminta, tetapi eksekusi order nyata tidak tersedia di "
-            "paket ini. Jalankan dengan LIVE_MODE=false (default) atau baca README."
-        )
+        from live import LiveBroker, LiveRefused  # impor lokal: hindari siklus
+
+        try:
+            return LiveBroker(settings, audit)
+        except LiveRefused as exc:
+            raise LiveBrokerUnavailable(f"live ditolak: {exc}") from exc
     return PaperBroker(settings, audit, initial_balance=settings.initial_equity)
