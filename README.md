@@ -57,16 +57,28 @@ aegis1/
 ├── risk.py              # position sizing, SL/TP, trailing, partial TP, batas harian, drawdown
 ├── execution.py         # PaperBroker (fee, slippage, timeout, dedupe) + adapter live yang menolak
 ├── analytics.py         # metrik kinerja, daftar P&L per trade, ekspor CSV/MD
+├── brain.py             # AI Core: briefing & keputusan berbasis aturan (tanpa LLM)
+├── microstructure.py    # order book, depth, imbalance, trade flow
+├── news.py              # sentimen berita berbasis leksikon + provider RSS
+├── onchain.py           # z-score metrik on-chain dari data yang kamu suplai
+├── portfolio.py         # bobot, konsentrasi, DCA, saran rebalancing
+├── evaluation.py        # kalibrasi, Brier, drift performa
+├── monitor.py           # scheduler, health, heartbeat, backup/restore
+├── security.py          # rantai hash audit, rate limit, pemindai rahasia
+├── voice.py             # narasi briefing + TTS opsional
 ├── intelligence.py      # MTF, divergensi RSI, pola candle, squeeze (tanpa look-ahead)
 ├── live.py              # adapter eksekusi nyata Binance (default mati, pagar berlapis)
 ├── logger.py            # audit log SQLite + JSONL, alert lokal
 ├── dashboard.py         # backend FastAPI: state, history, aksi dua langkah, WebSocket
 ├── main.py              # loop utama, manajemen posisi, exception handling, graceful shutdown
-├── tests.py             # 88 unit test (sizing, risiko, sinyal, gate, replay, analitik)
+├── tests.py             # 122 unit test (sizing, risiko, sinyal, gate, replay, analitik)
 ├── static/
 │   └── index.html       # "AEGIS-1 Trading Console" — satu file, tanpa CDN
 ├── deploy/
 │   └── aegis1.service   # unit systemd untuk 24/7 + restart otomatis
+├── .github/workflows/ci.yml  # CI: test di Python 3.11 & 3.12 + smoke offline
+├── Dockerfile           # image runtime, pengguna non-root, healthcheck
+├── .dockerignore
 ├── data/                # SQLite, JSONL, kill-switch (dibuat saat runtime)
 ├── .env.example
 ├── .gitignore
@@ -82,7 +94,7 @@ aegis1/
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # opsional; default sudah aman
-python tests.py                                       # 88 test harus OK
+python tests.py                                       # 122 test harus OK
 ```
 
 Python 3.11+ (diuji pada 3.12). Tidak ada dependensi berbayar.
@@ -445,6 +457,47 @@ Yang belum ada dan tetap menjadi tanggung jawabmu: manajemen posisi di sisi
 exchange saat bot mati mendadak (order SL/TP sudah terpasang, tetapi posisi
 tidak diawasi), penanganan fill parsial lanjutan, dan pemilihan waktu eksekusi
 yang sadar likuiditas. Uji dengan `dry_run`, lalu nominal kecil.
+
+## 9f. Peta sistem (registri 22 lapisan)
+
+Registri 22 sistem dari dokumen arsitektur dipetakan ke modul nyata di repo ini.
+**Telegram (#16) sengaja tidak diikutkan** sesuai permintaan; tidak ada kode
+Telegram, token bot, atau dependensi jaringan tambahan.
+
+| # | Sistem | Status | Modul |
+| --- | --- | --- | --- |
+| 01 | AI Core & Brain | ada | `brain.py` — mesin aturan deterministik, bukan LLM |
+| 02 | Data Engine | ada | `data.py` — ccxt publik, CSV, replay, gate kualitas |
+| 03 | Market Intelligence | ada | `strategy.py` (`detect_regime`), `intelligence.py` |
+| 04 | Technical Analysis | ada | `indicators.py`, `intelligence.py` |
+| 05 | Microstructure | ada | `microstructure.py` — book, depth, imbalance, trade flow |
+| 06 | On-Chain Intelligence | adaptor | `onchain.py` — butuh data yang kamu suplai (CSV/API) |
+| 07 | News & Sentiment | adaptor | `news.py` — leksikon + `RssProvider` |
+| 08 | Signal Engine | ada | `strategy.py` — konfluensi berbobot per regime |
+| 09 | Risk Engine | ada | `risk.py` — sizing adaptif, 17 checklist, kill switch |
+| 10 | Strategy Engine | ada | panel strategi di console + `strategy.py` |
+| 11 | Backtesting & Replay | ada | `data.ReplayFeed` + `analytics.py` |
+| 12 | Paper Trading | ada | `execution.PaperBroker` |
+| 13 | Portfolio Management | ada | `portfolio.py` — bobot, HHI, DCA, rebalancing |
+| 14 | AI Evaluation | ada | `evaluation.py` — kalibrasi, Brier, drift |
+| 15 | Automation Engine | ada | `monitor.Scheduler` + `deploy/aegis1.service` |
+| 16 | Telegram System | **tidak diikutkan** | — |
+| 17 | Voice System | ada | `voice.py` — narasi + TTS opsional (`espeak`/`say`) |
+| 18 | Web Dashboard | ada | `dashboard.py` + `static/index.html` |
+| 19 | Database & Memory | ada | `logger.py` (SQLite + JSONL) + migrasi kolom |
+| 20 | Security & Reliability | ada | `security.py` — hash chain, rate limit, pemindai rahasia |
+| 21 | Monitoring & Recovery | ada | `monitor.py` — health, heartbeat, backup/restore |
+| 22 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, 122 test |
+
+Endpoint baru: `GET /api/briefing` (situasi, bukti, keputusan, keyakinan),
+`GET /api/health` (umur tick, error beruntun, disk, heartbeat),
+`GET /api/portfolio` (nilai, bobot, konsentrasi, PnL). Panel **Briefing** di
+console menampilkan hasilnya.
+
+Batas yang tetap jujur: `onchain.py` dan `news.py` tidak menarik data sendiri
+saat diuji dan tidak punya sumber gratis bawaan — keduanya butuh provider
+(CSV, RSS, atau API milikmu). Kalau tidak ada provider, keduanya melaporkan
+"belum ada data" dan tidak mengarang angka.
 
 ## 10. Uji
 
