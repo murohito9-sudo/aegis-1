@@ -53,6 +53,12 @@
   .main-tabs button:hover{color:var(--text);background:#121a24}
   .main-tabs button.active{color:var(--text);background:var(--panel);border-color:var(--line);
     border-bottom:1px solid var(--panel);margin-bottom:-1px}
+  .zoom-bar{display:flex;gap:4px;align-items:center}
+  .zoom-btn{width:24px;height:22px;border-radius:5px;border:1px solid var(--line);background:var(--panel-2);
+    color:var(--text);font:600 13px/1 var(--sans);cursor:pointer;padding:0}
+  .zoom-btn:hover{background:#1b2331;border-color:#2b3a4d}
+  #chart{cursor:grab;touch-action:none}
+  #chart.dragging{cursor:grabbing}
   .tabpanel{display:none}
   .tabpanel.show{display:block}
   .grid{display:grid;gap:12px}
@@ -213,10 +219,21 @@
     <div class="card">
       <div class="panel-head">
         <h2>Harga &amp; Indikator</h2>
-        <div class="meta"><span style="color:#f59e0b">— EMA50</span> · <span style="color:#4da3ff">— EMA200</span> · <span style="color:#22c55e">▲ entry</span> · <span style="color:#ef4444">▼ exit</span></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="meta"><span style="color:#f59e0b">— EMA50</span> · <span style="color:#4da3ff">— EMA200</span> · <span style="color:#22c55e">▲ entry</span> · <span style="color:#ef4444">▼ exit</span></div>
+          <div class="zoom-bar">
+            <span class="meta" id="chart-zoom-label">—</span>
+            <button class="zoom-btn" id="zoom-out" title="Perkecil (scroll ke bawah)">−</button>
+            <button class="zoom-btn" id="zoom-in" title="Perbesar (scroll ke atas)">+</button>
+            <button class="zoom-btn" id="zoom-reset" title="Tampilkan semua">⟲</button>
+          </div>
+        </div>
       </div>
       <canvas id="chart" height="260"></canvas>
       <div class="meta num" id="chart-meta" style="color:var(--muted);font-size:10.5px;margin-top:6px">—</div>
+      <div class="meta" style="color:#55637a;font-size:10px;margin-top:2px">
+        scroll untuk zoom · tahan dan geser untuk pan · klik dua kali untuk reset
+      </div>
     </div>
 
     <div class="card">
@@ -565,6 +582,23 @@
   }
 
   // ---------------- chart ----------------
+  // ---------------- chart (candlestick + zoom) ----------------
+  const MIN_BARS = 15;
+  const chartView = { count: null, end: null };   // null = tampilkan semua
+
+  function chartWindow(total) {
+    let count = chartView.count === null ? total : Math.round(chartView.count);
+    count = Math.max(Math.min(MIN_BARS, total), Math.min(total, count));
+    let end = chartView.end === null ? total : Math.round(chartView.end);
+    end = Math.max(count, Math.min(total, end));
+    return { count, end, start: end - count };
+  }
+
+  function updateZoomLabel(count, total) {
+    const el = $("chart-zoom-label");
+    if (el) el.textContent = count + "/" + total + " bar";
+  }
+
   function drawChart(s) {
     const cv = $("chart");
     const dpr = window.devicePixelRatio || 1;
@@ -576,27 +610,34 @@
 
     const series = s.chart || { close: [], ema_fast: [], ema_slow: [], ts: [] };
     const n = series.close.length;
-    const hasOhlcMeta = Array.isArray(series.open) && Array.isArray(series.high);
+    const hasOhlc = Array.isArray(series.open) && Array.isArray(series.high) && Array.isArray(series.low);
     $("chart-meta").textContent = n
-      ? (n + " candle" + (hasOhlcMeta ? "" : " (garis)") + " · terakhir " + fmt(series.close[n - 1], 2))
+      ? (n + " candle" + (hasOhlc ? "" : " (garis)") + " · terakhir " + fmt(series.close[n - 1], 2))
       : "belum ada data";
     if (n < 2) {
+      updateZoomLabel(0, 0);
       ctx.fillStyle = "#7c8798"; ctx.font = "12px monospace";
       ctx.fillText("menunggu data candle…", 16, h / 2);
       return;
     }
+
+    const win = chartWindow(n);
+    const { count, end, start } = win;
+    updateZoomLabel(count, n);
+
     const padL = 8, padR = 62, padT = 12, padB = 18;
     const plotW = w - padL - padR, plotH = h - padT - padB;
-    const hasOhlc = Array.isArray(series.open) && Array.isArray(series.high) && Array.isArray(series.low);
-    const priceValues = hasOhlc
-      ? (series.high || []).concat(series.low || [])
-      : series.close;
-    const all = priceValues.concat(series.ema_fast || [], series.ema_slow || [])
+    const slice = (arr) => (arr || []).slice(start, end);
+    const priceValues = hasOhlc ? slice(series.high).concat(slice(series.low)) : slice(series.close);
+    const all = priceValues.concat(slice(series.ema_fast), slice(series.ema_slow))
       .filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+    if (!all.length) return;
     let lo = Math.min(...all), hi = Math.max(...all);
     if (hi === lo) { hi += 1; lo -= 1; }
     const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
-    const X = (i) => padL + (i / (n - 1)) * plotW;
+
+    const span = Math.max(1, count - 1);
+    const X = (i) => padL + ((i - start) / span) * plotW;
     const Y = (v) => padT + (1 - (v - lo) / (hi - lo)) * plotH;
 
     // grid
@@ -612,27 +653,26 @@
     const line = (arr, color, width) => {
       ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = width;
       let started = false;
-      arr.forEach((v, i) => {
+      arr.forEach((v, k) => {
         if (v === null || v === undefined || Number.isNaN(v)) { started = false; return; }
-        const x = X(i), y = Y(v);
+        const x = X(start + k), y = Y(v);
         if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
       });
       ctx.stroke();
     };
+
     if (hasOhlc) {
       // Candlestick: sumbu (wick) high-low, badan open-close.
-      const slot = plotW / n;
-      const bodyW = Math.max(1, Math.min(9, slot * 0.66));
+      const slot = plotW / Math.max(1, count);
+      const bodyW = Math.max(1, Math.min(11, slot * 0.66));
       const up = "#22c55e", down = "#ef4444";
-      for (let i = 0; i < n; i++) {
+      for (let i = start; i < end; i++) {
         const o = series.open[i], hh = series.high[i], ll = series.low[i], c = series.close[i];
-        if (o === null || hh === null || ll === null || c === null) continue;
-        if ([o, hh, ll, c].some(v => v === undefined || Number.isNaN(v))) continue;
-        const x = padL + (i + 0.5) * slot;
+        if ([o, hh, ll, c].some(v => v === null || v === undefined || Number.isNaN(v))) continue;
+        const x = padL + ((i - start + 0.5) / Math.max(1, count)) * plotW;
         const rising = c >= o;
-        const color = rising ? up : down;
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
+        ctx.strokeStyle = rising ? up : down;
+        ctx.fillStyle = rising ? up : down;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(x, Y(hh));
@@ -644,16 +684,16 @@
         ctx.fillRect(x - bodyW / 2, top, bodyW, height);
       }
     } else {
-      line(series.close, "#9fb3c8", 1.4);
+      line(slice(series.close), "#9fb3c8", 1.4);
     }
-    line(series.ema_fast || [], "#f59e0b", 1.2);
-    line(series.ema_slow || [], "#4da3ff", 1.2);
+    line(slice(series.ema_fast), "#f59e0b", 1.2);
+    line(slice(series.ema_slow), "#4da3ff", 1.2);
 
     (s.markers || []).forEach(m => {
       // Cari bar terdekat dengan toleransi 1 detik (ts bisa dibulatkan saat JSON).
       let i = series.ts.findIndex(t => Math.abs(t - m.ts) < 1);
       if (i < 0) i = series.ts.findIndex(t => Math.abs(t - m.ts) < 60);
-      if (i < 0) return;
+      if (i < 0 || i < start || i >= end) return;
       const x = X(i), y = Y(m.price);
       ctx.beginPath();
       if (m.kind === "entry") {
@@ -666,6 +706,85 @@
       ctx.closePath(); ctx.fill();
     });
   }
+
+  // ---------------- zoom & pan ----------------
+  function redraw() { if (state) drawChart(state); }
+
+  function zoomBy(factor, anchorX) {
+    const series = (state && state.chart) || {};
+    const total = (series.close || []).length;
+    if (total < 2) return;
+    const win = chartWindow(total);
+    const cv = $("chart");
+    const plotW = Math.max(1, cv.clientWidth - 70);
+    // Bar di bawah kursor tetap di tempatnya setelah zoom.
+    const ratio = Math.min(1, Math.max(0, ((anchorX === undefined ? plotW : anchorX) - 8) / plotW));
+    const anchorIndex = win.start + ratio * (win.count - 1);
+    let count = Math.round(win.count * factor);
+    count = Math.max(Math.min(MIN_BARS, total), Math.min(total, count));
+    let end = Math.round(anchorIndex + (1 - ratio) * (count - 1)) + 1;
+    end = Math.max(count, Math.min(total, end));
+    chartView.count = count >= total ? null : count;
+    chartView.end = (count >= total || end >= total) ? null : end;   // di ujung kanan = ikuti data baru
+    redraw();
+  }
+
+  function panByBars(bars) {
+    const total = ((state && state.chart && state.chart.close) || []).length;
+    if (total < 2) return;
+    const win = chartWindow(total);
+    if (win.count >= total) return;
+    let end = Math.round(win.end - bars);
+    end = Math.max(win.count, Math.min(total, end));
+    chartView.count = win.count;
+    chartView.end = end >= total ? null : end;   // kembali ke ujung kanan = ikuti data baru
+    redraw();
+  }
+
+  (() => {
+    const cv = $("chart");
+    if (!cv) return;
+
+    cv.addEventListener("wheel", (ev) => {
+      ev.preventDefault();
+      const rect = cv.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      zoomBy(ev.deltaY > 0 ? 1.2 : 1 / 1.2, x);
+    }, { passive: false });
+
+    let dragging = false, lastX = 0, moved = 0;
+    cv.addEventListener("pointerdown", (ev) => {
+      dragging = true; lastX = ev.clientX; moved = 0;
+      cv.classList.add("dragging");
+      cv.setPointerCapture(ev.pointerId);
+    });
+    cv.addEventListener("pointermove", (ev) => {
+      if (!dragging) return;
+      const total = ((state && state.chart && state.chart.close) || []).length;
+      const win = chartWindow(total || 2);
+      const plotW = Math.max(1, cv.clientWidth - 70);
+      const dx = ev.clientX - lastX;
+      lastX = ev.clientX;
+      moved += Math.abs(dx);
+      if (win.count >= total) return;
+      panByBars((dx / plotW) * (win.count - 1));
+    });
+    const stop = (ev) => {
+      if (!dragging) return;
+      dragging = false;
+      cv.classList.remove("dragging");
+      try { cv.releasePointerCapture(ev.pointerId); } catch (e) { /* diabaikan */ }
+    };
+    cv.addEventListener("pointerup", stop);
+    cv.addEventListener("pointercancel", stop);
+    cv.addEventListener("dblclick", () => { chartView.count = null; chartView.end = null; redraw(); });
+
+    $("zoom-in").addEventListener("click", () => zoomBy(1 / 1.4));
+    $("zoom-out").addEventListener("click", () => zoomBy(1.4));
+    $("zoom-reset").addEventListener("click", () => {
+      chartView.count = null; chartView.end = null; redraw();
+    });
+  })();
 
   // ---------------- data ----------------
   function apply(s) {
