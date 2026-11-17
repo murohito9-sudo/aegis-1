@@ -5,8 +5,9 @@ Isi modul ini:
 * tipe order dan state machine status order,
 * ``PaperBroker`` — eksekutor penuh dengan fee, slippage, spread, partial fill,
   timeout, deduplikasi order, dan rekonsiliasi ke database,
-* ``LiveBrokerAdapter`` — **tidak diimplementasikan**, dan sengaja menolak
-  dengan jelas (fail closed). Lihat README bagian "Batas paket".
+* ``build_broker`` — pabrik broker. Default ``PaperBroker``; live hanya lewat
+  ``live.LiveBroker`` yang punya pagar berlapis (frasa persetujuan, daftar putih
+  simbol, batas notional, dry-run default). Lihat README bagian 9e.
 """
 
 from __future__ import annotations
@@ -317,28 +318,6 @@ class PaperBroker:
             self._balance -= fill.qty * fill.price + fill.fee
         else:
             self._balance += fill.qty * fill.price - fill.fee
-
-
-# --------------------------------------------------------------------------- #
-# Live adapter (tidak diimplementasikan — fail closed)
-# --------------------------------------------------------------------------- #
-class LiveBrokerAdapter:
-    """Placeholder adapter live yang selalu menolak.
-
-    Alasannya tertulis di README. Ringkasnya: paket AEGIS-1 di sini tidak
-    mengirim order nyata ke exchange mana pun, dan tidak memuat kode yang bisa
-    melakukannya. Kelas ini ada supaya kegagalan bersifat eksplisit, bukan
-    diam-diam berjalan dengan mode yang salah.
-    """
-
-    name = "live-unavailable"
-
-    def __init__(self, *_: object, **__: object) -> None:
-        raise LiveBrokerUnavailable(
-            "LIVE_MODE=true diminta, tetapi adapter eksekusi live tidak disertakan "
-            "di paket ini. Bot berhenti sebelum menyentuh jaringan. "
-            "Lihat README.md bagian 'Batas paket dan langkah menuju live'."
-        )
 
 
 def build_broker(settings: Settings, audit: AuditLog) -> Broker:
