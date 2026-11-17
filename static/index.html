@@ -576,7 +576,10 @@
 
     const series = s.chart || { close: [], ema_fast: [], ema_slow: [], ts: [] };
     const n = series.close.length;
-    $("chart-meta").textContent = n ? (n + " bar · terakhir " + fmt(series.close[n - 1], 2)) : "belum ada data";
+    const hasOhlcMeta = Array.isArray(series.open) && Array.isArray(series.high);
+    $("chart-meta").textContent = n
+      ? (n + " candle" + (hasOhlcMeta ? "" : " (garis)") + " · terakhir " + fmt(series.close[n - 1], 2))
+      : "belum ada data";
     if (n < 2) {
       ctx.fillStyle = "#7c8798"; ctx.font = "12px monospace";
       ctx.fillText("menunggu data candle…", 16, h / 2);
@@ -584,7 +587,12 @@
     }
     const padL = 8, padR = 62, padT = 12, padB = 18;
     const plotW = w - padL - padR, plotH = h - padT - padB;
-    const all = series.close.concat(series.ema_fast || [], series.ema_slow || []).filter(v => v !== null && !Number.isNaN(v));
+    const hasOhlc = Array.isArray(series.open) && Array.isArray(series.high) && Array.isArray(series.low);
+    const priceValues = hasOhlc
+      ? (series.high || []).concat(series.low || [])
+      : series.close;
+    const all = priceValues.concat(series.ema_fast || [], series.ema_slow || [])
+      .filter(v => v !== null && v !== undefined && !Number.isNaN(v));
     let lo = Math.min(...all), hi = Math.max(...all);
     if (hi === lo) { hi += 1; lo -= 1; }
     const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
@@ -611,7 +619,33 @@
       });
       ctx.stroke();
     };
-    line(series.close, "#9fb3c8", 1.4);
+    if (hasOhlc) {
+      // Candlestick: sumbu (wick) high-low, badan open-close.
+      const slot = plotW / n;
+      const bodyW = Math.max(1, Math.min(9, slot * 0.66));
+      const up = "#22c55e", down = "#ef4444";
+      for (let i = 0; i < n; i++) {
+        const o = series.open[i], hh = series.high[i], ll = series.low[i], c = series.close[i];
+        if (o === null || hh === null || ll === null || c === null) continue;
+        if ([o, hh, ll, c].some(v => v === undefined || Number.isNaN(v))) continue;
+        const x = padL + (i + 0.5) * slot;
+        const rising = c >= o;
+        const color = rising ? up : down;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, Y(hh));
+        ctx.lineTo(x, Y(ll));
+        ctx.stroke();
+        const yOpen = Y(o), yClose = Y(c);
+        const top = Math.min(yOpen, yClose);
+        const height = Math.max(1, Math.abs(yClose - yOpen));
+        ctx.fillRect(x - bodyW / 2, top, bodyW, height);
+      }
+    } else {
+      line(series.close, "#9fb3c8", 1.4);
+    }
     line(series.ema_fast || [], "#f59e0b", 1.2);
     line(series.ema_slow || [], "#4da3ff", 1.2);
 
