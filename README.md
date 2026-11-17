@@ -20,10 +20,20 @@ ada di bagian [Batas paket](#batas-paket-dan-langkah-menuju-live).
 | [demo.html](https://murohito9-sudo.github.io/aegis-one/demo.html) | console dengan data contoh tertanam + validator strategi JSON |
 | [live.html](https://murohito9-sudo.github.io/aegis-one/live.html) | langkah menjalankan bot sungguhan (lokal/VPS) |
 
-Mode demo tidak memakai backend, tidak mengirim order, dan tidak membuka
-koneksi jaringan — seluruh angkanya simulasi. Console yang benar-benar hidup
-tetap dijalankan lokal: `python main.py` lalu buka `http://127.0.0.1:8787`
-(lihat `live.html`).
+Mode demo tidak memakai backend dan tidak mengirim order, tetapi **memakai data
+pasar sungguhan**: halaman menarik candle publik dari Binance (dengan cadangan
+Bybit, OKX, Kraken, Coinbase), menghitung EMA/RSI/MACD/ATR sendiri di browser,
+menilai sinyal konfluensi, lalu menjalankan eksekusi paper dengan fee dan
+slippage. Ledger posisi, trade, dan ekuitas disimpan di `localStorage` browser
+itu saja sehingga kunjungan berikutnya melanjutkan sesi yang sama; tombol
+**reset** menghapusnya.
+
+Saat pertama dibuka, mesin menjalankan *pemanasan* atas ±700 candle terakhir
+supaya ledger langsung berisi jejak keputusan, bukan menunggu 15 menit per bar.
+Setelah itu ia hanya mengevaluasi bar yang sudah tutup — sama seperti bot
+sungguhan. Kalau semua sumber data gagal (CORS, blokir wilayah, atau offline),
+bilah status berubah merah dan menyebut penyebabnya; tidak ada angka yang
+dikarang untuk menutupi kegagalan.
 
 **Strategi JSON.** Halaman demo menerima berkas strategi dari pengguna
 (parameter indikator, filter, bobot konfluensi, setelan risiko) dan
