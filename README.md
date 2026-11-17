@@ -481,12 +481,13 @@ Telegram, token bot, atau dependensi jaringan tambahan.
 | 13 | Portfolio Management | ada | `portfolio.py` — bobot, HHI, DCA, rebalancing |
 | 14 | AI Evaluation | ada | `evaluation.py` — kalibrasi, Brier, drift |
 | 15 | Automation Engine | ada | `monitor.Scheduler` + `deploy/aegis1.service` |
-| 16 | Voice System | ada | `voice.py` — narasi + TTS opsional (`espeak`/`say`) |
-| 17 | Web Dashboard | ada | `dashboard.py` + `static/index.html` |
-| 18 | Database & Memory | ada | `logger.py` (SQLite + JSONL) + migrasi kolom |
-| 19 | Security & Reliability | ada | `security.py` — hash chain, rate limit, pemindai rahasia |
-| 20 | Monitoring & Recovery | ada | `monitor.py` — health, heartbeat, backup/restore |
-| 21 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, 122 test |
+| 16 | Telegram System | **tidak diikutkan** | — |
+| 17 | Voice System | ada | `voice.py` — narasi + TTS opsional (`espeak`/`say`) |
+| 18 | Web Dashboard | ada | `dashboard.py` + `static/index.html` |
+| 19 | Database & Memory | ada | `logger.py` (SQLite + JSONL) + migrasi kolom |
+| 20 | Security & Reliability | ada | `security.py` — hash chain, rate limit, pemindai rahasia |
+| 21 | Monitoring & Recovery | ada | `monitor.py` — health, heartbeat, backup/restore |
+| 22 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, 122 test |
 
 Endpoint baru: `GET /api/briefing` (situasi, bukti, keputusan, keyakinan),
 `GET /api/health` (umur tick, error beruntun, disk, heartbeat),
@@ -501,7 +502,7 @@ saat diuji dan tidak punya sumber gratis bawaan — keduanya butuh provider
 ## 10. Uji
 
 ```bash
-python tests.py            # 48 test
+python tests.py            # 122 test
 pytest tests.py -q         # sama, lewat pytest
 ```
 
@@ -545,18 +546,24 @@ simpan token di environment/secret manager, bukan di kode.
 Bagian ini yang paling penting untuk dibaca.
 
 **Yang ada di paket ini.** Seluruh logika sinyal, risiko, sizing, manajemen
-posisi, model biaya, audit, dashboard, kill-switch, dan 48 test. Mesin berjalan
+posisi, model biaya, audit, dashboard, kill-switch, dan 122 test. Mesin berjalan
 penuh dan bisa dipakai untuk mengukur perilaku strategi atas data apa pun.
 
 **Yang tidak ada, dengan sengaja.**
 
-1. **Tidak ada kode pengirim order nyata.** `execution.LiveBrokerAdapter`
-   melempar `LiveBrokerUnavailable` di konstruktor, dan `build_broker()` menolak
-   `LIVE_MODE=true` sebelum menyentuh jaringan. Ini bukan tombol yang lupa diisi:
-   ini keputusan. Kode yang mengirim order pasar dengan uang sungguhan tidak
-   dibuat di sini.
-2. **Tidak ada kanal alert eksternal** (Telegram/Discord/email) — lihat §12.
-3. **Tidak ada jaminan profit, dan tidak ada klaim profit.**
+1. **Eksekusi nyata ada, tetapi default-nya mati.** `live.LiveBroker` bisa
+   mengirim order ke exchange, dan hanya dibangun bila seluruh pagar terpenuhi
+   (`AEGIS_LIVE_MODE`, frasa `AEGIS_LIVE_ACK`, kredensial, daftar putih simbol,
+   batas notional) — lihat §9e. `AEGIS_LIVE_DRY_RUN=true` adalah default: order
+   divalidasi dan dicatat, tidak dikirim. Tanpa pagar lengkap, `build_broker()`
+   melempar `LiveBrokerUnavailable` sebelum menyentuh jaringan.
+2. **Tidak ada kanal alert eksternal.** Peringatan hanya ditulis ke audit log
+   dan stdout (`logger.Alerts`); tidak ada SMTP, Discord, Slack, webhook, atau
+   Telegram. Telegram sengaja tidak diikutkan (lihat §9f). Titik sambungnya
+   jelas: `Alerts.subscribe`.
+3. **Tidak ada jaminan profit, dan tidak ada klaim profit.** Seluruh angka di
+   dashboard, laporan, dan demo adalah hasil simulasi dengan fee, slippage, dan
+   spread eksplisit.
 
 **Kontrak yang harus dipenuhi bila Anda membangun adapter live sendiri.**
 `execution.Broker` adalah protokolnya: `balance()`, `place()`, `cancel()`,
