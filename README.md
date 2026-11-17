@@ -313,7 +313,13 @@ Halaman console dibagi tiga tab: **Ringkasan** (briefing, KPI, chart, panel risi
 posisi terbuka), **Riwayat & Laporan** (order/trade/sinyal, log eksekusi, laporan
 kinerja), dan **Strategi** (pemilih strategi aktif, perbandingan, validator JSON).
 Chart digambar ulang saat tab Ringkasan dibuka kembali, karena canvas berlebar nol
-saat panelnya tersembunyi. Tautan dalam halaman (`#report`, `#banding`,
+saat panelnya tersembunyi.
+
+Chart bisa di-zoom dan digeser: scroll di atas chart untuk memperbesar/memperkecil
+(15 bar sampai seluruh data), tahan-dan-geser untuk pan ke candle lama, klik dua
+kali atau tombol ⟲ untuk kembali. Saat tampilan berada di ujung kanan, chart
+otomatis mengikuti candle baru; kalau kamu sedang melihat candle lama, tampilannya
+tidak melompat. Indikator "102/200 bar" menunjukkan jendela yang sedang terlihat. Tautan dalam halaman (`#report`, `#banding`,
 `#strategi`) otomatis membuka tab yang sesuai.
 
 Tombol: **PAUSE TRADING**, **RESUME TRADING**, **CLOSE ALL POSITIONS**,
