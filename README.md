@@ -306,7 +306,7 @@ localStorage/sessionStorage). Isi: status koneksi, mode (PAPER/SAFE/PAUSED/
 KILL-SWITCH), equity, available balance, unrealized & realized PnL, win rate,
 profit factor, average R, max drawdown, tabel posisi terbuka (entry, size, SL, TP,
 PnL, R, age, trailing), panel risiko (risk/trade, rugi harian, exposure,
-drawdown, slot), chart harga dengan EMA50/EMA200 dan marker entry/exit, riwayat
+drawdown, slot), chart candlestick (open/high/low/close) dengan EMA50/EMA200 dan marker entry/exit, riwayat
 order/trade/sinyal, dan log eksekusi.
 
 Halaman console dibagi tiga tab: **Ringkasan** (briefing, KPI, chart, panel risiko,
