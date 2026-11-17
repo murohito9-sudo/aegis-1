@@ -263,6 +263,9 @@ class Engine:
         if snap is not None and len(snap.candles) > 10:
             ind = add_indicators(snap.candles, self.settings.strategy).tail(CHART_BARS)
             chart = {
+                "open": [None if pd.isna(v) else round(float(v), 6) for v in ind["open"]],
+                "high": [None if pd.isna(v) else round(float(v), 6) for v in ind["high"]],
+                "low": [None if pd.isna(v) else round(float(v), 6) for v in ind["low"]],
                 "close": [None if pd.isna(v) else round(float(v), 6) for v in ind["close"]],
                 "ema_fast": [None if pd.isna(v) else round(float(v), 6) for v in ind["ema_fast"]],
                 "ema_slow": [None if pd.isna(v) else round(float(v), 6) for v in ind["ema_slow"]],
