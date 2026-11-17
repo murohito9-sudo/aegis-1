@@ -47,6 +47,14 @@
   .mode.KILL_SWITCH{color:#fff;border-color:#7f1d1d;background:#7f1d1d;animation:pulse 1.4s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
   main{padding:16px 18px 40px;max-width:1560px;margin:0 auto}
+  .main-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .main-tabs button{padding:9px 16px;border:1px solid transparent;border-bottom:none;background:transparent;
+    color:var(--muted);font:600 12px/1.2 var(--sans);letter-spacing:.4px;cursor:pointer;border-radius:8px 8px 0 0}
+  .main-tabs button:hover{color:var(--text);background:#121a24}
+  .main-tabs button.active{color:var(--text);background:var(--panel);border-color:var(--line);
+    border-bottom:1px solid var(--panel);margin-bottom:-1px}
+  .tabpanel{display:none}
+  .tabpanel.show{display:block}
   .grid{display:grid;gap:12px}
   .kpis{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px 14px}
@@ -151,6 +159,13 @@
 </header>
 
 <main>
+  <div class="main-tabs" id="main-tabs">
+    <button class="active" data-panel="ringkasan">Ringkasan</button>
+    <button data-panel="riwayat">Riwayat &amp; Laporan</button>
+    <button data-panel="strategi">Strategi</button>
+  </div>
+
+  <div class="tabpanel show" id="panel-ringkasan">
   <div class="notice">
     Mode PAPER: tidak ada order nyata yang dikirim ke exchange. Semua eksekusi disimulasikan
     dengan fee dan slippage. Angka di layar ini bukan janji hasil.
@@ -255,6 +270,9 @@
     </table>
   </section>
 
+  </div><!-- /panel-ringkasan -->
+
+  <div class="tabpanel" id="panel-riwayat">
   <section class="grid cols-2">
     <div class="card">
       <div class="panel-head"><h2>Riwayat</h2></div>
@@ -335,6 +353,12 @@
       </div>
     </div>
   </section>
+
+  </div><!-- /panel-riwayat -->
+
+  <div class="tabpanel" id="panel-strategi">
+    <!--STRATEGI-->
+  </div><!-- /panel-strategi -->
 
   <div class="footnote">
     Tidak ada API key, secret, passphrase, atau token exchange yang disimpan di halaman ini
@@ -929,6 +953,35 @@
 
   load();
   setInterval(load, 30000);
+})();
+</script>
+<script>
+/* Tab utama: Ringkasan / Riwayat & Laporan / Strategi. Tiga saja, seperlunya. */
+(() => {
+  "use strict";
+  const buttons = [...document.querySelectorAll("#main-tabs button")];
+  const panels = [...document.querySelectorAll(".tabpanel")];
+  const byHash = { strategi: "strategi", banding: "strategi", report: "riwayat", briefing: "ringkasan" };
+
+  function activate(name) {
+    if (!document.getElementById("panel-" + name)) return;
+    buttons.forEach((b) => b.classList.toggle("active", b.dataset.panel === name));
+    panels.forEach((p) => p.classList.toggle("show", p.id === "panel-" + name));
+    // Chart perlu digambar ulang setelah panelnya terlihat (lebar canvas = 0 saat tersembunyi).
+    window.dispatchEvent(new Event("resize"));
+  }
+
+  buttons.forEach((b) => b.addEventListener("click", () => {
+    activate(b.dataset.panel);
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  }));
+
+  function fromHash() {
+    const key = (location.hash || "").replace("#", "");
+    if (byHash[key]) activate(byHash[key]);
+  }
+  window.addEventListener("hashchange", fromHash);
+  fromHash();
 })();
 </script>
 </body>
