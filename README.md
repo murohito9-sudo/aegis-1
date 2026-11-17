@@ -309,6 +309,13 @@ PnL, R, age, trailing), panel risiko (risk/trade, rugi harian, exposure,
 drawdown, slot), chart harga dengan EMA50/EMA200 dan marker entry/exit, riwayat
 order/trade/sinyal, dan log eksekusi.
 
+Halaman console dibagi tiga tab: **Ringkasan** (briefing, KPI, chart, panel risiko,
+posisi terbuka), **Riwayat & Laporan** (order/trade/sinyal, log eksekusi, laporan
+kinerja), dan **Strategi** (pemilih strategi aktif, perbandingan, validator JSON).
+Chart digambar ulang saat tab Ringkasan dibuka kembali, karena canvas berlebar nol
+saat panelnya tersembunyi. Tautan dalam halaman (`#report`, `#banding`,
+`#strategi`) otomatis membuka tab yang sesuai.
+
 Tombol: **PAUSE TRADING**, **RESUME TRADING**, **CLOSE ALL POSITIONS**,
 **EMERGENCY KILL-SWITCH**. Semuanya dua langkah: klik → ringkasan dampak →
 ketik frasa konfirmasi (`PAUSE AEGIS-1`, `TUTUP SEMUA POSISI`,
