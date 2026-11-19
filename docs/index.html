@@ -3,146 +3,97 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AEGIS-1 — pilih mode</title>
+<meta name="theme-color" content="#080d14" />
+<meta name="description" content="AEGIS-ONE — institutional market intelligence, quantitative research, risk management, and paper-trading console." />
+<title>AEGIS-ONE | Market Intelligence Platform</title>
 <style>
-  :root{
-    --bg:#0a0d12; --panel:#11161f; --panel-2:#151b26; --line:#1f2836;
-    --text:#d7dee9; --muted:#7c8798; --accent:#4da3ff;
-    --profit:#22c55e; --loss:#ef4444; --warn:#f59e0b; --safe:#38bdf8;
-    --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
-    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans)}
-  body{font-size:14px;line-height:1.6}
-  a{color:var(--accent);text-decoration:none}
-  a:hover{text-decoration:underline}
-  .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 64px}
-  header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;
-    padding:14px 20px;background:linear-gradient(180deg,#121823,#0d121a);border-bottom:1px solid var(--line)}
-  .brand{display:flex;align-items:center;gap:10px}
-  .logo{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;
-    background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;font-weight:700;font-size:13px}
-  .brand h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.3px}
-  .brand small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.8px;text-transform:uppercase}
-  .navlinks{display:flex;gap:16px;font-size:12.5px;color:var(--muted)}
-  .navlinks a{color:var(--muted)}
-  .navlinks a:hover{color:var(--text);text-decoration:none}
-  h2.sec{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin:34px 0 12px;font-weight:600}
-  .lead{color:var(--muted);max-width:70ch}
-  code,pre,.mono{font-family:var(--mono)}
-  pre{background:#0d1219;border:1px solid var(--line);border-radius:9px;padding:12px 14px;overflow:auto;
-    font-size:12.5px;line-height:1.55;color:#b9c6d6}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
-  .note{border-left:3px solid var(--warn);background:#1a1509;color:#d9c9a3;padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px}
-  .foot{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:8px;border:1px solid #2b3a4d;
-    background:var(--panel-2);color:var(--text);font:600 12.5px/1 var(--sans);cursor:pointer;text-decoration:none}
-  .btn:hover{background:#1b2331;text-decoration:none}
-  .btn.primary{background:#1d4ed8;border-color:#2563eb;color:#fff}
-  .btn.primary:hover{background:#2563eb}
-  .btn.ghost{background:transparent}
-  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;
-    font-weight:700;letter-spacing:.6px;border:1px solid}
-  .pill.demo{color:var(--safe);border-color:#1e4a63;background:#0b2230}
-  .pill.live{color:var(--warn);border-color:#5c4210;background:#2a1e07}
-
-  .hero{padding:26px 0 6px}
-  .hero h2{font-size:27px;margin:0 0 8px;font-weight:650;letter-spacing:-.2px}
-  .modes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
-  @media(max-width:860px){.modes{grid-template-columns:1fr}}
-  .mode-card{display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
-  .mode-card:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--accent)}
-  .mode-card.live:before{background:var(--warn)}
-  .mode-card h3{margin:0;font-size:17px;display:flex;align-items:center;gap:10px}
-  .mode-card ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
-  .mode-card li{margin:3px 0}
-  .mode-card .cta{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap;padding-top:6px}
-  .third{margin-top:16px}
-  .third h3{margin:0 0 6px;font-size:15px}
-  .kv{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--muted)}
-  .kv span{border:1px solid var(--line);background:var(--panel-2);border-radius:6px;padding:3px 8px;font-family:var(--mono)}
+:root{color-scheme:dark;--bg:#080d14;--surface:#101925;--surface2:#141f2d;--line:#26364a;--text:#e8eef7;--muted:#91a0b4;--blue:#83baff;--green:#5ac99a;--amber:#e7bd75;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 78% -12%,#1b3048 0,transparent 40%),var(--bg);color:var(--text);font:14px/1.6 var(--sans)}
+a{color:inherit;text-decoration:none}a:focus-visible{outline:2px solid var(--blue);outline-offset:4px;border-radius:5px}
+.topbar{height:68px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 clamp(18px,5vw,76px);border-bottom:1px solid #253447;background:#090f18df;backdrop-filter:blur(18px);position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:12px}.mark{width:34px;height:34px;border:1px solid #6587aa;border-radius:10px;display:grid;place-items:center;color:#d9eaff;background:linear-gradient(145deg,#29425e,#101a27);font:700 12px var(--mono);box-shadow:0 6px 24px #0005}
+.brand b{display:block;font-size:12px;letter-spacing:1.8px}.brand small{display:block;color:#8292a8;font-size:9px;letter-spacing:1.2px;text-transform:uppercase}
+.nav{display:flex;align-items:center;gap:22px;color:#9aabc0;font-size:11px}.nav a:hover{color:white}.nav .repo{border:1px solid #31465e;padding:7px 11px;border-radius:7px}
+.wrap{max-width:1320px;margin:auto;padding:0 clamp(18px,5vw,76px) 60px}
+.hero{padding:78px 0 54px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:52px;align-items:center}
+.eyebrow{color:#8bb8e8;font:700 9px var(--mono);letter-spacing:2.2px;text-transform:uppercase}
+h1{font-size:clamp(34px,5vw,58px);line-height:1.08;letter-spacing:-1.8px;margin:17px 0 18px;max-width:760px}
+.lead{max-width:680px;color:#a2b0c2;font-size:14px;line-height:1.8;margin:0}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:11px 16px;border:1px solid #3a526e;border-radius:8px;background:#152336;color:#e8f2ff;font-size:11px;font-weight:700;letter-spacing:.3px;transition:background .18s,border-color .18s,transform .18s}
+.btn:hover{background:#1c3048;border-color:#7197c0;transform:translateY(-1px)}.btn.ghost{background:transparent;color:#a7b5c7;border-color:#2a3b50}
+.hero-panel{border:1px solid #2b4058;border-radius:14px;padding:20px;background:linear-gradient(145deg,#142337,#0d1520);box-shadow:0 24px 60px #0004}
+.panel-top{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid #29394d;color:#91a5bd;font:10px var(--mono);letter-spacing:1px}
+.indicator{display:inline-flex;align-items:center;gap:7px;color:#a6d8c1}.indicator:before{content:"";width:7px;height:7px;border-radius:50%;background:#51c792;box-shadow:0 0 12px #51c79277}
+.readout{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.readout div{padding:12px;background:#0b131e;border:1px solid #24364a;border-radius:8px}.readout small{display:block;color:#8192a7;font-size:9px;letter-spacing:1px;text-transform:uppercase}.readout strong{display:block;margin-top:6px;font:600 15px var(--mono);color:#dce8f6}
+.hero-panel p{margin:14px 0 0;color:#8798ad;font-size:10px;line-height:1.7}
+.rule{height:1px;background:linear-gradient(90deg,#2a3d52,transparent);margin:0}
+.section{padding:46px 0}.section-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:18px}.section-head h2{font-size:20px;letter-spacing:-.4px;margin:7px 0 0}.section-head p{max-width:520px;margin:0;color:#8f9fb3;font-size:11px;line-height:1.7}
+.modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.module{min-height:148px;padding:17px;border:1px solid #26384c;border-radius:10px;background:linear-gradient(145deg,#111c29,#0d141e)}
+.module .num{color:#7796b8;font:10px var(--mono)}.module h3{font-size:13px;margin:13px 0 6px}.module p{font-size:10.5px;color:#91a0b4;line-height:1.65;margin:0}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mode-card{padding:22px;border:1px solid #2b4057;border-radius:12px;background:linear-gradient(145deg,#142235,#0e1722);display:flex;flex-direction:column;gap:12px}
+.mode-card.restricted{background:linear-gradient(145deg,#211d15,#12171d);border-color:#55472f}
+.tag{width:max-content;padding:4px 9px;border-radius:999px;border:1px solid #35618a;background:#10283c;color:#a9d7ff;font:700 9px var(--mono);letter-spacing:1px}
+.restricted .tag{border-color:#725c35;background:#2a2114;color:#edca8c}
+.mode-card h3{font-size:17px;margin:0}.mode-card p{font-size:11px;line-height:1.75;color:#9baabd;margin:0}.mode-card ul{padding-left:17px;margin:0;color:#aab8c8;font-size:10.5px;line-height:1.9}
+.mode-card .btn{margin-top:auto;align-self:flex-start}
+.boundary{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin-top:14px}
+.boundary .card{padding:18px;border:1px solid #29394c;border-radius:10px;background:#0e1621}
+.boundary h3{font-size:12px;margin:0 0 9px}.boundary p{font-size:10.5px;line-height:1.75;color:#94a4b8;margin:0}
+.boundary .warning{color:#e7c486}
+.footer{border-top:1px solid #253447;padding:20px 0 0;color:#7f8ea2;font-size:10px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media(max-width:900px){.hero{grid-template-columns:1fr;gap:28px;padding-top:54px}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.topbar{height:auto;min-height:62px;padding:10px 16px}.nav{gap:12px}.nav a:not(.repo){display:none}.wrap{padding-left:16px;padding-right:16px}.hero{padding:42px 0 34px}h1{font-size:36px}.modules,.modes,.boundary{grid-template-columns:1fr}.section{padding:32px 0}.section-head{display:block}.section-head p{margin-top:9px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important}}
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="brand">
-    <div class="logo">A1</div>
-    <div><h1>AEGIS-1</h1><small>Adaptive Execution &amp; Guarded Investment System</small></div>
-  </div>
-  <nav class="navlinks">
-    <a href="./demo.html">Demo</a>
-    <a href="./live.html">Live</a>
-    <a href="https://github.com/murohito9-sudo/aegis-one">Repo</a>
-  </nav>
+<header class="topbar">
+  <a class="brand" href="./" aria-label="AEGIS-ONE home"><span class="mark">A1</span><span><b>AEGIS-ONE</b><small>Institutional Market Intelligence</small></span></a>
+  <nav class="nav" aria-label="Main navigation"><a href="#platform">Platform</a><a href="#modes">Operating modes</a><a class="repo" href="https://github.com/murohito9-sudo/aegis-one" target="_blank" rel="noopener">Source repository ↗</a></nav>
 </header>
-
-<div class="wrap">
+<main class="wrap">
   <section class="hero">
-    <h2>Dua mode, satu console.</h2>
-    <p class="lead">AEGIS-1 adalah mesin eksekusi <b>paper</b> dengan guardrail risiko, audit log, dan
-    console pemantauan. Pilih dulu mau lihat yang mana: tampilan simulasi yang langsung jalan di
-    browser, atau console sungguhan yang tersambung ke bot di mesinmu sendiri.</p>
+    <div>
+      <div class="eyebrow">Market intelligence / quantitative research / risk controls</div>
+      <h1>Clarity before execution.</h1>
+      <p class="lead">AEGIS-ONE adalah platform riset dan pemantauan pasar yang menggabungkan kualitas data, analisis kuantitatif, evaluasi strategi, simulasi, dan audit risiko dalam satu alur yang dapat ditelusuri.</p>
+      <div class="hero-actions"><a class="btn" href="./demo.html">Open paper-trading demo ↗</a><a class="btn ghost" href="#platform">Explore platform</a></div>
+    </div>
+    <aside class="hero-panel" aria-label="Platform status">
+      <div class="panel-top"><span>AEGIS / PLATFORM STATUS</span><span class="indicator">PAPER PATH</span></div>
+      <div class="readout"><div><small>Execution profile</small><strong>PAPER ONLY</strong></div><div><small>Risk posture</small><strong>GUARDED</strong></div><div><small>Research</small><strong>OFFLINE</strong></div><div><small>Live integration</small><strong>RESTRICTED</strong></div></div>
+      <p>Panel status menjelaskan batas implementasi. Tidak ada angka performa atau klaim kesiapan produksi yang dibuat untuk dekorasi.</p>
+    </aside>
   </section>
-
-  <div class="modes">
-    <div class="card mode-card">
-      <h3><span class="pill demo">DEMO</span> Tampilan simulasi</h3>
-      <p class="lead" style="font-size:13px;margin:0">Console penuh yang menarik <b>data pasar publik
-      sungguhan</b> (Binance/Bybit/OKX/Kraken/Coinbase) langsung dari browser, menghitung indikator dan
-      sinyalnya sendiri, lalu menjalankan eksekusi <b>paper</b> dengan fee dan slippage. Ledger posisi dan
-      trade tersimpan di browser, jadi kunjungan berikutnya melanjutkan sesi yang sama.</p>
-      <ul>
-        <li>Candle sungguhan, EMA, dan sinyal konfluensi yang dihitung di browser</li>
-        <li>Posisi paper, riwayat trade, laporan PnL, dan briefing yang ikut hidup</li>
-        <li>Validator strategi JSON + pembuat potongan <span class="mono">.env</span></li>
-      </ul>
-      <div class="kv"><span>data pasar nyata</span><span>eksekusi paper</span><span>tanpa backend</span></div>
-      <div class="cta">
-        <a class="btn primary" href="./demo.html">Buka console demo</a>
-        <a class="btn ghost" href="./demo.html#strategi">Unggah strategi JSON</a>
-      </div>
+  <div class="rule"></div>
+  <section class="section" id="platform">
+    <div class="section-head"><div><div class="eyebrow">01 / Platform architecture</div><h2>Seven connected workspaces</h2></div><p>Setiap area memiliki peran yang jelas. Tampilan hanya menyatakan fitur sebagai aktif jika tersedia dan terhubung; modul yang belum terintegrasi diberi status terbuka.</p></div>
+    <div class="modules">
+      <article class="module"><span class="num">01 — OVERVIEW</span><h3>Dashboard</h3><p>Ringkasan ekuitas simulasi, posisi, kinerja, grafik, dan status sesi.</p></article>
+      <article class="module"><span class="num">02 — INTELLIGENCE</span><h3>Intelligence Center</h3><p>Briefing kondisi pasar, bukti sinyal, konteks tren, dan faktor risiko.</p></article>
+      <article class="module"><span class="num">03 — STRATEGY</span><h3>Strategy Center</h3><p>Ruang konfigurasi dan perbandingan strategi yang didukung aplikasi.</p></article>
+      <article class="module"><span class="num">04 — RISK</span><h3>Risk Center</h3><p>Eksposur, batas kerugian, drawdown, slot posisi, dan guardrail.</p></article>
+      <article class="module"><span class="num">05 — RESEARCH</span><h3>Research Center</h3><p>Walk-forward, robustness, dan analisis portofolio; UI integrasi masih bertahap.</p></article>
+      <article class="module"><span class="num">06 — ANALYTICS</span><h3>Analytics Center</h3><p>Riwayat trade, laporan kinerja, metrik, dan ekspor data.</p></article>
+      <article class="module"><span class="num">07 — OPERATIONS</span><h3>System Monitoring</h3><p>Status koneksi dan sumber data yang tersedia, dengan batas observabilitas yang jelas.</p></article>
     </div>
-
-    <div class="card mode-card live">
-      <h3><span class="pill live">LIVE</span> Bot sungguhan (lokal)</h3>
-      <p class="lead" style="font-size:13px;margin:0">Console asli dari <span class="mono">python main.py</span>.
-      Halaman ini berisi langkah menjalankannya, termasuk untuk VPS. Console-nya sendiri dibuka di
-      <span class="mono">http://127.0.0.1:8787</span> — hanya mendengarkan di mesinmu.</p>
-      <ul>
-        <li>Data publik dari exchange lewat ccxt, atau candle CSV milikmu</li>
-        <li>Guardrail, audit SQLite/JSONL, kill-switch aktif penuh</li>
-        <li>Tetap <b>paper</b>: tidak ada order nyata yang dikirim ke exchange</li>
-      </ul>
-      <div class="kv"><span>butuh Python 3.11+</span><span>bind 127.0.0.1</span><span>paper only</span></div>
-      <div class="cta">
-        <a class="btn primary" href="./live.html">Cara menjalankan</a>
-        <a class="btn ghost" href="https://github.com/murohito9-sudo/aegis-one#batas-paket-dan-langkah-menuju-live">Batas paket</a>
-      </div>
+  </section>
+  <div class="rule"></div>
+  <section class="section" id="modes">
+    <div class="section-head"><div><div class="eyebrow">02 / Operating modes</div><h2>One platform. Explicit boundaries.</h2></div><p>Demo publik dan console lokal memiliki tujuan berbeda. Keduanya tidak boleh disalahartikan sebagai layanan eksekusi live.</p></div>
+    <div class="modes">
+      <article class="mode-card"><span class="tag">DEMO / BROWSER</span><h3>Market simulation</h3><p>Halaman demo menggunakan data pasar publik untuk menampilkan candle, indikator, sinyal, dan simulasi paper di browser. Ledger demo disimpan lokal pada browser.</p><ul><li>Public market data, subject to provider availability</li><li>Paper positions, trade history, and reports</li><li>Strategy JSON validation and comparison tools</li></ul><a class="btn" href="./demo.html">Open demo console ↗</a></article>
+      <article class="mode-card restricted"><span class="tag">LOCAL / RESTRICTED</span><h3>Local monitoring console</h3><p>Console backend ditujukan untuk pemantauan proses lokal dan jalur simulasi. Keberadaan adapter LIVE di repository bukan bukti validasi atau kesiapan produksi.</p><ul><li>Paper workflow remains the validated development path</li><li>Live integration is restricted and not validated</li><li>No live activation instructions are provided here</li></ul><a class="btn" href="./live.html">Read system status ↗</a></article>
     </div>
-  </div>
-
-  <div class="card third">
-    <h3>Strategi JSON — ditambahkan pengguna</h3>
-    <p class="lead" style="font-size:13px;margin:0">Siapa pun bisa menyiapkan berkas strategi
-    (parameter indikator, filter, bobot konfluensi, dan setelan risiko), lalu mengunggahnya di halaman
-    demo untuk diperiksa. Validator menandai nilai yang mustahil, menyebut parameter yang bisa
-    dipasang lewat <span class="mono">.env</span>, dan mana yang harus diubah di
-    <span class="mono">config.py</span>. Halaman statis tidak mengubah bot — ia memberi pratinjau
-    dan potongan konfigurasi yang siap dipakai.</p>
-    <p class="lead" style="font-size:13px;margin:8px 0 0">Di halaman demo strategi itu bisa
-    <b>dipasang sebagai strategi aktif</b> (ukuran posisi, aksi sinyal, dan chip header ikut berubah),
-    <b>dibandingkan berdampingan</b> dengan strategi lain, lalu <b>diekspor</b> sebagai ringkasan
-    Markdown.</p>
-    <div class="cta" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-      <a class="btn" href="./demo.html#strategi">Buka validator strategi</a>
+    <div class="boundary">
+      <div class="card"><h3>Research integrity</h3><p>Evaluasi harus menjaga urutan waktu, menghindari data leakage, memperhitungkan biaya simulasi, dan membedakan skor konfluensi dari probabilitas yang benar-benar terkalibrasi.</p></div>
+      <div class="card"><h3 class="warning">Safety boundary</h3><p>AEGIS-ONE adalah proyek edukasi dan simulasi. Hasil historis tidak menjamin hasil masa depan. Jangan memasukkan API key, secret, atau kredensial exchange ke halaman web.</p></div>
     </div>
-  </div>
-
-  <div class="foot">
-    Isi halaman ini bukan nasihat investasi. Angka pada demo adalah simulasi; tidak ada janji profit.
-    Kode sumber: <a href="https://github.com/murohito9-sudo/aegis-one">https://github.com/murohito9-sudo/aegis-one</a>
-  </div>
-</div>
+  </section>
+  <footer class="footer"><span>AEGIS-ONE · Institutional Market Intelligence &amp; Quantitative Trading Platform</span><span>Research responsibly. Simulate first. No profit guarantees.</span></footer>
+</main>
 </body>
 </html>
