@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 from config import Mode, RiskConfig, Settings, StrategyConfig
-from data import DataQualityGate, MarketSnapshot, SyntheticFeed, timeframe_seconds
+from data import CCXTFeed, DataQualityGate, MarketSnapshot, SyntheticFeed, timeframe_seconds
 from evaluation import EvaluationEngine
 from execution import (
     LiveBrokerUnavailable,
@@ -412,6 +412,40 @@ class TestDataGate(TempProject):
         result = DataQualityGate(self.settings).check(snap)
         self.assertFalse(result.passed)
         self.assertTrue(any(c.name == "kesegaran_data" and not c.ok for c in result.checks))
+
+
+class TestCCXTQuoteProvenance(unittest.TestCase):
+    class FakeExchange:
+        def __init__(self, bid, ask):
+            self.bid = bid
+            self.ask = ask
+
+        def fetch_ohlcv(self, symbol, timeframe, limit):
+            now_ms = int(time.time() * 1000)
+            return [[now_ms - 60_000, 99.0, 101.0, 98.0, 100.0, 10.0]]
+
+        def fetch_ticker(self, symbol):
+            return {"last": 100.0, "bid": self.bid, "ask": self.ask}
+
+    def _feed(self, bid, ask):
+        feed = CCXTFeed.__new__(CCXTFeed)
+        feed.exchange_id = "fake"
+        feed.symbol = "BTC/USDT"
+        feed.timeframe = "1m"
+        feed._ex = self.FakeExchange(bid, ask)
+        return feed
+
+    def test_missing_quotes_are_not_fabricated(self):
+        snap = self._feed(None, None).snapshot(10)
+        self.assertEqual(snap.best_bid, 0.0)
+        self.assertEqual(snap.best_ask, 0.0)
+        self.assertTrue(snap.source.endswith("quotes=missing"))
+
+    def test_observed_quotes_are_preserved(self):
+        snap = self._feed(99.9, 100.1).snapshot(10)
+        self.assertEqual(snap.best_bid, 99.9)
+        self.assertEqual(snap.best_ask, 100.1)
+        self.assertTrue(snap.source.endswith("quotes=observed"))
 
 
 class TestEvaluationEngine(unittest.TestCase):
