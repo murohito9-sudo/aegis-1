@@ -37,7 +37,7 @@ def _summary(values: list[float]) -> dict[str, Any]:
         "samples": len(values),
         "win_rate": sum(value > 0 for value in values) / len(values),
         "avg_r": statistics.fmean(values),
-        "profit_factor_r": wins / losses if losses else (None if wins == 0 else math.inf),
+        "profit_factor_r": wins / losses if losses else None,
     }
 
 
@@ -75,8 +75,12 @@ def walk_forward(
             "test": _summary(test_r),
         })
         start += step
-    tested = [row["r_multiple"] for window in windows
-              for row in data if window["test_start"] <= row["ts"] <= window["test_end"]]
+    # Count each out-of-sample observation once even when test windows overlap.
+    tested_timestamps = {
+        row["ts"] for window in windows for row in data
+        if window["test_start"] <= row["ts"] <= window["test_end"]
+    }
+    tested = [row["r_multiple"] for row in data if row["ts"] in tested_timestamps]
     return {
         "method": "rolling_chronological",
         "windows": windows,
