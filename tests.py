@@ -928,3 +928,52 @@ class TestAdaptiveRisk(TempProject):
 # Remaining tests continue unchanged from baseline.
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+
+class TestOfflineResearch(unittest.TestCase):
+    def setUp(self) -> None:
+        self.rows = [{"ts": float(i), "r_multiple": (0.5 if i % 3 else -1.0)}
+                     for i in range(20)]
+
+    def test_walk_forward_is_chronological_and_out_of_sample(self) -> None:
+        from research import walk_forward
+        report = walk_forward(self.rows, train_size=8, test_size=4, step_size=4)
+        self.assertEqual(report["window_count"], 3)
+        first = report["windows"][0]
+        self.assertLess(first["train_end"], first["test_start"])
+        self.assertEqual(first["test"]["samples"], 4)
+        self.assertEqual(report["test_summary"]["samples"], 12)
+
+    def test_walk_forward_rejects_duplicate_timestamps(self) -> None:
+        from research import walk_forward
+        rows = self.rows + [{"ts": 0.0, "r_multiple": 1.0}]
+        with self.assertRaises(ValueError):
+            walk_forward(rows, train_size=4, test_size=2)
+
+    def test_walk_forward_handles_insufficient_history(self) -> None:
+        from research import walk_forward
+        report = walk_forward(self.rows[:4], train_size=4, test_size=2)
+        self.assertEqual(report["window_count"], 0)
+        self.assertEqual(report["test_summary"]["samples"], 0)
+
+    def test_monte_carlo_is_reproducible_and_bounded(self) -> None:
+        from research import monte_carlo_risk
+        a = monte_carlo_risk(self.rows, simulations=200, seed=7)
+        b = monte_carlo_risk(self.rows, simulations=200, seed=7)
+        self.assertEqual(a, b)
+        self.assertGreaterEqual(a["max_drawdown"]["p95"], 0.0)
+        self.assertLessEqual(a["probability_below_start"], 1.0)
+
+    def test_monte_carlo_rejects_unsafe_parameters(self) -> None:
+        from research import monte_carlo_risk
+        with self.assertRaises(ValueError):
+            monte_carlo_risk(self.rows, simulations=10)
+        with self.assertRaises(ValueError):
+            monte_carlo_risk(self.rows, simulations=100, risk_fraction=0.10)
+
+    def test_research_rejects_non_finite_results(self) -> None:
+        from research import walk_forward
+        rows = [{"ts": 1.0, "r_multiple": float("nan")}]
+        with self.assertRaises(ValueError):
+            walk_forward(rows, train_size=2, test_size=1)
