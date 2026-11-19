@@ -32,7 +32,7 @@ h1{font-size:clamp(34px,5vw,58px);line-height:1.08;letter-spacing:-1.8px;margin:
 .modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
 .module{min-height:148px;padding:17px;border:1px solid #26384c;border-radius:10px;background:linear-gradient(145deg,#111c29,#0d141e)}
 .module .num{color:#7796b8;font:10px var(--mono)}.module h3{font-size:13px;margin:13px 0 6px}.module p{font-size:10.5px;color:#91a0b4;line-height:1.65;margin:0}
-.modes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .mode-card{padding:22px;border:1px solid #2b4057;border-radius:12px;background:linear-gradient(145deg,#142235,#0e1722);display:flex;flex-direction:column;gap:12px}
 .mode-card.restricted{background:linear-gradient(145deg,#211d15,#12171d);border-color:#55472f}
 .tag{width:max-content;padding:4px 9px;border-radius:999px;border:1px solid #35618a;background:#10283c;color:#a9d7ff;font:700 9px var(--mono);letter-spacing:1px}
@@ -44,15 +44,15 @@ h1{font-size:clamp(34px,5vw,58px);line-height:1.08;letter-spacing:-1.8px;margin:
 .boundary h3{font-size:12px;margin:0 0 9px}.boundary p{font-size:10.5px;line-height:1.75;color:#94a4b8;margin:0}
 .boundary .warning{color:#e7c486}
 .footer{border-top:1px solid #253447;padding:20px 0 0;color:#7f8ea2;font-size:10px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
-@media(max-width:900px){.hero{grid-template-columns:1fr;gap:28px;padding-top:54px}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:620px){.topbar{height:auto;min-height:62px;padding:10px 16px}.nav{gap:12px}.nav a:not(.repo){display:none}.wrap{padding-left:16px;padding-right:16px}.hero{padding:42px 0 34px}h1{font-size:36px}.modules,.modes,.boundary{grid-template-columns:1fr}.section{padding:32px 0}.section-head{display:block}.section-head p{margin-top:9px}}
+@media(max-width:900px){.hero{grid-template-columns:1fr;gap:28px;padding-top:54px}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}.modes{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.topbar{height:auto;min-height:62px;padding:10px 16px}.nav{gap:12px;flex-wrap:wrap}.nav a{display:inline-flex}.nav a:not(.repo){display:inline-flex}.wrap{padding-left:16px;padding-right:16px}.hero{padding:42px 0 34px}h1{font-size:36px}.modules,.modes,.boundary{grid-template-columns:1fr}.section{padding:32px 0}.section-head{display:block}.section-head p{margin-top:9px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important}}
 </style>
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="./" aria-label="AEGIS-ONE home"><span class="mark">A1</span><span><b>AEGIS-ONE</b><small>Institutional Market Intelligence</small></span></a>
-  <nav class="nav" aria-label="Main navigation"><a href="#platform">Platform</a><a href="#modes">Operating modes</a><a class="repo" href="https://github.com/murohito9-sudo/aegis-one" target="_blank" rel="noopener">Source repository ↗</a></nav>
+  <nav class="nav" aria-label="Main navigation"><a href="#platform">Platform</a><a href="#demo-mode">DEMO</a><a href="#local-mode">LIVE / Lokal</a><a href="#strategy-mode">Strategi JSON</a><a class="repo" href="https://github.com/murohito9-sudo/aegis-one" target="_blank" rel="noopener">Source repository ↗</a></nav>
 </header>
 <main class="wrap">
   <section class="hero">
@@ -85,12 +85,20 @@ h1{font-size:clamp(34px,5vw,58px);line-height:1.08;letter-spacing:-1.8px;margin:
   <section class="section" id="modes">
     <div class="section-head"><div><div class="eyebrow">02 / Operating modes</div><h2>One platform. Explicit boundaries.</h2></div><p>Demo publik dan console lokal memiliki tujuan berbeda. Keduanya tidak boleh disalahartikan sebagai layanan eksekusi live.</p></div>
     <div class="modes">
-      <article class="mode-card"><span class="tag">DEMO / BROWSER</span><h3>Market simulation</h3><p>Halaman demo menggunakan data pasar publik untuk menampilkan candle, indikator, sinyal, dan simulasi paper di browser. Ledger demo disimpan lokal pada browser.</p><ul><li>Public market data, subject to provider availability</li><li>Paper positions, trade history, and reports</li><li>Strategy JSON validation and comparison tools</li></ul><a class="btn" href="./demo.html">Open demo console ↗</a></article>
-      <article class="mode-card restricted"><span class="tag">LOCAL / RESTRICTED</span><h3>Local monitoring console</h3><p>Console backend ditujukan untuk pemantauan proses lokal dan jalur simulasi. Keberadaan adapter LIVE di repository bukan bukti validasi atau kesiapan produksi.</p><ul><li>Paper workflow remains the validated development path</li><li>Live integration is restricted and not validated</li><li>No live activation instructions are provided here</li></ul><a class="btn" href="./live.html">Read system status ↗</a></article>
+      <article class="mode-card" id="demo-mode"><span class="tag">DEMO / BROWSER</span><h3>Market simulation</h3><p>Halaman demo menggunakan data pasar publik untuk menampilkan candle, indikator, sinyal, dan simulasi paper di browser. Ledger demo disimpan lokal pada browser.</p><ul><li>Public market data, subject to provider availability</li><li>Paper positions, trade history, and reports</li><li>Strategy JSON validation and comparison tools</li></ul><a class="btn" href="./demo.html">Open demo console ↗</a></article>
+      <article class="mode-card restricted" id="local-mode"><span class="tag">LIVE / LOKAL · RESTRICTED</span><h3>Bot sungguhan di mesinmu</h3><p>Console Python lokal untuk memantau proses bot dan simulasi. Jalankan <code>python main.py</code>, lalu buka <code>http://127.0.0.1:8787</code> pada perangkat yang menjalankan bot. Status LIVE tetap restricted; alur yang digunakan adalah paper-only.</p><ul><li>Data publik melalui ccxt atau candle CSV milikmu</li><li>Guardrail, audit SQLite/JSONL, dan kill-switch</li><li>Tidak mengirim order nyata ke exchange</li></ul><a class="btn" href="./live.html">Cara menjalankan ↗</a></article>
+      <article class="mode-card" id="strategy-mode"><span class="tag">STRATEGI JSON</span><h3>Validator & Strategy Lab</h3><p>Unggah strategi JSON untuk memeriksa parameter indikator, filter, bobot konfluensi, dan setelan risiko. Di halaman demo, strategi dapat dipasang sebagai strategi aktif, dibandingkan, lalu diekspor sebagai ringkasan Markdown.</p><ul><li>Validasi nilai dan parameter</li><li>Pratinjau konfigurasi .env / config.py</li><li>Aktifkan, bandingkan, dan ekspor strategi</li></ul><a class="btn" href="./demo.html#strategi">Buka validator strategi ↗</a></article>
     </div>
     <div class="boundary">
       <div class="card"><h3>Research integrity</h3><p>Evaluasi harus menjaga urutan waktu, menghindari data leakage, memperhitungkan biaya simulasi, dan membedakan skor konfluensi dari probabilitas yang benar-benar terkalibrasi.</p></div>
       <div class="card"><h3 class="warning">Safety boundary</h3><p>AEGIS-ONE adalah proyek edukasi dan simulasi. Hasil historis tidak menjamin hasil masa depan. Jangan memasukkan API key, secret, atau kredensial exchange ke halaman web.</p></div>
+    </div>
+  </section>
+  <section class="section" id="getting-started">
+    <div class="section-head"><div><div class="eyebrow">03 / Getting started</div><h2>Mulai dengan aman</h2></div><p>Pengguna baru sebaiknya memulai dari demo browser sebelum mencoba console lokal.</p></div>
+    <div class="boundary">
+      <div class="card"><h3>Demo browser</h3><p>Buka console demo, pilih pair dan timeframe yang tersedia, amati candle serta indikator, lalu uji strategi dengan paper execution. Riwayat demo disimpan di browser yang digunakan.</p><p style="margin-top:10px"><a class="btn" href="./demo.html">Buka console demo ↗</a> <a class="btn ghost" href="./demo.html#strategi">Unggah strategi JSON ↗</a></p></div>
+      <div class="card"><h3>Console lokal</h3><p>Siapkan Python 3.11+, pasang dependensi dari <code>requirements.txt</code>, jalankan <code>python tests.py</code>, lalu <code>python main.py</code>. Setelah bot berjalan, buka <code>http://127.0.0.1:8787</code> di komputer yang sama. Untuk VPS, gunakan akses SSH tunnel; jangan membuka port console ke publik.</p><p style="margin-top:10px"><a class="btn ghost" href="./live.html">Baca panduan lokal ↗</a></p></div>
     </div>
   </section>
   <footer class="footer"><span>AEGIS-ONE · Institutional Market Intelligence &amp; Quantitative Trading Platform</span><span>Research responsibly. Simulate first. No profit guarantees.</span></footer>
