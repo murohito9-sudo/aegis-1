@@ -19,6 +19,8 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Compile Python modules
+        run: python -m compileall -q .
       - name: Unit tests
         run: python tests.py
       - name: Smoke test (offline, tanpa jaringan)
