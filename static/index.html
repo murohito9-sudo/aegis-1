@@ -456,22 +456,37 @@ header{padding:13px 24px;background:rgba(9,14,22,.88);backdrop-filter:blur(18px)
     <div class="section-intro">
       <div class="eyebrow">Quantitative research</div>
       <h2>Research Center</h2>
-      <p>Ruang riset untuk evaluasi strategi secara offline dan kronologis. Fungsi walk-forward serta Monte Carlo tersedia di modul riset, tetapi belum dihubungkan ke tampilan interaktif ini.</p>
+      <p>Evaluasi read-only dari hasil trade paper yang sudah ditutup pada proses saat ini. Tidak ada order, perubahan strategi, atau koneksi exchange dari modul ini.</p>
     </div>
-    <div class="feature-grid">
-      <article class="feature-card"><div class="eyebrow">01 / Validation</div><h3>Walk-forward evaluation</h3><p>Evaluasi berurutan berdasarkan jendela waktu untuk mengurangi kebocoran data masa depan. Hasil harus dibaca bersama batasan sampel dan biaya simulasi.</p><span class="status-pill pending">MODULE AVAILABLE · UI NOT CONNECTED</span></article>
-      <article class="feature-card"><div class="eyebrow">02 / Robustness</div><h3>Monte Carlo analysis</h3><p>Uji sensitivitas hasil simulasi terhadap variasi urutan trade. Ini bukan prediksi hasil pasar dan tidak menjamin performa di masa depan.</p><span class="status-pill pending">MODULE AVAILABLE · UI NOT CONNECTED</span></article>
-      <article class="feature-card"><div class="eyebrow">03 / Portfolio</div><h3>Correlation &amp; stress testing</h3><p>Modul portofolio menyediakan matriks korelasi dan skenario tekanan deterministik. Visualisasi dan input riset belum tersedia di console.</p><span class="status-pill pending">MODULE AVAILABLE · UI NOT CONNECTED</span></article>
-      <article class="feature-card"><div class="eyebrow">04 / Research integrity</div><h3>Evidence before conclusions</h3><p>Gunakan data historis yang bersih, pemisahan train/test berbasis waktu, serta metrik yang tidak direkonstruksi dari hasil akhir trade.</p><span class="status-pill">DOCUMENTED METHOD</span></article>
+    <section class="card">
+      <div class="panel-head"><h2>Research sample</h2><span class="status-pill pending" id="research-status">WAITING FOR DATA</span></div>
+      <div class="status-line"><span>Closed paper trades</span><strong id="research-samples">—</strong></div>
+      <div class="status-line"><span>Minimum sample</span><strong id="research-required">30</strong></div>
+      <p id="research-message" class="footnote" role="status">Buka panel ini untuk memuat hasil riset dari backend lokal.</p>
+      <button type="button" id="research-refresh" class="secondary">Refresh research</button>
+    </section>
+    <div class="feature-grid" style="margin-top:12px">
+      <article class="feature-card">
+        <div class="eyebrow">01 / Chronological validation</div><h3>Walk-forward</h3>
+        <div class="status-line"><span>Windows</span><strong id="research-wf-windows">—</strong></div>
+        <div class="status-line"><span>Out-of-sample average R</span><strong id="research-wf-avg">—</strong></div>
+        <div class="status-line"><span>Out-of-sample win rate</span><strong id="research-wf-win">—</strong></div>
+      </article>
+      <article class="feature-card">
+        <div class="eyebrow">02 / Bootstrap robustness</div><h3>Monte Carlo</h3>
+        <div class="status-line"><span>Median ending equity</span><strong id="research-mc-median">—</strong></div>
+        <div class="status-line"><span>95th percentile drawdown</span><strong id="research-mc-dd">—</strong></div>
+        <div class="status-line"><span>Below-start frequency</span><strong id="research-mc-below">—</strong></div>
+      </article>
     </div>
-    <p class="footnote">Tidak ada hasil riset atau angka performa yang dibuat-buat pada halaman ini. Hubungkan endpoint riset setelah kontrak API, validasi input, dan pengujian UI tersedia.</p>
+    <p class="footnote">Monte Carlo memakai asumsi simulasi tetap 1% per trade dan 1.000 bootstrap paths. Itu hanya asumsi analitis, bukan rekomendasi risiko. Sampel berasal dari trade paper tertutup dalam memori proses; restart bot dapat mengosongkan sampel yang tersedia.</p>
   </div>
 
   <div class="tabpanel" id="panel-monitoring">
     <div class="section-intro">
       <div class="eyebrow">Operations &amp; observability</div>
       <h2>System Monitoring</h2>
-      <p>Status berikut dicerminkan dari elemen koneksi dan metadata yang sudah dipakai dashboard. Nilai yang belum disediakan backend akan tetap ditandai tidak tersedia.</p>
+      <p>Data health dibaca dari endpoint backend lokal. Status koneksi pasar tetap diambil dari snapshot dashboard yang sudah berjalan.</p>
     </div>
     <div class="monitor-grid">
       <section class="card">
@@ -482,16 +497,27 @@ header{padding:13px 24px;background:rgba(9,14,22,.88);backdrop-filter:blur(18px)
         <div class="status-line"><span>Operating mode</span><strong id="mon-mode">—</strong></div>
       </section>
       <section class="card">
-        <div class="panel-head"><h2>Operational boundaries</h2><span class="status-pill pending">RESTRICTED</span></div>
-        <div class="status-line"><span>Paper simulation</span><strong>Existing workflow</strong></div>
-        <div class="status-line"><span>Live execution</span><strong>Not validated</strong></div>
-        <div class="status-line"><span>Secrets in browser</span><strong>Not stored</strong></div>
-        <div class="status-line"><span>System health metrics</span><strong>Not exposed by API</strong></div>
+        <div class="panel-head"><h2>Backend health</h2><span class="status-pill pending" id="mon-health">Loading</span></div>
+        <div class="status-line"><span>Uptime</span><strong id="mon-uptime">—</strong></div>
+        <div class="status-line"><span>Last tick age</span><strong id="mon-tick-age">—</strong></div>
+        <div class="status-line"><span>Tick count</span><strong id="mon-ticks">—</strong></div>
+        <div class="status-line"><span>Consecutive errors</span><strong id="mon-errors">—</strong></div>
+        <div class="status-line"><span>Database size</span><strong id="mon-db-size">—</strong></div>
+        <div class="status-line"><span>Disk free</span><strong id="mon-disk">—</strong></div>
+        <div class="status-line"><span>Heartbeat age</span><strong id="mon-heartbeat">—</strong></div>
       </section>
     </div>
     <section class="card" style="margin-top:12px">
-      <div class="panel-head"><h2>Operational notes</h2><span class="meta">HONEST STATUS</span></div>
-      <p style="font-size:11px;color:var(--muted);line-height:1.7;margin:0">CPU, memory, queue latency, database health, and scheduler heartbeat are not currently exposed through the dashboard API. They are intentionally not represented as healthy or zero until measurable backend signals are available.</p>
+      <div class="panel-head"><h2>Health details</h2><span class="meta">LIVE API READ</span></div>
+      <p id="mon-issues" style="font-size:11px;color:var(--muted);line-height:1.7;margin:0" role="status">Menunggu data health backend.</p>
+      <p id="mon-last-error" style="font-size:11px;color:var(--muted);line-height:1.7;margin:8px 0 0"></p>
+    </section>
+    <section class="card" style="margin-top:12px">
+      <div class="panel-head"><h2>Operational boundaries</h2><span class="status-pill pending">RESTRICTED</span></div>
+      <div class="status-line"><span>Paper simulation</span><strong>Existing workflow</strong></div>
+      <div class="status-line"><span>Live execution</span><strong>Not validated</strong></div>
+      <div class="status-line"><span>Secrets in browser</span><strong>Not stored</strong></div>
+      <div class="status-line"><span>CPU / memory / queue latency</span><strong>Not exposed</strong></div>
     </section>
   </div>
 
@@ -1265,25 +1291,83 @@ header{padding:13px 24px;background:rgba(9,14,22,.88);backdrop-filter:blur(18px)
     if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   }));
 
-  function syncMonitoring() {
+  let healthLoading = false;
+  let lastHealthFetch = 0;
+  async function syncMonitoring(force = false) {
     const get = (id) => (document.getElementById(id)?.textContent || "—").trim();
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value ?? "—"; };
     const connection = get("conn-text");
     const dot = document.getElementById("conn-dot");
     const connected = dot?.classList.contains("on");
     const pill = document.getElementById("mon-connection");
-    if (pill) {
-      pill.textContent = connection || "—";
-      pill.className = "status-pill " + (connected ? "" : "pending");
-    }
-    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || "—"; };
+    if (pill) { pill.textContent = connection || "—"; pill.className = "status-pill " + (connected ? "" : "pending"); }
     set("mon-api", connected ? "Connected" : (connection || "Unavailable"));
-    set("mon-source", get("hdr-source"));
-    set("mon-broker", get("hdr-broker-name"));
-    set("mon-mode", get("mode-badge"));
+    set("mon-source", get("hdr-source")); set("mon-broker", get("hdr-broker-name")); set("mon-mode", get("mode-badge"));
+    if (healthLoading || (!force && Date.now() - lastHealthFetch < 10000)) return;
+    healthLoading = true; lastHealthFetch = Date.now();
+    try {
+      const token = document.querySelector('meta[name="aegis-csrf"]')?.content || "";
+      const response = await fetch("/api/health", { headers: { "X-AEGIS-CSRF": token } });
+      if (!response.ok) throw new Error("Health API HTTP " + response.status);
+      const h = await response.json();
+      const health = document.getElementById("mon-health");
+      if (health) { health.textContent = h.ok ? "HEALTHY" : "ATTENTION"; health.className = "status-pill " + (h.ok ? "" : "pending"); }
+      const seconds = v => v == null ? "Not available" : Math.round(v).toLocaleString("en-US") + " s";
+      set("mon-uptime", seconds(h.uptime_s)); set("mon-tick-age", seconds(h.tick_age_s));
+      set("mon-ticks", h.tick_count == null ? "—" : Number(h.tick_count).toLocaleString("en-US"));
+      set("mon-errors", h.consecutive_errors == null ? "—" : Number(h.consecutive_errors).toLocaleString("en-US"));
+      set("mon-db-size", h.db_size_mb == null ? "—" : Number(h.db_size_mb).toFixed(2) + " MB");
+      set("mon-disk", h.disk_free_mb == null ? "—" : Number(h.disk_free_mb).toFixed(1) + " MB");
+      set("mon-heartbeat", seconds(h.heartbeat_age_s));
+      set("mon-issues", Array.isArray(h.issues) && h.issues.length ? h.issues.join(" · ") : (h.ok ? "Tidak ada isu health yang dilaporkan." : "Health check membutuhkan perhatian."));
+      set("mon-last-error", h.last_error ? "Last error: " + h.last_error : "");
+    } catch (error) {
+      const health = document.getElementById("mon-health");
+      if (health) { health.textContent = "API UNAVAILABLE"; health.className = "status-pill pending"; }
+      set("mon-issues", String(error?.message || error));
+    } finally { healthLoading = false; }
   }
-  syncMonitoring();
-  window.addEventListener("aegis:state-updated", syncMonitoring);
-  setInterval(syncMonitoring, 2000);
+  syncMonitoring(true);
+  window.addEventListener("aegis:state-updated", () => syncMonitoring(true));
+  setInterval(() => syncMonitoring(false), 10000);
+
+  async function loadResearch() {
+    const status = document.getElementById("research-status");
+    const message = document.getElementById("research-message");
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value ?? "—"; };
+    if (status) { status.textContent = "LOADING"; status.className = "status-pill pending"; }
+    try {
+      const token = document.querySelector('meta[name="aegis-csrf"]')?.content || "";
+      const response = await fetch("/api/research", { headers: { "X-AEGIS-CSRF": token } });
+      if (!response.ok) throw new Error("Research API HTTP " + response.status);
+      const data = await response.json();
+      set("research-samples", data.samples ?? 0); set("research-required", data.required_samples ?? 30);
+      if (!data.available) {
+        if (status) { status.textContent = "INSUFFICIENT SAMPLE"; status.className = "status-pill pending"; }
+        if (message) message.textContent = data.message || "Sampel trade tertutup belum mencukupi.";
+        return;
+      }
+      const wf = data.walk_forward?.test_summary || {}, mc = data.monte_carlo || {};
+      const ending = mc.ending_equity || {}, dd = mc.max_drawdown || {};
+      const percent = v => v == null ? "—" : (Number(v) * 100).toFixed(2) + "%";
+      const number = v => v == null ? "—" : Number(v).toFixed(3) + " R";
+      set("research-wf-windows", data.walk_forward?.window_count ?? "—");
+      set("research-wf-avg", number(wf.avg_r)); set("research-wf-win", percent(wf.win_rate));
+      set("research-mc-median", ending.median == null ? "—" : Number(ending.median).toLocaleString("en-US", {maximumFractionDigits:2}));
+      set("research-mc-dd", percent(dd.p95)); set("research-mc-below", percent(mc.probability_below_start));
+      if (status) { status.textContent = "RESULTS LOADED"; status.className = "status-pill"; }
+      if (message) message.textContent = "Hasil berasal dari trade paper tertutup yang tersedia di proses ini. Monte Carlo menggunakan asumsi simulasi 1% per trade; bukan prediksi atau rekomendasi.";
+    } catch (error) {
+      if (status) { status.textContent = "API UNAVAILABLE"; status.className = "status-pill pending"; }
+      if (message) message.textContent = String(error?.message || error);
+    }
+  }
+  document.getElementById("research-refresh")?.addEventListener("click", loadResearch);
+  const originalActivate = activate;
+  buttons.forEach((button) => {
+    if (button.dataset.panel === "research") button.addEventListener("click", loadResearch);
+  });
+  if ((location.hash || "").replace("#", "") === "research") loadResearch();
 
   function fromHash() {
     const key = (location.hash || "").replace("#", "");
