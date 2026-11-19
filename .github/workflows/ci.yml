@@ -23,6 +23,8 @@ jobs:
         run: python -m compileall -q .
       - name: Unit tests
         run: python tests.py
+      - name: V3 regression tests
+        run: python -m unittest -v tests_v3
       - name: Smoke test (offline, tanpa jaringan)
         run: python main.py --offline --ticks 12 --no-dashboard --interval 0
   ui-browser:

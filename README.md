@@ -1,7 +1,8 @@
 # AEGIS-1 — Adaptive Execution & Guarded Investment System
 
 Sistem trading modular: Python untuk data, indikator, sinyal, risiko, eksekusi,
-dan audit; satu file HTML untuk console pemantauan real-time.
+dan audit; satu file HTML untuk console pemantauan real-time. V3 dibangun di atas
+V2 hardening pada branch `aegis-one-v3-v2based`; belum digabung ke `main`.
 
 Jalur yang divalidasi dalam pengembangan ini adalah **PAPER / simulasi**
 dengan model biaya eksplisit — fee maker/taker, slippage, dan spread. Repository

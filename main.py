@@ -48,7 +48,7 @@ from execution import (
 from analytics import build_report, to_csv, to_markdown
 from brain import BriefingInput, compose as compose_briefing
 from evaluation import EvaluationEngine
-from monitor import check_health, write_heartbeat
+from monitor import Scheduler, backup, check_health, write_heartbeat
 from portfolio import Holding, Portfolio
 from indicators import add_indicators
 from logger import Alerts, AuditLog
@@ -62,6 +62,10 @@ CHART_BARS = 180
 
 class Engine:
     def __init__(self, settings: Settings, feed: Feed | None = None) -> None:
+        # Fail closed: Engine LIVE belum lulus audit otorisasi, state, dashboard,
+        # dan rekonsiliasi end-to-end. Adapter LIVE tetap dipertahankan di repo.
+        if settings.live_mode:
+            raise RuntimeError("AEGIS LIVE dinonaktifkan sementara pada V3 sampai gerbang keselamatan selesai diuji. Gunakan PAPER.")
         self.settings = settings
         self.audit = AuditLog(settings.db_path, settings.jsonl_path)
         self.alerts = Alerts(self.audit)
@@ -93,6 +97,10 @@ class Engine:
         self.last_risk_multiplier: float = 1.0
         self.last_risk_notes: list[str] = []
         self.heartbeat_path = settings.db_path.parent / "heartbeat.json"
+        self.scheduler = Scheduler()
+        self.scheduler.add("heartbeat", 30.0, self._scheduled_heartbeat)
+        self.scheduler.add("health_check", 60.0, self._scheduled_health)
+        self.scheduler.add("backup", 6 * 60 * 60.0, self._scheduled_backup)
         self.started_wall = time.time()
         self.markers: list[dict[str, Any]] = []
         self._uvicorn_task: asyncio.Task[Any] | None = None
@@ -168,6 +176,28 @@ class Engine:
 
     def report_csv(self) -> str:
         return to_csv(self.report())
+
+    def _scheduled_heartbeat(self) -> dict[str, Any]:
+        write_heartbeat(self.heartbeat_path, {
+            "mode": self.mode.value, "tick_count": self.tick_count,
+            "symbol": self.settings.symbol,
+        })
+        return {"path": str(self.heartbeat_path)}
+
+    def _scheduled_health(self) -> dict[str, Any]:
+        report = self.health()
+        if not report.get("ok", False):
+            self.audit.log_event("warning", "scheduled_health", "health check menemukan masalah", report)
+        return report
+
+    def _scheduled_backup(self) -> dict[str, Any]:
+        sources = [self.settings.db_path, self.settings.jsonl_path, self.heartbeat_path]
+        result = backup(sources, self.settings.db_path.parent / "backups", keep=7)
+        self.audit.log_event("info" if result.ok else "error", "scheduled_backup",
+            "backup selesai" if result.ok else f"backup gagal: {result.error}", result.as_dict())
+        if not result.ok:
+            raise RuntimeError(result.error or "backup gagal")
+        return result.as_dict()
 
     # ------------------------------------------------------------------ #
     # Kesehatan, briefing, portofolio
@@ -938,6 +968,9 @@ class Engine:
                 try:
                     await self._tick()
                     self.consecutive_errors = 0
+                    for job_result in self.scheduler.run_due():
+                        if not job_result.get("ok"):
+                            self.audit.log_event("error", "scheduled_job", str(job_result.get("job")), job_result)
                 except Exception as exc:  # noqa: BLE001 - loop tidak boleh mati
                     self.consecutive_errors += 1
                     self.last_error = f"{type(exc).__name__}: {exc}"
