@@ -41,7 +41,7 @@ class BriefingInput:
     daily_loss: float = 0.0
     exposure: float = 0.0
     risk_multiplier: float = 1.0
-    brier: float = 0.0
+    brier: float | None = None
     hit_rate: float = 0.0
     drift: str = "stabil"
     concentration: float = 0.0
@@ -142,8 +142,8 @@ def compose(data: BriefingInput) -> Briefing:
             or (data.divergence == "bullish" and data.side == "SHORT")
         ):
             confidence -= 0.10
-    if data.brier > 0:
-        # Kalibrasi buruk (Brier tinggi) menurunkan keyakinan.
+    if data.brier is not None and data.brier > 0:
+        # Hanya probabilitas terkalibrasi yang boleh memengaruhi briefing.
         confidence -= max(0.0, min(0.2, (data.brier - 0.25) * 0.8))
     out.confidence = max(0.0, min(1.0, confidence))
 
