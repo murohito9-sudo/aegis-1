@@ -81,7 +81,7 @@ aegis1/
 ├── logger.py            # audit log SQLite + JSONL, alert lokal
 ├── dashboard.py         # backend FastAPI: state, history, aksi dua langkah, WebSocket
 ├── main.py              # loop utama, manajemen posisi, exception handling, graceful shutdown
-├── tests.py             # 122 unit test (sizing, risiko, sinyal, gate, replay, analitik)
+├── tests.py             # unit, regression, risk, data, replay, analytics
 ├── static/
 │   └── index.html       # "AEGIS-1 Trading Console" — satu file, tanpa CDN
 ├── deploy/
@@ -104,7 +104,7 @@ aegis1/
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # opsional; default sudah aman
-python tests.py                                       # 122 test harus OK
+python tests.py                                       # jalankan seluruh unit/regression tests
 ```
 
 Python 3.11+ (diuji pada 3.12). Tidak ada dependensi berbayar.
@@ -493,7 +493,7 @@ Telegram, token bot, atau dependensi jaringan tambahan.
 | 19 | Database & Memory | ada | `logger.py` (SQLite + JSONL) + migrasi kolom |
 | 20 | Security & Reliability | ada | `security.py` — hash chain, rate limit, pemindai rahasia |
 | 21 | Monitoring & Recovery | ada | `monitor.py` — health, heartbeat, backup/restore |
-| 22 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, 122 test |
+| 22 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, unit/regression tests |
 
 Endpoint baru: `GET /api/briefing` (situasi, bukti, keputusan, keyakinan),
 `GET /api/health` (umur tick, error beruntun, disk, heartbeat),
@@ -508,7 +508,7 @@ saat diuji dan tidak punya sumber gratis bawaan — keduanya butuh provider
 ## 10. Uji
 
 ```bash
-python tests.py            # 122 test
+python tests.py            # seluruh unit/regression tests
 pytest tests.py -q         # sama, lewat pytest
 ```
 
