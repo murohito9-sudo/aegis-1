@@ -205,12 +205,14 @@ class TestRiskLimits(TempProject):
         from strategy import Signal
         sig = Signal("BTC/USDT", 1.0, LONG, 0.9, 100.0, 95.0, 110.0, 2.0, "trending_up", 1.0)
         pos = rm.open_position(sig, 1.0, 100.0, 0.1)
-        plan = rm.plan_management(pos, 103.0, atr_value=1.0)
+        # Initial risk is 5 points (100 entry, 95 stop), so 1R is 105.
+        plan = rm.plan_management(pos, 105.0, atr_value=1.0)
         self.assertEqual(plan["action"], "breakeven")
         self.assertAlmostEqual(plan["new_stop"], pos.entry, places=8)
         pos.stop = plan["new_stop"]
         pos.breakeven_done = True
-        plan2 = rm.plan_management(pos, 104.0, atr_value=1.0)
+        # At 106 the trade is above the 1R trailing activation threshold.
+        plan2 = rm.plan_management(pos, 106.0, atr_value=1.0)
         self.assertEqual(plan2["action"], "trail")
         self.assertGreater(plan2["new_stop"], pos.stop)
 
