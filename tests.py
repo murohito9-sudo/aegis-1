@@ -25,6 +25,7 @@ import pandas as pd
 
 from config import Mode, RiskConfig, Settings, StrategyConfig
 from data import DataQualityGate, MarketSnapshot, SyntheticFeed, timeframe_seconds
+from evaluation import EvaluationEngine
 from execution import (
     LiveBrokerUnavailable,
     Order,
@@ -376,6 +377,69 @@ class TestDataGate(TempProject):
         df.loc[df.index[-2], "ts"] = df["ts"].iloc[-3]
         snap = self.snapshot(df)
         self.assertFalse(gate.check(snap).passed)
+
+
+    def test_nan_open_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "open"] = np.nan
+        result = DataQualityGate(self.settings).check(self.snapshot(df))
+        self.assertFalse(result.passed)
+        self.assertTrue(any(c.name == "angka_ohlcv_finite" and not c.ok for c in result.checks))
+
+    def test_infinite_volume_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "volume"] = np.inf
+        result = DataQualityGate(self.settings).check(self.snapshot(df))
+        self.assertFalse(result.passed)
+        self.assertTrue(any(c.name == "angka_ohlcv_finite" and not c.ok for c in result.checks))
+
+    def test_negative_volume_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "volume"] = -1.0
+        self.assertFalse(DataQualityGate(self.settings).check(self.snapshot(df)).passed)
+
+    def test_open_outside_candle_range_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "open"] = df.loc[df.index[-1], "high"] * 1.01
+        self.assertFalse(DataQualityGate(self.settings).check(self.snapshot(df)).passed)
+
+    def test_future_bar_timestamp_fails(self) -> None:
+        df = make_df(n=400)
+        snap = self.snapshot(df)
+        snap.ts = float(df["ts"].iloc[-1]) - 1.0
+        result = DataQualityGate(self.settings).check(snap)
+        self.assertFalse(result.passed)
+        self.assertTrue(any(c.name == "kesegaran_data" and not c.ok for c in result.checks))
+
+
+class TestEvaluationEngine(unittest.TestCase):
+    def test_confluence_score_is_not_treated_as_probability(self) -> None:
+        engine = EvaluationEngine()
+        engine.record(score=0.9, side="LONG", r_multiple=1.0, ts=1.0)
+        report = engine.report().as_dict()
+        self.assertIsNone(report["brier"])
+        self.assertEqual(report["probability_samples"], 0)
+        self.assertEqual(report["calibration"], [])
+        self.assertTrue(report["score_performance"])
+
+    def test_explicit_probability_calculates_brier(self) -> None:
+        engine = EvaluationEngine()
+        engine.record(score=0.8, probability=0.75, side="LONG", r_multiple=1.0, ts=1.0)
+        engine.record(score=0.6, probability=0.25, side="SHORT", r_multiple=-1.0, ts=2.0)
+        report = engine.report().as_dict()
+        self.assertAlmostEqual(report["brier"], 0.0625)
+        self.assertEqual(report["probability_samples"], 2)
+        self.assertEqual(len(report["calibration"]), 2)
+
+    def test_missing_score_is_preserved_as_missing(self) -> None:
+        engine = EvaluationEngine()
+        self.assertEqual(engine.load([{"ts": 1, "r_multiple": 1.0}]), 1)
+        self.assertEqual(engine.report().as_dict()["score_performance"], [])
+
+    def test_non_finite_probability_is_rejected(self) -> None:
+        engine = EvaluationEngine()
+        with self.assertRaises(ValueError):
+            engine.record(score=0.5, probability=float("nan"), side="LONG", r_multiple=1, ts=1)
 
 
 # --------------------------------------------------------------------------- #
