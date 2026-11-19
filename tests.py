@@ -563,6 +563,81 @@ class TestDashboardContract(TempProject):
         self.assertIn("__AEGIS_CSRF__", html)
 
 
+    def test_research_endpoint_requires_csrf_and_returns_read_only_report(self) -> None:
+        from fastapi.testclient import TestClient
+        from dashboard import Hub, create_app
+
+        class StubEngine:
+            async def state(self):
+                return {}
+
+            def history(self):
+                return {"orders": [], "trades": [], "signals": []}
+
+            def report(self):
+                return {}
+
+            def report_markdown(self):
+                return ""
+
+            def report_csv(self):
+                return ""
+
+            def briefing(self):
+                return {}
+
+            def health(self):
+                return {"ok": True, "tick_count": 7, "issues": []}
+
+            def portfolio(self):
+                return {}
+
+            def research(self):
+                return {"available": False, "samples": 2, "required_samples": 30}
+
+            async def execute_action(self, action):
+                return {"action": action}
+
+        with TestClient(create_app(StubEngine(), Hub())) as client:
+            page = client.get("/")
+            self.assertEqual(page.status_code, 200)
+            token = page.text.split('name="aegis-csrf" content="', 1)[1].split('"', 1)[0]
+            denied = client.get("/api/research")
+            self.assertEqual(denied.status_code, 403)
+            response = client.get("/api/research", headers={"X-AEGIS-CSRF": token})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["samples"], 2)
+            health = client.get("/api/health", headers={"X-AEGIS-CSRF": token})
+            self.assertTrue(health.json()["ok"])
+
+    def test_frontend_navigation_and_responsive_contract(self) -> None:
+        from html.parser import HTMLParser
+
+        html = (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
+
+        class IdCollector(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.ids = []
+
+            def handle_starttag(self, tag, attrs):
+                self.ids.extend(value for key, value in attrs if key == "id" and value)
+
+        parser = IdCollector()
+        parser.feed(html)
+        duplicates = sorted({value for value in parser.ids if parser.ids.count(value) > 1})
+        self.assertEqual(duplicates, [])
+        for panel in ("ringkasan", "strategi", "research", "monitoring"):
+            self.assertIn(f'data-panel="{panel}"', html)
+            self.assertIn(f'id="panel-{panel}"', html)
+        for legacy_id in ("chart", "pos-body", "hist-body", "report", "btn-kill", "m-next", "k-equity", "rep-kpis"):
+            self.assertIn(f'id="{legacy_id}"', html)
+        self.assertIn('@media(max-width:1050px)', html)
+        self.assertIn('@media(max-width:620px)', html)
+        self.assertIn('fetch("/api/health"', html)
+        self.assertIn('fetch("/api/research"', html)
+
+
 class TestFeedAndLogging(TempProject):
     def test_synthetic_feed_is_deterministic(self) -> None:
         a = SyntheticFeed(seed=42).snapshot(300)
