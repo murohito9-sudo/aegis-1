@@ -61,6 +61,15 @@ CHART_BARS = 180
 
 class Engine:
     def __init__(self, settings: Settings, feed: Feed | None = None) -> None:
+        # V3 fail-closed: adapter LIVE memang tersedia, tetapi jalur Engine belum
+        # memiliki otorisasi runtime, rekonsiliasi state, dan mode dashboard yang
+        # teruji end-to-end. Jangan pernah memulai Engine LIVE secara tidak sengaja.
+        if settings.live_mode:
+            raise RuntimeError(
+                "AEGIS LIVE dinonaktifkan sementara pada V3: jalur Engine belum "
+                "lulus audit keselamatan end-to-end. Gunakan PAPER sampai gerbang "
+                "otorisasi, state, dan rekonsiliasi LIVE selesai diuji."
+            )
         self.settings = settings
         self.audit = AuditLog(settings.db_path, settings.jsonl_path)
         self.alerts = Alerts(self.audit)
