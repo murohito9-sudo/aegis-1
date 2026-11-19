@@ -284,16 +284,26 @@ class PaperBroker:
             if fill_price is None:
                 continue
 
-            qty = order.remaining
+            fraction = min(1.0, max(0.01, float(self.cfg.paper_fill_fraction)))
+            qty = min(order.remaining, order.qty * fraction)
+            if qty <= 0:
+                continue
             fee = qty * fill_price * fee_rate
             reference = order.price or order.stop_price or snap.last_price
             slippage_bps = abs(fill_price - reference) / reference * 10_000.0 if reference else 0.0
 
+            previous_filled = order.filled
             order.filled += qty
-            order.avg_price = fill_price
+            order.avg_price = (
+                fill_price if previous_filled <= 0 or order.avg_price is None
+                else ((order.avg_price * previous_filled) + (fill_price * qty)) / order.filled
+            )
             order.fee += fee
-            order.slippage_bps = slippage_bps
-            order.status = OrderStatus.FILLED
+            order.slippage_bps = (
+                slippage_bps if previous_filled <= 0
+                else ((order.slippage_bps * previous_filled) + (slippage_bps * qty)) / order.filled
+            )
+            order.status = OrderStatus.FILLED if order.remaining <= max(1e-12, order.qty * 1e-10) else OrderStatus.PARTIALLY_FILLED
             order.updated_at = now
             self.audit.log_order(order.as_dict())
             self.audit.log_fill(order.client_id, order.symbol, qty, fill_price, fee)
