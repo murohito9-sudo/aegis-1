@@ -926,8 +926,6 @@ class TestAdaptiveRisk(TempProject):
 
 
 # Remaining tests continue unchanged from baseline.
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 
@@ -1009,3 +1007,7 @@ class TestPortfolioRiskAnalysis(unittest.TestCase):
             stress_test({"BTC": 1.2}, {"crash": {"BTC": -0.5}})
         with self.assertRaises(ValueError):
             stress_test({"BTC": 0.5}, {"impossible": {"BTC": -1.2}})
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
