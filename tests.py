@@ -977,3 +977,35 @@ class TestOfflineResearch(unittest.TestCase):
         rows = [{"ts": 1.0, "r_multiple": float("nan")}]
         with self.assertRaises(ValueError):
             walk_forward(rows, train_size=2, test_size=1)
+
+
+class TestPortfolioRiskAnalysis(unittest.TestCase):
+    def test_correlation_matrix_detects_perfect_relationships(self) -> None:
+        from portfolio import correlation_matrix
+        matrix = correlation_matrix({"A": [1, 2, 3], "B": [2, 4, 6], "C": [3, 2, 1]})
+        self.assertAlmostEqual(matrix["A"]["B"], 1.0)
+        self.assertAlmostEqual(matrix["A"]["C"], -1.0)
+        self.assertIsNone(matrix["A"].get("missing"))
+
+    def test_correlation_rejects_misaligned_or_non_finite_data(self) -> None:
+        from portfolio import correlation_matrix
+        with self.assertRaises(ValueError):
+            correlation_matrix({"A": [1, 2], "B": [1]})
+        with self.assertRaises(ValueError):
+            correlation_matrix({"A": [1, float("inf")]})
+
+    def test_stress_test_aggregates_weighted_shocks(self) -> None:
+        from portfolio import stress_test
+        report = stress_test(
+            {"BTC": 0.6, "ETH": 0.3, "USDT": 0.1},
+            {"risk_off": {"BTC": -0.2, "ETH": -0.4}},
+        )
+        self.assertAlmostEqual(report["risk_off"]["portfolio_return"], -0.24)
+        self.assertAlmostEqual(report["risk_off"]["portfolio_return_pct"], -24.0)
+
+    def test_stress_test_rejects_invalid_weights_and_shocks(self) -> None:
+        from portfolio import stress_test
+        with self.assertRaises(ValueError):
+            stress_test({"BTC": 1.2}, {"crash": {"BTC": -0.5}})
+        with self.assertRaises(ValueError):
+            stress_test({"BTC": 0.5}, {"impossible": {"BTC": -1.2}})
