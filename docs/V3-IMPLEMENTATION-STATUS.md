@@ -12,7 +12,8 @@ Status: draft; not merged.
 - PaperBroker supports deterministic per-tick partial fill participation via `AEGIS_PAPER_FILL_FRACTION`; default 1.0 preserves legacy behavior.
 - Engine scheduler now runs heartbeat every 30s, health checks every 60s, and backup every 6h with seven-backup retention.
 - Added `tests_v3.py` and CI invocation.
-- Existing V2 institutional UI, Research/Monitoring integrations, and Playwright responsive UI tests are inherited from the V2 hardening branch and are not replaced.
+- Existing V2 institutional UI, Research/Monitoring integrations, and Playwright responsive UI tests are inherited and retained.
+- V3 refreshes both `static/index.html` and `docs/demo.html` with a compact terminal header/status ribbon, dense institutional KPI/risk styling, responsive refinements, and an illustrative particle-ring topology visualization. The topology is explicitly labelled as non-live and does not claim to display on-chain measurements.
 
 ## Remaining acceptance gates
 1. Add Engine-level aggregation tests for multiple partial entry fills and protective-order resizing. Keep `AEGIS_PAPER_FILL_FRACTION=1.0` until then.
