@@ -18,7 +18,7 @@ ada di bagian [Batas paket](#batas-paket-dan-langkah-menuju-live).
 | --- | --- |
 | [index](https://murohito9-sudo.github.io/aegis-one/) | pemilih mode: demo atau live |
 | [demo.html](https://murohito9-sudo.github.io/aegis-one/demo.html) | console dengan data contoh tertanam + validator strategi JSON |
-| [live.html](https://murohito9-sudo.github.io/aegis-one/live.html) | langkah menjalankan bot sungguhan (lokal/VPS) |
+| [live.html](https://murohito9-sudo.github.io/aegis-one/live.html) | panduan operator lokal/VPS; Engine V3 menolak startup LIVE sampai gerbang keselamatan lengkap |
 
 Mode demo tidak memakai backend dan tidak mengirim order, tetapi **memakai data
 pasar sungguhan**: halaman menarik candle publik dari Binance (dengan cadangan
