@@ -265,6 +265,84 @@ button:focus-visible{outline:2px solid #8fc1ff;outline-offset:2px}
 @media(max-width:620px){header{padding:10px 12px}.hdr-right{gap:5px}.hdr-right .chip{font-size:9px;padding:4px 7px}.app-shell{padding:10px;gap:12px}.main-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.feature-grid,.monitor-grid{grid-template-columns:1fr}.section-intro h2{font-size:20px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
+<style id="aegis-v3-terminal-ui">
+:root{
+ --bg:#050911;--panel:#0b1320;--panel-2:#101b2a;--line:#1c2b40;
+ --text:#dce8f6;--muted:#71849d;--accent:#66c7ff;--profit:#4ce0a0;
+ --loss:#ff647c;--warn:#efc46b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace
+}
+html,body{background:#050911}
+body{font-size:12px;letter-spacing:.01em;background:
+ radial-gradient(ellipse at 52% 0%,#10233b 0,transparent 38%),#050911}
+header{min-height:54px;padding:8px 16px;gap:8px;background:#070d17f2;border-bottom:1px solid #22334a}
+.brand .logo{width:28px;height:28px;border-radius:5px;background:linear-gradient(145deg,#1b4265,#0b1728);border:1px solid #315777;color:#c7e7ff}
+.brand h1{font:700 12px var(--mono);letter-spacing:1.4px}
+.brand small{font:9px var(--mono);letter-spacing:1px;color:#6f8aa7}
+.hdr-right{gap:5px}.chip{padding:4px 8px;border-radius:4px;background:#0c1725;border-color:#23364d;font:9px var(--mono);letter-spacing:.4px}
+.mode{border-radius:3px;font:700 9px var(--mono);padding:5px 8px}
+.market-ribbon{display:flex;align-items:center;gap:18px;min-height:27px;padding:4px 16px;overflow:hidden;white-space:nowrap;background:#091321;border-bottom:1px solid #1d3047;color:#8097b2;font:9px var(--mono);letter-spacing:1px}
+.market-ribbon .r-live{color:#57d6a2}.market-ribbon .r-warn{color:#e9bf6b}.market-ribbon .r-dot{display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:#4bd9a0;box-shadow:0 0 8px #4bd9a088}
+.app-shell{grid-template-columns:190px minmax(0,1fr);gap:12px;max-width:1900px;padding:12px 14px 30px}
+.sidebar{top:94px;min-height:calc(100vh - 110px);gap:12px;padding:10px 8px;border-radius:6px;background:#09121e;border-color:#1e3045}
+.side-caption{font:700 9px var(--mono);letter-spacing:1.6px}
+.main-tabs{gap:3px}.main-tabs button{padding:9px 8px;border-radius:4px;font:10px var(--mono);letter-spacing:.2px}
+.main-tabs button.active{background:linear-gradient(90deg,#15324d,#10243a);border-color:#284d6b;box-shadow:inset 2px 0 #63c9ff}
+.side-status{border-radius:5px;background:#08111d;border-color:#1d3046}
+.side-status strong{font:700 9px var(--mono);color:#9bb6d0}.side-status p{font:9px/1.5 var(--mono)}
+.workspace{max-width:none}
+.notice{border-radius:4px;padding:8px 10px;font:10px var(--mono);margin-bottom:8px}
+.card{border-radius:5px!important;background:linear-gradient(145deg,#0d1826,#09121e)!important;border:1px solid #20334a!important;box-shadow:inset 0 1px #ffffff05,0 8px 20px #0002!important;padding:10px 11px}
+.panel-head{margin-bottom:8px}.panel-head h2{font:700 10px var(--mono)!important;letter-spacing:1.25px!important;color:#a9c1d9!important}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.kpis .card{min-height:72px;padding:9px 10px}
+.card .label{font:9px var(--mono);letter-spacing:1.2px;color:#6f89a5}
+.card .value{font:600 19px var(--mono);letter-spacing:-.5px}
+.card .sub{font:9px var(--mono);color:#71849d}
+.cols{grid-template-columns:minmax(0,1.65fr) minmax(250px,.85fr);gap:8px;margin-top:8px}
+.cols-2{gap:8px}
+canvas{max-width:100%}
+#chart{height:250px}
+#risk-panel .risk-row{margin-bottom:9px}
+#risk-panel .risk-row .top{font:10px var(--mono)}
+#risk-panel .bar{height:5px;border-radius:1px;background:#1a2b40}
+#risk-panel .actions{gap:5px}
+#risk-panel button{font:700 9px var(--mono);letter-spacing:.4px;border-radius:3px;padding:7px 8px}
+table{font:10px var(--mono)}th{font:8px var(--mono);letter-spacing:1px;color:#7791ad;padding:6px}
+td{font:9px var(--mono);padding:6px;border-bottom-color:#17283b}
+.topology-panel{margin-top:8px;overflow:hidden;padding:0!important}
+.topology-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border-bottom:1px solid #1d3046}
+.topology-head h2{margin:0;color:#a9c1d9;font:700 10px var(--mono);letter-spacing:1.2px}
+.topology-head .meta{color:#68829f;font:9px var(--mono);letter-spacing:.7px}
+.topology-stage{position:relative;min-height:280px;background:
+ radial-gradient(ellipse at 50% 48%,#13243a 0,transparent 40%),
+ linear-gradient(180deg,#081321,#060c16)}
+#aegis-topology{display:block;width:100%;height:280px}
+.topology-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:7px 11px;border-top:1px solid #1b2c41;color:#7189a5;font:8px var(--mono);letter-spacing:.8px}
+.topology-legend{display:flex;gap:12px;flex-wrap:wrap}
+.topology-legend span:before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;background:#61c8ff}
+.topology-legend span:nth-child(2):before{background:#4ce0a0}.topology-legend span:nth-child(3):before{background:#efc46b}
+#panel-ringkasan>.card:not(#briefing){margin-top:8px!important}
+#briefing{margin-top:8px!important}
+#briefing .brf-list{font:10px/1.55 var(--mono)!important}
+#panel-riwayat .card,#panel-strategi .card,#panel-research .card,#panel-monitoring .card{border-radius:5px}
+@media(max-width:1050px){
+ .app-shell{grid-template-columns:1fr;padding:9px}
+ .sidebar{position:relative;top:auto;min-height:0;padding:7px;overflow:auto}
+ .main-tabs{flex-direction:row;overflow-x:auto}
+ .main-tabs button{flex:0 0 auto;width:auto;white-space:nowrap}
+ .side-status{display:none}
+ .cols{grid-template-columns:minmax(0,1fr) minmax(230px,.8fr)}
+}
+@media(max-width:700px){
+ header{align-items:flex-start}.hdr-right{width:100%;overflow-x:auto;flex-wrap:nowrap}
+ .market-ribbon{gap:12px;font-size:8px}
+ .app-shell{padding:7px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .cols,.cols-2{grid-template-columns:1fr}
+ #chart{height:220px}.topology-stage{min-height:210px}#aegis-topology{height:210px}
+ .topology-foot{font-size:7px}
+}
+@media(prefers-reduced-motion:reduce){#aegis-topology{animation:none!important}}
+</style>
 </head>
 <body>
 <script>
@@ -1165,6 +1243,11 @@ button:focus-visible{outline:2px solid #8fc1ff;outline-offset:2px}
     <span class="chip num" id="clock">--:--:--</span>
   </div>
 </header>
+<div class="market-ribbon" role="status" aria-label="Status lingkungan AEGIS">
+ <span class="r-live"><i class="r-dot"></i>PAPER ENVIRONMENT</span>
+ <span>PUBLIC MARKET DATA</span><span>RISK GUARDS ACTIVE</span>
+ <span class="r-warn">LIVE EXECUTION RESTRICTED</span><span>AEGIS / TERMINAL V3</span>
+</div>
 
 <main class="app-shell">
   <aside class="sidebar" aria-label="Navigasi utama">
@@ -1288,6 +1371,12 @@ button:focus-visible{outline:2px solid #8fc1ff;outline-offset:2px}
       </div>
     </div>
   </section>
+
+<section class="card topology-panel" aria-labelledby="topology-title">
+ <div class="topology-head"><h2 id="topology-title">◈ MARKET STRUCTURE / NETWORK TOPOLOGY</h2><span class="meta">VISUAL MODEL · NON-EXECUTABLE</span></div>
+ <div class="topology-stage"><canvas id="aegis-topology" aria-label="Ilustrasi jaringan partikel berbentuk cincin"></canvas></div>
+ <div class="topology-foot"><span>STRUCTURE VISUALIZATION · DECORATIVE LAYER</span><div class="topology-legend"><span>CORE NODES</span><span>FLOW PATHS</span><span>REFERENCE LINKS</span></div><span>NOT A LIVE ON-CHAIN FEED</span></div>
+</section>
 
   <section class="card" style="margin-top:12px">
     <div class="panel-head"><h2>Posisi Terbuka</h2><div class="meta" id="pos-meta">0 posisi</div></div>
@@ -2908,5 +2997,68 @@ button:focus-visible{outline:2px solid #8fc1ff;outline-offset:2px}
 })();
 </script>
 
+<script id="aegis-v3-topology-renderer">
+(()=>{"use strict";
+ const canvas=document.getElementById("aegis-topology");if(!canvas)return;
+ const ctx=canvas.getContext("2d");if(!ctx)return;
+ const reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+ let w=0,h=0,dpr=1,raf=0,phase=0,points=[];
+ const TAU=Math.PI*2;
+ function resize(){
+  const r=canvas.getBoundingClientRect();w=Math.max(1,r.width);h=Math.max(1,r.height);
+  dpr=Math.min(window.devicePixelRatio||1,1.6);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  points=[];
+  const n=Math.max(150,Math.min(310,Math.round(w*.34)));
+  for(let i=0;i<n;i++){
+   const a=(i/n)*TAU*8.5, b=((i*37)%n)/n*TAU;
+   const jitter=((i*17)%13)/13;
+   points.push({a,b,j:jitter,seed:i});
+  }
+  draw();
+ }
+ function draw(){
+  ctx.clearRect(0,0,w,h);
+  const cx=w*.5,cy=h*.51,scale=Math.min(w*.42,h*.78),rot=phase*.12;
+  const projected=[];
+  for(const p of points){
+   const a=p.a+rot,b=p.b+Math.sin(phase*.4+p.seed)*.035;
+   const major=.67,minor=.22+(p.j-.5)*.018;
+   const x=(major+minor*Math.cos(b))*Math.cos(a);
+   const y=(major+minor*Math.cos(b))*Math.sin(a);
+   const z=minor*Math.sin(b);
+   const tilt=.48,yy=y*Math.cos(tilt)-z*Math.sin(tilt),zz=y*Math.sin(tilt)+z*Math.cos(tilt);
+   const perspective=1/(1.35+zz*.42);
+   projected.push({x:cx+x*scale*perspective,y:cy+yy*scale*perspective,z:zz,depth:perspective,p});
+  }
+  projected.sort((a,b)=>a.z-b.z);
+  const stride=Math.max(1,Math.floor(projected.length/100));
+  for(let i=0;i<projected.length;i+=stride){
+   const a=projected[i];
+   for(let j=i+1;j<Math.min(projected.length,i+stride*3);j++){
+    const b=projected[j],dx=a.x-b.x,dy=a.y-b.y,dist=Math.hypot(dx,dy);
+    if(dist<Math.max(12,w*.025)){
+     ctx.strokeStyle="rgba(77,151,207,"+(0.10*(1-dist/(w*.04)))+")";
+     ctx.lineWidth=.55;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+   }
+  }
+  for(const p of projected){
+   const glow=p.p.seed%19===0,rad=(glow?1.8:0.85)*p.depth;
+   const color=p.p.seed%17===0?"#e8c77c":p.p.seed%5===0?"#5ad8c5":"#7bbfff";
+   ctx.beginPath();ctx.fillStyle=color;ctx.globalAlpha=.38+p.depth*.52;ctx.arc(p.x,p.y,rad,0,TAU);ctx.fill();
+   if(glow){ctx.beginPath();ctx.fillStyle="rgba(100,190,255,.12)";ctx.arc(p.x,p.y,rad*3.8,0,TAU);ctx.fill();}
+  }
+  ctx.globalAlpha=1;
+  const grad=ctx.createRadialGradient(cx,cy,2,cx,cy,scale*.9);
+  grad.addColorStop(0,"rgba(11,25,42,.04)");grad.addColorStop(1,"rgba(3,8,16,.38)");
+  ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+ }
+ function tick(){phase+=.0035;draw();if(!document.hidden&&!reduced)raf=requestAnimationFrame(tick);}
+ if("ResizeObserver"in window)new ResizeObserver(resize).observe(canvas);else window.addEventListener("resize",resize);
+ document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelAnimationFrame(raf);else if(!reduced)tick();});
+ resize();if(!reduced)tick();
+})();
+</script>
 </body>
 </html>
