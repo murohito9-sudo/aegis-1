@@ -186,10 +186,13 @@ class Engine:
 
     def _evaluation(self) -> EvaluationEngine:
         engine = EvaluationEngine()
+        # Riwayat posisi tidak menyimpan probabilitas pra-hasil. Jangan
+        # merekonstruksi score dari R-multiple karena membocorkan outcome.
         engine.load(
             {
                 "ts": trade.closed_at,
-                "score": 0.5 + min(0.5, abs(trade.r_multiple) / 4.0),
+                "score": None,
+                "probability": None,
                 "side": trade.side,
                 "r_multiple": trade.r_multiple,
                 "pnl": trade.pnl,
