@@ -174,6 +174,7 @@ class ExecutionConfig:
     price_decimals: int = 2
     spread_bps: float = 1.0             # dipakai bila data tidak membawa bid/ask
     use_data_spread: bool = True        # pakai bid/ask dari data bila tersedia
+    paper_fill_fraction: float = 1.0    # fraksi total order yang boleh terisi per tick (0, 1]
 
 
 @dataclass(frozen=True)
@@ -265,9 +266,9 @@ class Settings:
     quote_currency: str = "USDT"
     mode: Mode = Mode.PAPER
     live_mode: bool = False
-    db_path: Path = DEFAULT_DATA_DIR / "aegis1.sqlite3"
-    jsonl_path: Path = DEFAULT_DATA_DIR / "aegis1.jsonl"
-    kill_switch_file: Path = DEFAULT_DATA_DIR / "KILL_SWITCH"
+    db_path: Path = DEFAULT_DATA_DIR / "demo" / "aegis1.sqlite3"
+    jsonl_path: Path = DEFAULT_DATA_DIR / "demo" / "aegis1.jsonl"
+    kill_switch_file: Path = DEFAULT_DATA_DIR / "demo" / "KILL_SWITCH"
     loop_interval_s: float = 5.0
     dashboard_host: str = "127.0.0.1"
     dashboard_port: int = 8787
@@ -341,6 +342,7 @@ def load_settings() -> Settings:
         price_decimals=_env_int("PRICE_DECIMALS", ExecutionConfig.price_decimals),
         spread_bps=_env_float("SPREAD_BPS", ExecutionConfig.spread_bps),
         use_data_spread=_env_bool("USE_DATA_SPREAD", ExecutionConfig.use_data_spread),
+        paper_fill_fraction=min(1.0, max(0.01, _env_float("PAPER_FILL_FRACTION", ExecutionConfig.paper_fill_fraction))),
         maker_fee=_env_float("MAKER_FEE", ExecutionConfig.maker_fee),
         taker_fee=_env_float("TAKER_FEE", ExecutionConfig.taker_fee),
     )
@@ -366,8 +368,19 @@ def load_settings() -> Settings:
             volume_fallback = float(raw_volume)
         except ValueError:
             volume_fallback = None
-    # Mode default selalu non-live. LIVE harus diminta eksplisit lewat env.
+    # Penyimpanan DEMO dan LIVE dipisahkan secara default. DB_PATH lama tetap
+    # dihormati untuk DEMO; LIVE wajib memakai LIVE_DB_PATH tersendiri.
     mode = Mode.PAPER
+    demo_db = Path(_env("DEMO_DB_PATH", _env("DB_PATH", str(DEFAULT_DATA_DIR / "demo" / "aegis1.sqlite3"))))
+    demo_jsonl = Path(_env("DEMO_JSONL_PATH", _env("JSONL_PATH", str(DEFAULT_DATA_DIR / "demo" / "aegis1.jsonl"))))
+    live_db = Path(_env("LIVE_DB_PATH", str(DEFAULT_DATA_DIR / "live" / "aegis1.sqlite3")))
+    live_jsonl = Path(_env("LIVE_JSONL_PATH", str(DEFAULT_DATA_DIR / "live" / "aegis1.jsonl")))
+    selected_db = live_db if live_requested else demo_db
+    selected_jsonl = live_jsonl if live_requested else demo_jsonl
+    if live_requested and selected_db.resolve() == demo_db.resolve():
+        raise ValueError("LIVE_DB_PATH tidak boleh sama dengan DEMO_DB_PATH")
+    if live_requested and selected_jsonl.resolve() == demo_jsonl.resolve():
+        raise ValueError("LIVE_JSONL_PATH tidak boleh sama dengan DEMO_JSONL_PATH")
     return Settings(
         symbol=_env("SYMBOL", Settings.symbol),
         timeframe=_env("TIMEFRAME", Settings.timeframe),
@@ -377,9 +390,9 @@ def load_settings() -> Settings:
         quote_currency=_env("QUOTE_CURRENCY", Settings.quote_currency),
         mode=mode,
         live_mode=live_requested,
-        db_path=Path(_env("DB_PATH", str(Settings.db_path))),
-        jsonl_path=Path(_env("JSONL_PATH", str(Settings.jsonl_path))),
-        kill_switch_file=Path(_env("KILL_SWITCH_FILE", str(Settings.kill_switch_file))),
+        db_path=selected_db,
+        jsonl_path=selected_jsonl,
+        kill_switch_file=Path(_env("LIVE_KILL_SWITCH_FILE" if live_requested else "DEMO_KILL_SWITCH_FILE", str((DEFAULT_DATA_DIR / ("live" if live_requested else "demo")) / "KILL_SWITCH"))),
         loop_interval_s=_env_float("LOOP_INTERVAL_S", Settings.loop_interval_s),
         dashboard_host=_env("DASHBOARD_HOST", Settings.dashboard_host),
         dashboard_port=_env_int("DASHBOARD_PORT", Settings.dashboard_port),
