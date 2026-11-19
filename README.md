@@ -1,4 +1,4 @@
-# AEGIS-1 — Adaptive Execution & Guarded Investment System
+# AEGIS-ONE — Adaptive Execution & Guarded Investment System
 
 Sistem trading modular: Python untuk data, indikator, sinyal, risiko, eksekusi,
 dan audit; satu file HTML untuk console pemantauan real-time.
