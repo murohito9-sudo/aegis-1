@@ -149,12 +149,13 @@ sudo journalctl -u aegis1 -f</pre>
   <h2 class="sec">Yang perlu diingat</h2>
   <div class="card">
     <ul class="lead" style="font-size:13px;margin:0;padding-left:18px">
-      <li>Paket ini <b>paper</b>: <span class="mono">AEGIS_LIVE_MODE=true</span> akan ditolak sebelum
-      menyentuh jaringan. Adapter eksekusi live tidak disertakan.</li>
+      <li>Adapter LIVE ada di source, tetapi <b>Engine V3 menolak startup LIVE secara fail-closed</b> sampai
+      otorisasi pra-order, mode dashboard, isolasi state, dan rekonsiliasi lulus pengujian end-to-end.
+      Gunakan PAPER; jangan memasukkan API key untuk menjalankan LIVE pada build ini.</li>
       <li>Kill-switch bisa diaktifkan dari console (dua langkah konfirmasi) atau dengan membuat berkas
       <span class="mono">data/KILL_SWITCH</span>.</li>
-      <li>Audit log tersimpan di <span class="mono">data/aegis1.sqlite3</span> dan
-      <span class="mono">data/aegis1.jsonl</span> — keduanya tidak masuk git.</li>
+      <li>Mode DEMO memakai direktori <span class="mono">data/demo/</span>; jalur LIVE yang dikonfigurasi
+      memakai <span class="mono">data/live/</span>. Engine tetap memblokir startup LIVE pada V3.</li>
       <li>Angka di console adalah hasil simulasi dengan fee, slippage, dan spread eksplisit. Bukan
       nasihat investasi dan bukan janji profit.</li>
     </ul>
