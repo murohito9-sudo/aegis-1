@@ -341,9 +341,17 @@ class CCXTFeed:
         df["ts"] = df["ts_ms"] / 1000.0
         df = df[OHLCV_COLUMNS].astype(float)
         ticker = self._ex.fetch_ticker(self.symbol)
-        last = float(ticker.get("last") or df["close"].iloc[-1])
-        bid = float(ticker.get("bid") or last * 0.9999)
-        ask = float(ticker.get("ask") or last * 1.0001)
+        raw_last = ticker.get("last")
+        last = float(raw_last) if raw_last is not None else float(df["close"].iloc[-1])
+        raw_bid, raw_ask = ticker.get("bid"), ticker.get("ask")
+        try:
+            bid = float(raw_bid) if raw_bid is not None else 0.0
+            ask = float(raw_ask) if raw_ask is not None else 0.0
+        except (TypeError, ValueError):
+            bid, ask = 0.0, 0.0
+        # Jangan menyamarkan estimasi sebagai kuotasi exchange yang terobservasi.
+        # DataQualityGate akan menolak snapshot dengan kuotasi yang tidak valid.
+        quote_state = "observed" if np.isfinite(bid) and np.isfinite(ask) and 0 < bid < ask else "missing"
         return MarketSnapshot(
             symbol=self.symbol,
             timeframe=self.timeframe,
@@ -352,7 +360,7 @@ class CCXTFeed:
             best_ask=ask,
             last_price=last,
             ts=time.time(),
-            source=f"ccxt:{self.exchange_id}",
+            source=f"ccxt:{self.exchange_id}:quotes={quote_state}",
         )
 
 
@@ -422,78 +430,110 @@ class DataQualityGate:
         cfg = self.settings.strategy
         df = snap.candles
         checks: list[Check] = []
+        checks.append(Check("jumlah_bar", len(df) >= cfg.min_bars,
+                            f"{len(df)} bar, minimum {cfg.min_bars}"))
 
-        checks.append(
-            Check(
-                "jumlah_bar",
-                len(df) >= cfg.min_bars,
-                f"{len(df)} bar, minimum {cfg.min_bars}",
-            )
-        )
+        missing = [column for column in OHLCV_COLUMNS if column not in df.columns]
+        checks.append(Check(
+            "kolom_ohlcv_lengkap", not missing,
+            "semua kolom OHLCV tersedia" if not missing else f"kolom hilang: {', '.join(missing)}",
+        ))
+        if missing:
+            checks.append(Check("angka_ohlcv_finite", False, "kolom OHLCV tidak lengkap"))
+            checks.append(Check("harga_masuk_akal", False, "kolom OHLCV tidak lengkap"))
+            return GateResult(passed=False, checks=checks)
 
         if len(df):
-            nulls = int(df[OHLCV_COLUMNS].isna().sum().sum())
-            checks.append(Check("nilai_kosong", nulls == 0, f"{nulls} sel kosong"))
+            try:
+                values = df[OHLCV_COLUMNS].to_numpy(dtype=float)
+                finite = bool(np.isfinite(values).all())
+            except (TypeError, ValueError):
+                finite = False
+            checks.append(Check(
+                "angka_ohlcv_finite", finite,
+                "semua nilai OHLCV finite" if finite else "terdapat nilai non-numerik, NaN, atau infinity",
+            ))
 
-            sane = bool(
-                (df["high"] >= df["low"]).all()
-                and (df["high"] >= df["close"]).all()
-                and (df["low"] <= df["close"]).all()
-                and (df["close"] > 0).all()
-            )
-            checks.append(Check("harga_masuk_akal", sane, "high/low/close konsisten"))
+            if finite:
+                open_ = df["open"].to_numpy(dtype=float)
+                high = df["high"].to_numpy(dtype=float)
+                low = df["low"].to_numpy(dtype=float)
+                close = df["close"].to_numpy(dtype=float)
+                volume = df["volume"].to_numpy(dtype=float)
+                sane = bool(
+                    (open_ > 0).all() and (high > 0).all()
+                    and (low > 0).all() and (close > 0).all()
+                    and (volume >= 0).all()
+                    and (high >= np.maximum(open_, close)).all()
+                    and (low <= np.minimum(open_, close)).all()
+                )
+            else:
+                sane = False
+            checks.append(Check(
+                "harga_masuk_akal", sane,
+                "OHLC konsisten, harga positif, volume tidak negatif"
+                if sane else "OHLC tidak konsisten atau ada harga/volume di luar batas",
+            ))
 
-            dup = int(df["ts"].duplicated().sum())
+            if finite:
+                dup = int(df["ts"].duplicated().sum())
+                monotonic = bool(df["ts"].is_monotonic_increasing)
+                timestamp_positive = bool((df["ts"].to_numpy(dtype=float) > 0).all())
+                zero_vol = int((df["volume"] <= 0).sum())
+                ratio = zero_vol / max(len(df), 1)
+            else:
+                dup, monotonic, timestamp_positive, ratio = 0, False, False, 1.0
             checks.append(Check("timestamp_unik", dup == 0, f"{dup} duplikat"))
-
-            monotonic = bool(df["ts"].is_monotonic_increasing)
             checks.append(Check("timestamp_urut", monotonic, "ts naik monoton"))
+            checks.append(Check("timestamp_valid", timestamp_positive, "timestamp harus positif dan finite"))
+            checks.append(Check(
+                "volume_hidup", ratio <= 0.02,
+                f"{ratio:.1%} bar bervolume nol (maks 2%)",
+            ))
 
-            zero_vol = int((df["volume"] <= 0).sum())
-            ratio = zero_vol / max(len(df), 1)
-            checks.append(
-                Check(
-                    "volume_hidup",
-                    ratio <= 0.02,
-                    f"{ratio:.1%} bar bervolume nol (maks 2%)",
-                )
-            )
+            if finite and np.isfinite(snap.ts):
+                tf = timeframe_seconds(self.settings.timeframe)
+                age = float(snap.ts) - float(df["ts"].iloc[-1])
+                fresh = 0 <= age <= tf * 3
+            else:
+                age, fresh = float("inf"), False
+            checks.append(Check(
+                "kesegaran_data", fresh,
+                f"bar terakhir {age:.0f}s lalu (rentang 0-{timeframe_seconds(self.settings.timeframe) * 3}s)",
+            ))
 
-            tf = timeframe_seconds(self.settings.timeframe)
-            age = snap.ts - float(df["ts"].iloc[-1])
-            checks.append(
-                Check(
-                    "kesegaran_data",
-                    age <= tf * 3,
-                    f"bar terakhir {age:.0f}s lalu (maks {tf * 3}s)",
-                )
-            )
-
-            big_gap = float(df["close"].pct_change().abs().tail(50).max() or 0.0)
-            checks.append(
-                Check(
-                    "tanpa_lompatan_ekstrem",
-                    big_gap < 0.25,
-                    f"perubahan maks 50 bar terakhir {big_gap:.2%}",
-                )
-            )
+            if finite and (df["close"] > 0).all():
+                big_gap = float(df["close"].pct_change().abs().tail(50).max() or 0.0)
+                no_jump = bool(np.isfinite(big_gap) and big_gap < 0.25)
+            else:
+                big_gap, no_jump = float("inf"), False
+            checks.append(Check(
+                "tanpa_lompatan_ekstrem", no_jump,
+                f"perubahan maks 50 bar terakhir {big_gap:.2%}",
+            ))
         else:
-            checks.append(Check("nilai_kosong", False, "tidak ada bar"))
+            for name in ("angka_ohlcv_finite", "harga_masuk_akal", "timestamp_unik",
+                         "timestamp_urut", "timestamp_valid", "volume_hidup",
+                         "kesegaran_data", "tanpa_lompatan_ekstrem"):
+                checks.append(Check(name, False, "tidak ada bar"))
 
+        snapshot_finite = all(np.isfinite(value) for value in
+                              (snap.ts, snap.last_price, snap.best_bid, snap.best_ask))
+        checks.append(Check(
+            "metadata_snapshot_finite", snapshot_finite,
+            "timestamp dan harga snapshot finite" if snapshot_finite else "metadata snapshot non-finite",
+        ))
         spread = snap.spread_bps
-        checks.append(
-            Check(
-                "spread_wajar",
-                spread <= self.settings.risk.max_spread_bps,
-                f"spread {spread:.1f} bps (maks {self.settings.risk.max_spread_bps})",
-            )
-        )
-        checks.append(
-            Check(
-                "kuotasi_valid",
-                snap.best_bid > 0 and snap.best_ask > snap.best_bid,
-                f"bid {snap.best_bid:.4f} / ask {snap.best_ask:.4f}",
-            )
-        )
-
+        checks.append(Check(
+            "spread_wajar",
+            bool(np.isfinite(spread) and spread <= self.settings.risk.max_spread_bps),
+            f"spread {spread:.1f} bps (maks {self.settings.risk.max_spread_bps})",
+        ))
+        quote_source_ok = not str(snap.source).endswith("quotes=missing")
+        quote_ok = bool(snapshot_finite and quote_source_ok
+                        and snap.best_bid > 0 and snap.best_ask > snap.best_bid)
+        checks.append(Check(
+            "kuotasi_valid", quote_ok,
+            f"bid {snap.best_bid:.4f} / ask {snap.best_ask:.4f}; source {snap.source}",
+        ))
         return GateResult(passed=all(c.ok for c in checks), checks=checks)
