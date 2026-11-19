@@ -976,6 +976,20 @@ class TestOfflineResearch(unittest.TestCase):
         with self.assertRaises(ValueError):
             walk_forward(rows, train_size=2, test_size=1)
 
+    def test_overlapping_walk_forward_windows_do_not_double_count_test_rows(self) -> None:
+        from research import walk_forward
+        report = walk_forward(self.rows, train_size=6, test_size=4, step_size=2)
+        unique_test = {row["ts"] for window in report["windows"]
+                       for row in self.rows
+                       if window["test_start"] <= row["ts"] <= window["test_end"]}
+        self.assertEqual(report["test_summary"]["samples"], len(unique_test))
+
+    def test_profit_factor_is_json_safe_when_no_losses(self) -> None:
+        from research import walk_forward
+        rows = [{"ts": float(i), "r_multiple": 1.0} for i in range(6)]
+        report = walk_forward(rows, train_size=3, test_size=3)
+        self.assertIsNone(report["test_summary"]["profit_factor_r"])
+
 
 class TestPortfolioRiskAnalysis(unittest.TestCase):
     def test_correlation_matrix_detects_perfect_relationships(self) -> None:
