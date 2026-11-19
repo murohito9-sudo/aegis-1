@@ -35,3 +35,17 @@ A last price may fall back to the most recent candle close when the ticker has n
 ## CI evidence for the hardening branch
 
 The GitHub Actions workflow runs the unit suite and offline smoke test on Python 3.11 and 3.12. The hardening branch's run on 2026-11-19 passed both jobs with 85 tests per Python version and both offline smoke tests. This validates the tested code paths only; it does not establish production readiness, profitability, or LIVE readiness.
+
+
+## Walk-forward dan Monte Carlo (offline)
+
+Modul `research.py` menambahkan dua alat riset deterministik yang hanya membaca hasil trade historis/paper:
+
+- `walk_forward(rows, train_size, test_size, step_size)`: membagi catatan secara kronologis menjadi jendela train dan test. Statistik test dihitung terpisah; data training tidak digunakan untuk menyetel parameter atau membuat probabilitas.
+- `monte_carlo_risk(rows, simulations, starting_equity, risk_fraction, seed)`: bootstrap hasil R-multiple dengan pengembalian, lalu melaporkan persentil ekuitas akhir dan drawdown. Seed membuat simulasi dapat direproduksi.
+
+Keterbatasan: walk-forward ini adalah splitter/evaluator, bukan optimizer atau validasi strategi end-to-end. Bootstrap mengasumsikan distribusi hasil relatif tetap dan trade dapat diacak; asumsi tersebut dapat gagal pada data berurutan, perubahan rezim, biaya berubah, atau korelasi antar-posisi. Hasil simulasi bukan prediksi dan bukan rekomendasi ukuran risiko.
+
+## Korelasi dan stress test portofolio (offline)
+
+`portfolio.py` menyediakan `correlation_matrix` untuk return series yang sudah sejajar berdasarkan timestamp dan `stress_test` untuk menerapkan shock deterministik ke bobot portofolio. Seri yang tidak sejajar ditolak; korelasi yang tidak terdefinisi dikembalikan sebagai `null`. Shock hanya menghasilkan estimasi sensitivitas; bukan ramalan, VaR, atau pengganti pengujian historis.
