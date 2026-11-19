@@ -438,7 +438,18 @@ header{padding:13px 24px;background:rgba(9,14,22,.88);backdrop-filter:blur(18px)
   </div><!-- /panel-riwayat -->
 
   <div class="tabpanel" id="panel-strategi">
-    <!--STRATEGI-->
+    <div class="section-intro">
+      <div class="eyebrow">Strategy configuration</div>
+      <h2>Strategy Center</h2>
+      <p>Console backend saat ini menampilkan strategi yang sedang berjalan melalui briefing, indikator, dan riwayat. Editor parameter strategi belum diekspos sebagai endpoint UI pada console lokal ini.</p>
+    </div>
+    <section class="card">
+      <div class="panel-head"><h2>Configuration availability</h2><span class="status-pill pending">UI NOT CONNECTED</span></div>
+      <div class="status-line"><span>Active strategy state</span><strong>Reflected in live dashboard data</strong></div>
+      <div class="status-line"><span>Interactive parameter editor</span><strong>Not available in this console</strong></div>
+      <div class="status-line"><span>Strategy validation API</span><strong>Not exposed</strong></div>
+      <p style="font-size:11px;color:var(--muted);line-height:1.7;margin:12px 0 0">Pengaturan yang belum memiliki kontrak API tidak ditampilkan sebagai kontrol palsu. Editor strategi JSON pada halaman demo bekerja di browser dan tidak mengubah konfigurasi bot lokal.</p>
+    </section>
   </div><!-- /panel-strategi -->
 
   <div class="tabpanel" id="panel-research">
