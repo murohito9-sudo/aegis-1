@@ -162,6 +162,11 @@ def create_app(engine: Any, hub: Hub) -> FastAPI:
         check_csrf(request)
         return JSONResponse(engine.portfolio())
 
+    @app.get("/api/research")
+    async def research(request: Request) -> JSONResponse:
+        check_csrf(request)
+        return JSONResponse(engine.research())
+
     @app.get("/healthz")
     async def healthz() -> JSONResponse:
         return JSONResponse({"ok": True, "ts": time.time()})
