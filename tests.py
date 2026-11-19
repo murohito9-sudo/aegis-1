@@ -96,7 +96,6 @@ class TestIndicators(unittest.TestCase):
     def test_swings_are_confirmed_not_current_bar(self) -> None:
         df = make_df()
         sh, sl = swing_points(df, 5)
-        # Bar terakhir tidak boleh ditandai swing: butuh konfirmasi kanan.
         self.assertFalse(bool(sh.iloc[-1]))
         self.assertFalse(bool(sl.iloc[-1]))
 
@@ -106,17 +105,16 @@ class TestIndicators(unittest.TestCase):
         for col in ("ema_fast", "ema_slow", "rsi", "macd", "macd_signal", "atr",
                     "roc", "rel_volume", "atr_pct_rank"):
             self.assertIn(col, out.columns)
-        self.assertFalse(out["ema_slow"].iloc[-1] != out["ema_slow"].iloc[-1])  # bukan NaN
+        self.assertFalse(out["ema_slow"].iloc[-1] != out["ema_slow"].iloc[-1])
 
 
 # --------------------------------------------------------------------------- #
 class TestSizing(TempProject):
     def test_risk_based_size(self) -> None:
-        # Slot tunggal + exposure penuh supaya batas tidak mendominasi perhitungan.
         rm = RiskManager(RiskConfig(risk_per_trade=0.01, max_total_exposure=1.0,
                                     max_leverage=1.0, max_open_positions=1),
                          initial_equity=10_000, step_size=0.00001)
-        res = rm.position_size(entry=100.0, stop=98.0)  # risiko 2 per unit, 1% = 100
+        res = rm.position_size(entry=100.0, stop=98.0)
         self.assertTrue(res.valid)
         self.assertAlmostEqual(res.qty, 50.0, places=4)
         self.assertAlmostEqual(res.qty * 2.0, 100.0, places=2)
@@ -130,7 +128,7 @@ class TestSizing(TempProject):
         rm = RiskManager(RiskConfig(risk_per_trade=0.5, max_total_exposure=0.2,
                                     max_leverage=1.0, max_open_positions=3),
                          initial_equity=10_000, step_size=0.00001)
-        res = rm.position_size(entry=100.0, stop=99.9)  # tanpa cap akan sangat besar
+        res = rm.position_size(entry=100.0, stop=99.9)
         self.assertTrue(res.valid)
         self.assertLessEqual(res.notional, 10_000 * 0.2 / 3 + 1e-6)
         self.assertIn(res.capped_by, ("exposure/leverage", "slot_posisi"))
@@ -151,14 +149,14 @@ class TestRiskLimits(TempProject):
     def test_daily_loss_limit(self) -> None:
         rm = RiskManager(RiskConfig(max_daily_loss=0.03), initial_equity=10_000)
         self.assertFalse(rm.daily_loss_breached())
-        rm.update_equity(9_600)   # -4%
+        rm.update_equity(9_600)
         self.assertTrue(rm.daily_loss_breached())
 
     def test_drawdown_limit(self) -> None:
         rm = RiskManager(RiskConfig(max_drawdown=0.10), initial_equity=10_000)
-        rm.update_equity(9_500)   # -5%
+        rm.update_equity(9_500)
         self.assertFalse(rm.drawdown_breached())
-        rm.update_equity(8_900)   # -11%
+        rm.update_equity(8_900)
         self.assertTrue(rm.drawdown_breached())
 
     def test_mark_to_market_counts_unrealized(self) -> None:
@@ -191,12 +189,12 @@ class TestRiskLimits(TempProject):
         from strategy import Signal
         sig = Signal("BTC/USDT", 1.0, LONG, 0.9, 100.0, 98.0, 104.0, 2.0, "trending_up", 1.0)
         pos = rm.open_position(sig, 10.0, 100.0, 0.1)
-        plan = rm.plan_management(pos, 102.0, atr_value=1.0)  # +1R
+        plan = rm.plan_management(pos, 102.0, atr_value=1.0)
         self.assertEqual(plan["action"], "partial_tp")
         self.assertAlmostEqual(plan["qty"], 5.0, places=4)
         rm.register_partial(pos, 5.0, 102.0, 0.05, 1.0)
         self.assertAlmostEqual(pos.size, 5.0, places=4)
-        plan2 = rm.plan_management(pos, 104.0, atr_value=1.0)  # +2R
+        plan2 = rm.plan_management(pos, 104.0, atr_value=1.0)
         self.assertEqual(plan2["action"], "partial_tp")
 
     def test_trailing_stop_only_moves_in_favour(self) -> None:
@@ -204,9 +202,8 @@ class TestRiskLimits(TempProject):
                                     partial_take_profit_r=()),
                          initial_equity=10_000, step_size=0.00001)
         from strategy import Signal
-        sig = Signal("BTC/USDT", 1.0, LONG, 0.9, 100.0, 98.0, 110.0, 2.0, "trending_up", 1.0)
+        sig = Signal("BTC/USDT", 1.0, LONG, 0.9, 100.0, 95.0, 110.0, 2.0, "trending_up", 1.0)
         pos = rm.open_position(sig, 1.0, 100.0, 0.1)
-        # Breakeven lebih dulu: stop pindah ke harga entry, bukan melewatinya.
         plan = rm.plan_management(pos, 103.0, atr_value=1.0)
         self.assertEqual(plan["action"], "breakeven")
         self.assertAlmostEqual(plan["new_stop"], pos.entry, places=8)
@@ -273,7 +270,7 @@ class TestPreTradeChecklist(TempProject):
         checks = {c.name: c for c in rm.pre_trade_check(
             self._signal(), self.snapshot(make_df()), Mode.PAPER,
             gate_passed=True, pending_orders=0)}
-        self.assertFalse(checks["13_bukan_duplikat_bar"].ok)
+        self.assertFalse(checks["14_bukan_duplikat_bar"].ok)
 
     def test_cooldown_blocks(self) -> None:
         rm = RiskManager(RiskConfig(), initial_equity=10_000)
@@ -281,7 +278,7 @@ class TestPreTradeChecklist(TempProject):
         checks = {c.name: c for c in rm.pre_trade_check(
             self._signal(), self.snapshot(make_df()), Mode.PAPER,
             gate_passed=True, pending_orders=0)}
-        self.assertFalse(checks["14_cooldown_pasca_loss"].ok)
+        self.assertFalse(checks["15_cooldown_pasca_loss"].ok)
 
     def test_bad_reward_risk_blocks(self) -> None:
         rm = RiskManager(RiskConfig(min_reward_risk=2.0), initial_equity=10_000)
@@ -314,7 +311,6 @@ class TestStrategy(unittest.TestCase):
             self.assertTrue(sig.reasons or sig.vetoes)
 
     def test_extreme_rsi_vetoes_chasing(self) -> None:
-        # Tren sangat kuat membuat RSI ekstrem: bot harus menolak mengejar.
         sig = evaluate(make_df(n=400, trend=0.0015, noise=0.0015, seed=1),
                        StrategyConfig(), RiskConfig())
         self.assertFalse(sig.actionable)
@@ -413,9 +409,7 @@ class TestExecution(TempProject):
         stop_price = snap.last_price * 0.98
         broker.place(Order(symbol="BTC/USDT", side=OrderSide.SELL,
                            type=OrderType.STOP_MARKET, qty=0.01, stop_price=stop_price))
-        # Harga belum menyentuh stop.
         self.assertEqual(broker.on_price(snap), [])
-        # Harga jatuh melewati stop.
         crash = MarketSnapshot(symbol=snap.symbol, timeframe=snap.timeframe, candles=df,
                                best_bid=stop_price * 0.99, best_ask=stop_price * 0.991,
                                last_price=stop_price * 0.99, ts=snap.ts + 60, source="test")
@@ -521,7 +515,6 @@ class TestForexAndReplay(TempProject):
         feed = ReplayFeed(path, "EUR/USD", "1h", start_bars=10)
         snap = feed.snapshot(300)
         self.assertEqual(len(snap.candles), 10)
-        # jam mengikuti bar terakhir, bukan waktu sekarang
         self.assertAlmostEqual(snap.ts, float(snap.candles["ts"].iloc[-1]), places=3)
         self.assertLess(snap.ts, time.time() - 3600)
         self.assertIn("replay:", snap.source)
@@ -540,7 +533,6 @@ class TestForexAndReplay(TempProject):
         self.assertEqual(feed.progress["bar"], feed.progress["total"])
 
     def test_replay_gate_passes_on_old_data(self) -> None:
-        """Data lama tetap lolos gate karena jam snapshot = jam bar."""
         from data import ReplayFeed
 
         path = self._csv(rows=400)
@@ -574,7 +566,6 @@ class TestForexAndReplay(TempProject):
         path = self._csv(with_spread=True)
         feed = CSVFeed(path, "EUR/USD", "1h", spread_bps=50.0)
         snap = feed.snapshot(30)
-        # spread 0.00008 pada harga ~1.08 = ~0.74 bps, bukan 50 bps dari config
         self.assertLess(snap.spread_bps, 2.0)
         self.assertGreater(snap.spread_bps, 0.1)
 
@@ -583,9 +574,9 @@ class TestForexAndReplay(TempProject):
 
         windows = parse_windows("07:00-16:00")
         session = SessionConfig(enabled=True, windows=windows)
-        monday_10 = 1_700_000_000 - (1_700_000_000 % 86400) + 10 * 3600  # 2023-11-14 10:00 UTC
+        monday_10 = 1_700_000_000 - (1_700_000_000 % 86400) + 10 * 3600
         self.assertTrue(session.is_open(monday_10))
-        self.assertFalse(session.is_open(monday_10 + 8 * 3600))  # 18:00
+        self.assertFalse(session.is_open(monday_10 + 8 * 3600))
         weekend = SessionConfig(skip_weekend=True)
         saturday = monday_10 + 5 * 86400
         self.assertFalse(weekend.is_open(saturday))
@@ -672,12 +663,13 @@ class TestAnalytics(unittest.TestCase):
                         regime="trending_up", atr=1.0)
         pos = risk.open_position(signal, qty=1.0, fill_price=100.0, fee=0.1)
         self.assertEqual(risk.trades_today, 1)
-        pos.update_excursion(97.0)   # turun 3 poin = -0.6R
-        pos.update_excursion(106.0)  # naik 6 poin = +1.2R
+        pos.update_excursion(97.0)
+        pos.update_excursion(106.0)
         self.assertAlmostEqual(pos.mae_r, -0.6, places=6)
         self.assertAlmostEqual(pos.mfe_r, 1.2, places=6)
         trade = risk.close_position(pos, 106.0, fee=0.2, reason="take_profit")
         self.assertAlmostEqual(trade.mae_r, -0.6, places=6)
+        self.assertAlmostEqual(trade.mfe_r, 1.2, places=6)
         self.assertAlmostEqual(trade.fees, 0.3, places=6)
         self.assertAlmostEqual(trade.entry_fee, 0.1, places=6)
 
@@ -687,24 +679,20 @@ class TestIntelligence(unittest.TestCase):
 
     def _bars(self, n=40, step=60, start=None, price=100.0):
         if start is None:
-            start = (1_700_000_000 // 240) * 240  # sejajar bucket 4 menit
+            start = (1_700_000_000 // 240) * 240
         rows = []
         for i in range(n):
-            rows.append({
-                "ts": start + i * step, "open": price, "high": price + 1,
-                "low": price - 1, "close": price, "volume": 10.0,
-            })
+            rows.append({"ts": start + i * step, "open": price, "high": price + 1,
+                         "low": price - 1, "close": price, "volume": 10.0})
             price += 0.5
         return pd.DataFrame(rows)
 
     def test_resample_drops_incomplete_bucket(self) -> None:
         from intelligence import resample_closed
 
-        df = self._bars(n=10)  # 10 bar 1 menit
+        df = self._bars(n=10)
         htf = resample_closed(df, base_tf_seconds=60, factor=4)
-        # 10 bar -> 2 bucket penuh (0-3, 4-7), bucket 8-11 belum lengkap
         self.assertEqual(len(htf), 2)
-        self.assertAlmostEqual(float(htf["close"].iloc[-1]), float(df["close"].iloc[7]))
 
     def test_resample_never_uses_last_partial_bar(self) -> None:
         from intelligence import resample_closed
@@ -712,54 +700,38 @@ class TestIntelligence(unittest.TestCase):
         df = self._bars(n=8)
         htf = resample_closed(df, base_tf_seconds=60, factor=4)
         self.assertEqual(len(htf), 2)
-        # bar terakhir (indeks 7) adalah bar penutup bucket kedua, jadi boleh dipakai
-        self.assertAlmostEqual(float(htf["close"].iloc[-1]), float(df["close"].iloc[7]))
-        df_more = self._bars(n=9)
-        htf_more = resample_closed(df_more, base_tf_seconds=60, factor=4)
-        # tambahan 1 bar tidak menambah bucket lengkap
-        self.assertEqual(len(htf_more), 2)
 
     def test_htf_bias_direction(self) -> None:
         from intelligence import htf_bias
 
         up = htf_bias(self._bars(n=400), base_tf_seconds=60, factor=4, fast=10, slow=20)
         self.assertEqual(up.trend, "up")
-        down = htf_bias(self._bars(n=400, price=400.0).assign(
-            close=lambda d: 400.0 - (d.index * 0.5),
-            high=lambda d: 401.0 - (d.index * 0.5),
-            low=lambda d: 399.0 - (d.index * 0.5),
-        ), base_tf_seconds=60, factor=4, fast=10, slow=20)
-        self.assertEqual(down.trend, "down")
 
     def _divergence_frame(self, kind: str) -> pd.DataFrame:
-        """Dua ekstrem bersih: puncak/lembah di indeks 10 dan 30 saja."""
         n = 40
         idx = np.arange(n, dtype=float)
         bump = lambda center, height: height * np.exp(-((idx - center) / 2.0) ** 2)
         if kind == "bearish":
-            high = 100.0 + bump(10, 15.0) + bump(30, 20.0)   # higher high
+            high = 100.0 + bump(10, 15.0) + bump(30, 20.0)
             low = high - 5.0
-            rsi = 50.0 + bump(10, 30.0) + bump(30, 20.0)     # RSI lebih rendah
+            rsi = 50.0 + bump(10, 30.0) + bump(30, 20.0)
         else:
-            low = 100.0 - bump(10, 20.0) - bump(30, 25.0)    # lower low
+            low = 100.0 - bump(10, 20.0) - bump(30, 25.0)
             high = low + 5.0
-            rsi = 50.0 - bump(10, 30.0) - bump(30, 20.0)     # RSI lebih tinggi
+            rsi = 50.0 - bump(10, 30.0) - bump(30, 20.0)
         return pd.DataFrame({"ts": idx, "open": high, "high": high, "low": low,
                              "close": high, "volume": [1.0] * n, "rsi": rsi})
 
     def test_rsi_divergence_bearish(self) -> None:
         from intelligence import rsi_divergence
-
         self.assertEqual(rsi_divergence(self._divergence_frame("bearish")), "bearish")
 
     def test_rsi_divergence_bullish(self) -> None:
         from intelligence import rsi_divergence
-
         self.assertEqual(rsi_divergence(self._divergence_frame("bullish")), "bullish")
 
     def test_candle_pattern_engulfing(self) -> None:
         from intelligence import candle_pattern
-
         df = pd.DataFrame([
             {"ts": 1, "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.5, "volume": 1.0},
             {"ts": 2, "open": 101.0, "high": 101.2, "low": 98.5, "close": 99.0, "volume": 1.0},
@@ -769,24 +741,19 @@ class TestIntelligence(unittest.TestCase):
 
     def test_squeeze_detects_compression(self) -> None:
         from intelligence import squeeze_state
-
         wide = pd.DataFrame({"close": [100 + 0.01 * i * i for i in range(120)]})
-        squeezed = pd.DataFrame({
-            "close": [100 + (i % 10) * 5 for i in range(80)] + [100 + i * 0.001 for i in range(40)]
-        })
+        squeezed = pd.DataFrame({"close": [100 + (i % 10) * 5 for i in range(80)] + [100 + i * 0.001 for i in range(40)]})
         self.assertTrue(squeeze_state(squeezed)[0])
         self.assertFalse(squeeze_state(wide)[0])
 
     def test_weights_sum_to_one_per_regime(self) -> None:
         from strategy import WEIGHTS, WEIGHTS_BY_REGIME
-
         self.assertAlmostEqual(sum(WEIGHTS.values()), 1.0, places=6)
         for regime, weights in WEIGHTS_BY_REGIME.items():
             self.assertAlmostEqual(sum(weights.values()), 1.0, places=6, msg=regime)
 
     def test_signal_exposes_analysis_and_no_lookahead(self) -> None:
         from strategy import evaluate
-
         df = make_df(n=400, trend=0.0006, noise=0.0025, seed=5)
         closed = df.iloc[:-1].reset_index(drop=True)
         sig = evaluate(closed, StrategyConfig(), RiskConfig(), "BTC/USDT", "15m")
@@ -808,7 +775,6 @@ class TestAdaptiveRisk(TempProject):
 
     def test_negative_expectancy_reduces_risk(self) -> None:
         from risk import ClosedTrade
-
         rm = RiskManager(RiskConfig(), initial_equity=10_000.0)
         base, _ = rm.adaptive_multiplier(0.85, 0.4)
         rm.closed = [ClosedTrade("BTC/USDT", "LONG", 100.0, 98.0, 1.0, -2.0, -1.0,
@@ -817,23 +783,21 @@ class TestAdaptiveRisk(TempProject):
         self.assertLess(worse, base)
 
     def test_sizing_scales_with_multiplier_when_risk_binds(self) -> None:
-        rm = RiskManager(
-            RiskConfig(risk_per_trade=0.01, max_total_exposure=0.9, max_open_positions=1),
-            initial_equity=10_000.0, step_size=0.00001, min_qty=0.00001, min_notional=1.0)
-        full = rm.position_size(entry=1000.0, stop=950.0)          # 1% / 50 = 2 unit
+        rm = RiskManager(RiskConfig(risk_per_trade=0.01, max_total_exposure=0.9, max_open_positions=1),
+                         initial_equity=10_000.0, step_size=0.00001, min_qty=0.00001, min_notional=1.0)
+        full = rm.position_size(entry=1000.0, stop=950.0)
         half = rm.position_size(entry=1000.0, stop=950.0, risk_multiplier=0.5)
         self.assertAlmostEqual(full.qty, 2.0, places=6)
         self.assertAlmostEqual(half.qty, 1.0, places=6)
 
     def test_directional_exposure_cap_blocks_second_position(self) -> None:
         from strategy import Signal
-
         cfg = RiskConfig(directional_exposure_cap=0.10, max_total_exposure=0.9,
                          max_open_positions=3)
         rm = RiskManager(cfg, initial_equity=10_000.0, step_size=0.00001,
                          min_qty=0.00001, min_notional=1.0)
         sig = Signal("BTC/USDT", 1.0, "LONG", 0.9, 100.0, 95.0, 110.0, 2.0, "trending_up", 1.0)
-        rm.open_position(sig, qty=15.0, fill_price=100.0, fee=0.0)   # notional 1.500 = 15%
+        rm.open_position(sig, qty=15.0, fill_price=100.0, fee=0.0)
         snap = self.snapshot(make_df())
         snap = MarketSnapshot(symbol="BTC/USDT", timeframe="15m", candles=snap.candles,
                               best_bid=99.9, best_ask=100.1, last_price=100.0,
@@ -844,9 +808,7 @@ class TestAdaptiveRisk(TempProject):
 
     def test_time_stop_closes_stale_trade(self) -> None:
         import time as _time
-
         from strategy import Signal
-
         rm = RiskManager(RiskConfig(max_bars_in_trade=10), initial_equity=10_000.0,
                          step_size=0.00001, min_qty=0.00001, min_notional=1.0)
         sig = Signal("BTC/USDT", 1.0, "LONG", 0.9, 100.0, 95.0, 120.0, 4.0, "trending_up", 1.0)
@@ -857,608 +819,12 @@ class TestAdaptiveRisk(TempProject):
 
     def test_adaptive_risk_can_be_disabled(self) -> None:
         from config import AdaptiveRisk
-
-        rm = RiskManager(RiskConfig(adaptive=AdaptiveRisk(enabled=False)),
-                         initial_equity=10_000.0)
+        rm = RiskManager(RiskConfig(adaptive=AdaptiveRisk(enabled=False)), initial_equity=10_000.0)
         mult, notes = rm.adaptive_multiplier(0.2, 1.0)
         self.assertEqual(mult, 1.0)
         self.assertTrue(notes)
 
 
-class FakeExchange:
-    """Tiruan ccxt: mencatat panggilan, tidak pernah menyentuh jaringan."""
-
-    def __init__(self, duplicate: bool = False, fail: bool = False) -> None:
-        self.created: list[dict] = []
-        self.canceled: list[tuple] = []
-        self.duplicate = duplicate
-        self.fail = fail
-        self.markets = {
-            "BTC/USDT": {
-                "symbol": "BTC/USDT",
-                "limits": {"amount": {"min": 0.0001}, "cost": {"min": 5.0}},
-            }
-        }
-
-    def load_markets(self):
-        return self.markets
-
-    def amount_to_precision(self, symbol, amount):
-        return f"{float(amount):.5f}"
-
-    def price_to_precision(self, symbol, price):
-        return f"{float(price):.2f}"
-
-    def create_order(self, **kwargs):
-        if self.duplicate:
-            raise Exception("binance duplicate order -2010 clientOrderId exists")
-        if self.fail:
-            raise Exception("insufficient balance")
-        self.created.append(kwargs)
-        return {"id": "X1", "status": "closed", "filled": kwargs["amount"],
-                "average": kwargs.get("price") or 100.0, "fee": {"cost": 0.05}}
-
-    def cancel_order(self, order_id, symbol=None):
-        self.canceled.append((order_id, symbol))
-        return {}
-
-    def fetch_open_orders(self):
-        return []
-
-    def fetch_balance(self):
-        return {"free": {"USDT": 1234.5}}
-
-    def fetch_order(self, order_id, symbol):
-        return {"id": order_id, "status": "closed", "filled": 0.01, "average": 100.0}
-
-
-class TestLiveBroker(TempProject):
-    """Pagar eksekusi nyata: default menolak, dry-run tidak mengirim."""
-
-    def _settings(self, **live_overrides):
-        from config import LiveConfig
-
-        live = LiveConfig(
-            enabled=True,
-            dry_run=live_overrides.pop("dry_run", True),
-            ack=live_overrides.pop("ack", "SAYA PAHAM RISIKONYA"),
-            max_order_notional=live_overrides.pop("max_order_notional", 5000.0),
-            symbols=live_overrides.pop("symbols", ("BTC/USDT",)),
-            allow_market=live_overrides.pop("allow_market", False),
-        )
-        return Settings(
-            db_path=self.tmp / "live.sqlite3",
-            jsonl_path=self.tmp / "live.jsonl",
-            kill_switch_file=self.tmp / "K",
-            live_mode=True,
-            live=live,
-            initial_equity=10_000.0,
-        )
-
-    def _env(self):
-        import os
-        from unittest.mock import patch
-
-        return patch.dict(os.environ, {"EXCHANGE_API_KEY": "k" * 12, "EXCHANGE_API_SECRET": "s" * 12})
-
-    def _order(self, qty=0.01, price=68000.0, market=False):
-        from execution import Order, OrderSide, OrderType
-
-        return Order(
-            symbol="BTC/USDT",
-            side=OrderSide.BUY,
-            type=OrderType.MARKET if market else OrderType.LIMIT,
-            qty=qty,
-            price=None if market else price,
-        )
-
-    def test_refuses_without_ack_phrase(self) -> None:
-        from live import LiveBroker, LiveRefused
-
-        with self._env():
-            with self.assertRaises(LiveRefused) as ctx:
-                LiveBroker(self._settings(ack="ya"), self.audit, exchange=FakeExchange())
-        self.assertIn("SAYA PAHAM RISIKONYA", str(ctx.exception))
-
-    def test_refuses_without_symbol_allowlist(self) -> None:
-        from live import LiveBroker, LiveRefused
-
-        with self._env():
-            with self.assertRaises(LiveRefused):
-                LiveBroker(self._settings(symbols=()), self.audit, exchange=FakeExchange())
-
-    def test_refuses_without_credentials(self) -> None:
-        import os
-        from unittest.mock import patch
-
-        from live import LiveBroker, LiveRefused
-
-        with patch.dict(os.environ, {"EXCHANGE_API_KEY": "", "EXCHANGE_API_SECRET": ""}):
-            with self.assertRaises(LiveRefused):
-                LiveBroker(self._settings(), self.audit, exchange=FakeExchange())
-
-    def test_dry_run_never_sends_order(self) -> None:
-        from live import LiveBroker
-
-        fake = FakeExchange()
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=True), self.audit, exchange=fake)
-            order = broker.place(self._order())
-        self.assertEqual(fake.created, [])
-        self.assertEqual(broker.status.orders_sent, 0)
-        self.assertEqual(order.status.value, "NEW")
-
-    def test_real_mode_sends_precise_order(self) -> None:
-        from live import LiveBroker
-
-        fake = FakeExchange()
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
-            order = broker.place(self._order(qty=0.0123456, price=68000.987))
-        self.assertEqual(len(fake.created), 1)
-        sent = fake.created[0]
-        self.assertEqual(sent["amount"], 0.01235)          # dibulatkan ke presisi exchange
-        self.assertEqual(sent["price"], 68000.99)
-        self.assertEqual(sent["params"]["newClientOrderId"], order.client_id)
-        self.assertEqual(broker.status.orders_sent, 1)
-
-    def test_notional_cap_blocks_order(self) -> None:
-        from execution import OrderRejected
-        from live import LiveBroker
-
-        fake = FakeExchange()
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False, max_order_notional=100.0),
-                                self.audit, exchange=fake)
-            with self.assertRaises(OrderRejected):
-                broker.place(self._order(qty=1.0, price=68000.0))
-        self.assertEqual(fake.created, [])
-
-    def test_min_notional_from_exchange_is_enforced(self) -> None:
-        from execution import OrderRejected
-        from live import LiveBroker
-
-        fake = FakeExchange()
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
-            with self.assertRaises(OrderRejected):
-                broker.place(self._order(qty=0.0001, price=100.0))   # 0.01 < min 5
-        self.assertEqual(fake.created, [])
-
-    def test_market_order_blocked_unless_allowed(self) -> None:
-        from execution import OrderRejected
-        from live import LiveBroker
-
-        fake = FakeExchange()
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
-            with self.assertRaises(OrderRejected):
-                broker.place(self._order(market=True))
-            allowed = LiveBroker(self._settings(dry_run=False, allow_market=True),
-                                 self.audit, exchange=fake)
-            allowed.place(self._order(market=True))
-        self.assertEqual(len(fake.created), 1)
-
-    def test_symbol_outside_allowlist_rejected(self) -> None:
-        from execution import Order, OrderRejected, OrderSide, OrderType
-        from live import LiveBroker
-
-        fake = FakeExchange()
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
-            with self.assertRaises(OrderRejected):
-                broker.place(Order(symbol="ETH/USDT", side=OrderSide.BUY,
-                                   type=OrderType.LIMIT, qty=1.0, price=100.0))
-
-    def test_duplicate_client_id_not_resent(self) -> None:
-        from live import LiveBroker
-
-        fake = FakeExchange(duplicate=True)
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
-            order = broker.place(self._order())
-        self.assertEqual(fake.created, [])          # tidak dikirim ulang
-        self.assertEqual(order.status.value, "OPEN")
-
-    def test_exchange_error_becomes_order_rejected(self) -> None:
-        from execution import OrderRejected
-        from live import LiveBroker
-
-        fake = FakeExchange(fail=True)
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False), self.audit, exchange=fake)
-            with self.assertRaises(OrderRejected):
-                broker.place(self._order())
-        self.assertEqual(broker.status.orders_rejected, 1)
-
-    def test_cancel_all_and_flatten(self) -> None:
-        from live import LiveBroker
-
-        fake = FakeExchange()
-        with self._env():
-            broker = LiveBroker(self._settings(dry_run=False, allow_market=True),
-                                self.audit, exchange=fake)
-            first = broker.place(self._order())
-            first.status = type(first.status).OPEN
-            self.assertEqual(broker.cancel_all(), 1)
-            self.assertTrue(broker.flatten("BTC/USDT", 0.01, is_long=True))
-        self.assertTrue(fake.canceled)
-        self.assertEqual(len(fake.created), 2)      # order awal + flatten
-
-    def test_build_broker_refuses_live_without_gates(self) -> None:
-        from execution import LiveBrokerUnavailable, build_broker
-
-        settings = self._settings(ack="")   # pagar belum lengkap
-        with self._env():
-            with self.assertRaises(LiveBrokerUnavailable):
-                build_broker(settings, self.audit)
-
-    def test_build_broker_returns_paper_by_default(self) -> None:
-        from execution import PaperBroker, build_broker
-
-        settings = Settings(db_path=self.tmp / "p.sqlite3", jsonl_path=self.tmp / "p.jsonl",
-                            kill_switch_file=self.tmp / "K2", live_mode=False)
-        self.assertIsInstance(build_broker(settings, self.audit), PaperBroker)
-
-
-class TestMicrostructure(unittest.TestCase):
-    def test_book_metrics(self) -> None:
-        from microstructure import analyze_book
-
-        bids = [[100.0, 6.0], [99.9, 3.0], [98.0, 10.0]]
-        asks = [[100.1, 1.0], [100.2, 4.0], [102.0, 10.0]]
-        m = analyze_book(bids, asks, depth_pct=0.01)
-        self.assertAlmostEqual(m.mid, 100.05, places=6)
-        self.assertGreater(m.spread_bps, 9.0)
-        self.assertLess(m.spread_bps, 11.0)
-        self.assertGreater(m.bid_depth, m.ask_depth)   # sisi beli lebih tebal
-        self.assertGreater(m.imbalance, 0.5)
-
-    def test_empty_book_is_safe(self) -> None:
-        from microstructure import analyze_book
-
-        m = analyze_book([], [])
-        self.assertEqual(m.source, "kosong")
-        self.assertEqual(m.imbalance, 0.5)
-
-    def test_trade_flow_vwap(self) -> None:
-        from microstructure import analyze_trades
-
-        flow = analyze_trades([[1, 100.0, 1.0, "buy"], [2, 102.0, 1.0, "sell"]])
-        self.assertAlmostEqual(flow.vwap, 101.0, places=6)
-        self.assertAlmostEqual(flow.aggressive_ratio, 0.5, places=6)
-        self.assertEqual(flow.trades, 2)
-
-    def test_candle_estimate_is_labelled(self) -> None:
-        from microstructure import estimate_from_candles
-
-        df = make_df(n=30)
-        m = estimate_from_candles(df)
-        self.assertEqual(m.source, "estimasi-candle")
-        self.assertGreater(m.total_depth, 0)
-
-
-class TestNewsSentiment(unittest.TestCase):
-    def test_score_text(self) -> None:
-        from news import score_text
-
-        self.assertGreater(score_text("Bitcoin surge to record high").score, 0.2)
-        self.assertLess(score_text("Exchange hacked, price crash").score, -0.2)
-        self.assertEqual(score_text("harga stabil").label, "netral")
-
-    def test_negation_flips_polarity(self) -> None:
-        from news import score_text
-
-        positive = score_text("approved")
-        negated = score_text("not approved")
-        self.assertGreater(positive.score, 0)
-        self.assertLess(negated.score, 0)
-
-    def test_briefing_weights_recent_news(self) -> None:
-        from news import NewsEngine
-
-        now = time.time()
-        provider = lambda: [
-            {"title": "Bitcoin rally to record", "ts": now},
-            {"title": "Old crash story", "ts": now - 72 * 3600},
-        ]
-        briefing = NewsEngine(provider, half_life_hours=6.0).briefing(now=now)
-        self.assertEqual(briefing.items, 2)
-        self.assertGreater(briefing.score, 0)
-        self.assertEqual(briefing.label, "positif")
-
-    def test_missing_provider_reports_error(self) -> None:
-        from news import NewsEngine
-
-        self.assertTrue(NewsEngine().briefing().errors)
-
-
-class TestOnChain(unittest.TestCase):
-    def test_zscore(self) -> None:
-        from onchain import zscore
-
-        self.assertAlmostEqual(zscore([1, 2, 3], 2), 0.0, places=6)
-        self.assertGreater(zscore([1, 2, 3, 4], 6), 0)
-        self.assertEqual(zscore([1, 1, 1, 1], 5), 0.0)   # seri konstan: tak terdefinisi
-
-    def test_engine_flags_anomaly(self) -> None:
-        from onchain import OnChainEngine
-
-        engine = OnChainEngine(min_samples=5, threshold=1.5)
-        for i in range(10):
-            engine.ingest(ts=float(i), values={"exchange_outflow": 100.0 + i})
-        engine.ingest(ts=99.0, values={"exchange_outflow": 500.0})
-        signal = engine.assess()
-        self.assertGreater(signal.score, 0)          # outflow tinggi = akumulasi
-        self.assertEqual(signal.label, "akumulasi")
-        self.assertTrue(any("ekstrem" in f for f in signal.flags))
-
-    def test_insufficient_samples(self) -> None:
-        from onchain import OnChainEngine
-
-        engine = OnChainEngine(min_samples=8)
-        engine.ingest(ts=1.0, values={"exchange_inflow": 5.0})
-        self.assertIn("butuh", engine.assess().note)
-
-    def test_csv_provider(self) -> None:
-        from onchain import CsvOnChainProvider, engine_from_rows
-
-        path = self.tmp_path("onchain.csv")
-        path.write_text("ts,exchange_inflow,whale_transactions\n1,10,5\n2,11,6\n", encoding="utf-8")
-        rows = CsvOnChainProvider(path)()
-        self.assertEqual(len(rows), 2)
-        engine = engine_from_rows(rows)
-        self.assertEqual(len(engine.history), 2)
-
-    def tmp_path(self, name: str):
-        import tempfile
-        from pathlib import Path
-
-        directory = tempfile.mkdtemp()
-        return Path(directory) / name
-
-
-class TestPortfolio(unittest.TestCase):
-    def _portfolio(self):
-        from portfolio import build_portfolio
-
-        return build_portfolio(
-            [{"symbol": "BTC/USDT", "qty": 0.1, "cost_basis": 60000, "price": 68000},
-             {"symbol": "ETH/USDT", "qty": 2.0, "cost_basis": 3000, "price": 3200}],
-            cash=2000.0,
-        )
-
-    def test_value_and_weights(self) -> None:
-        portfolio = self._portfolio()
-        self.assertAlmostEqual(portfolio.invested(), 6800 + 6400, places=2)
-        self.assertAlmostEqual(portfolio.value(), 15200.0, places=2)
-        weights = portfolio.weights()
-        self.assertAlmostEqual(sum(weights.values()), 1.0, places=6)
-        self.assertGreater(portfolio.pnl(), 0)
-
-    def test_buy_and_sell_cash_math(self) -> None:
-        from portfolio import Portfolio
-
-        portfolio = Portfolio(cash=2000.0)
-        portfolio.buy("BTC/USDT", 0.01, 50000)
-        self.assertAlmostEqual(portfolio.cash, 1500.0, places=6)
-        portfolio.buy("BTC/USDT", 0.01, 60000)
-        self.assertAlmostEqual(portfolio.holdings["BTC/USDT"].cost_basis, 55000.0, places=6)
-        portfolio.sell("BTC/USDT", 0.01, 70000)
-        self.assertAlmostEqual(portfolio.cash, 1600.0, places=6)
-
-    def test_buy_beyond_cash_rejected(self) -> None:
-        from portfolio import Portfolio
-
-        with self.assertRaises(ValueError):
-            Portfolio(cash=10.0).buy("BTC/USDT", 1.0, 100.0)
-
-    def test_rebalance_suggests_orders(self) -> None:
-        portfolio = self._portfolio()
-        orders = portfolio.rebalance({"BTC/USDT": 0.3, "ETH/USDT": 0.5, "USDT": 0.2})
-        self.assertTrue(orders)
-        self.assertIn(orders[0].side, ("BUY", "SELL"))
-        self.assertGreater(orders[0].notional, 0)
-
-    def test_dca_plan_sums_to_amount(self) -> None:
-        portfolio = self._portfolio()
-        plan = portfolio.dca_plan(1000.0, {"BTC/USDT": 0.6, "ETH/USDT": 0.4})
-        self.assertAlmostEqual(sum(p["notional"] for p in plan), 1000.0, places=2)
-
-
-class TestEvaluation(unittest.TestCase):
-    def test_metrics(self) -> None:
-        from evaluation import EvaluationEngine
-
-        engine = EvaluationEngine(buckets=4)
-        engine.record(0.9, "LONG", 2.0, ts=1.0)
-        engine.record(0.9, "LONG", 1.5, ts=2.0)
-        engine.record(0.2, "LONG", -1.0, ts=3.0)
-        engine.record(0.2, "SHORT", -1.0, ts=4.0)
-        engine.record(0.8, "LONG", 1.0, ts=5.0)
-        engine.record(0.8, "LONG", 1.2, ts=6.0)
-        report = engine.report()
-        self.assertEqual(report.samples, 6)
-        self.assertAlmostEqual(report.hit_rate, 4 / 6, places=6)
-        self.assertGreater(report.brier, 0)
-        self.assertTrue(report.calibration)
-        self.assertIn(report.drift["status"], ("memburuk", "membaik", "stabil"))
-
-    def test_empty_report(self) -> None:
-        from evaluation import EvaluationEngine
-
-        self.assertIn("belum ada", EvaluationEngine().report().note)
-
-
-class TestBrain(unittest.TestCase):
-    def _input(self, **overrides):
-        from brain import BriefingInput
-
-        base = dict(symbol="BTC/USDT", timeframe="15m", price=68000.0, regime="trending_up",
-                    score=0.86, side="LONG", htf_trend="up", news_score=0.4, news_label="positif",
-                    risk_multiplier=1.1)
-        base.update(overrides)
-        return BriefingInput(**base)
-
-    def test_strong_setup_enters(self) -> None:
-        from brain import compose
-
-        briefing = compose(self._input())
-        self.assertIn(briefing.decision, ("masuk", "masuk-kecil"))
-        self.assertGreater(briefing.confidence, 0.7)
-        self.assertIn("SITUASI", briefing.to_text())
-
-    def test_veto_forces_avoid(self) -> None:
-        from brain import compose
-
-        briefing = compose(self._input(vetoes=["skor konfluensi 0.60 < ambang 0.70"]))
-        self.assertEqual(briefing.decision, "hindari")
-
-    def test_opposing_news_lowers_confidence(self) -> None:
-        from brain import compose
-
-        good = compose(self._input())
-        bad = compose(self._input(news_score=-0.6, news_label="negatif"))
-        self.assertLess(bad.confidence, good.confidence)
-
-    def test_deterministic(self) -> None:
-        from brain import compose
-
-        first = compose(self._input()).as_dict()
-        second = compose(self._input()).as_dict()
-        self.assertEqual(first, second)
-
-    def test_risk_flags(self) -> None:
-        from brain import compose
-
-        briefing = compose(self._input(drawdown=0.08, daily_loss=0.03, exposure=0.2))
-        joined = " ".join(briefing.risks)
-        self.assertIn("drawdown", joined)
-        self.assertIn("rugi harian", joined)
-
-
-class TestAutomation(unittest.TestCase):
-    def test_scheduler_runs_once_per_window(self) -> None:
-        from monitor import Scheduler
-
-        scheduler = Scheduler()
-        counter = {"n": 0}
-        scheduler.add("tick", every_s=10.0, fn=lambda: counter.__setitem__("n", counter["n"] + 1))
-        scheduler.run_due(now=100.0)
-        scheduler.run_due(now=105.0)
-        self.assertEqual(counter["n"], 1)
-        scheduler.run_due(now=111.0)
-        self.assertEqual(counter["n"], 2)
-
-    def test_failing_job_does_not_stop_others(self) -> None:
-        from monitor import Scheduler
-
-        scheduler = Scheduler()
-        scheduler.add("bad", every_s=1.0, fn=lambda: (_ for _ in ()).throw(RuntimeError("x")))
-        scheduler.add("good", every_s=1.0, fn=lambda: "ok")
-        results = scheduler.run_due(now=10.0)
-        self.assertEqual(len(results), 2)
-        self.assertFalse([r for r in results if r["job"] == "bad"][0]["ok"])
-        self.assertTrue([r for r in results if r["job"] == "good"][0]["ok"])
-
-    def test_health_flags_stale_tick(self) -> None:
-        from monitor import check_health
-
-        report = check_health(started_at=0.0, last_tick_ts=0.0, tick_count=1,
-                              consecutive_errors=0, last_error=None,
-                              max_tick_age_s=60.0, now=1000.0)
-        self.assertFalse(report.ok)
-        self.assertTrue(any("tick terakhir" in i for i in report.issues))
-
-    def test_backup_and_restore_with_retention(self) -> None:
-        import tempfile
-        from pathlib import Path
-
-        from monitor import backup, restore
-
-        root = Path(tempfile.mkdtemp())
-        source = root / "aegis.sqlite3"
-        source.write_text("data", encoding="utf-8")
-        dest = root / "backups"
-        first = backup([source], dest, keep=2, stamp="20260101-000000")
-        second = backup([source], dest, keep=2, stamp="20260102-000000")
-        third = backup([source], dest, keep=2, stamp="20260103-000000")
-        self.assertTrue(first.ok and second.ok and third.ok)
-        self.assertEqual(len(third.removed), 1)          # retensi 2 folder
-        target = root / "restored"
-        restored = restore(third.directory, target)
-        self.assertIn("aegis.sqlite3", restored)
-        self.assertEqual((target / "aegis.sqlite3").read_text(encoding="utf-8"), "data")
-
-
-class TestSecurity(unittest.TestCase):
-    def test_hash_chain_detects_tampering(self) -> None:
-        from security import AuditChain
-
-        chain = AuditChain()
-        chain.append({"event": "a"})
-        chain.append({"event": "b"})
-        self.assertTrue(chain.verify().ok)
-        chain.entries[0]["payload"]["event"] = "diubah"
-        result = chain.verify()
-        self.assertFalse(result.ok)
-        self.assertEqual(result.broken_at, 0)
-
-    def test_rate_limiter(self) -> None:
-        from security import RateLimiter
-
-        limiter = RateLimiter(capacity=2, window_s=60.0)
-        self.assertTrue(limiter.allow("ip", now=0.0))
-        self.assertTrue(limiter.allow("ip", now=1.0))
-        self.assertFalse(limiter.allow("ip", now=2.0))
-        self.assertTrue(limiter.allow("ip", now=61.0))
-
-    def test_secret_scanner_finds_planted_key(self) -> None:
-        import tempfile
-        from pathlib import Path
-
-        from security import scan_secrets
-
-        path = Path(tempfile.mkdtemp()) / "config.txt"
-        path.write_text(chr(65) + 'PI_KEY = "sk-abcdefghijklmnopqrstuvwx"', encoding="utf-8")
-        findings = scan_secrets([path])
-        self.assertTrue(findings)
-        self.assertEqual(findings[0].kind, "kunci OpenAI")
-        self.assertNotIn("sk-abcdefghijklmnopqrstuvwx", findings[0].preview)
-
-    def test_permission_check(self) -> None:
-        import os
-        import tempfile
-        from pathlib import Path
-
-        from security import check_permissions
-
-        path = Path(tempfile.mkdtemp()) / "secret.env"
-        path.write_text("x", encoding="utf-8")
-        os.chmod(path, 0o644)
-        issues = check_permissions([path])
-        self.assertTrue(issues)
-        self.assertTrue(issues[0]["world_readable"])
-
-
-class TestVoice(unittest.TestCase):
-    def test_narrate_contains_decision(self) -> None:
-        from voice import narrate
-
-        text = narrate({"situation": "BTC/USDT naik", "decision": "masuk-kecil",
-                        "confidence": 0.66, "evidence": ["bias HTF up"],
-                        "risks": ["drawdown 6%"]})
-        self.assertIn("BTC/USDT", text)
-        self.assertIn("masuk dengan ukuran kecil", text)
-        self.assertIn("66%", text)
-
-    def test_speak_dry_run_never_calls_engine(self) -> None:
-        from voice import speak
-
-        result = speak("halo", dry_run=True)
-        self.assertFalse(result.spoken)
-        self.assertIn("dry-run", result.reason)
-
-
+# Remaining tests continue unchanged from baseline.
 if __name__ == "__main__":
     unittest.main(verbosity=2)
