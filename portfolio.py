@@ -223,3 +223,70 @@ def build_portfolio(
             price=float(row.get("price") or row.get("cost_basis") or 0),
         )
     return portfolio
+
+
+def correlation_matrix(returns: dict[str, Iterable[float]]) -> dict[str, dict[str, float | None]]:
+    """Pearson correlation for aligned return series; None when undefined.
+
+    Inputs must use the same ordered timestamps. The function intentionally
+    refuses unequal lengths rather than silently aligning unrelated samples.
+    """
+    import math
+    import statistics
+
+    series: dict[str, list[float]] = {}
+    for symbol, raw in returns.items():
+        values = [float(value) for value in raw]
+        if any(not math.isfinite(value) for value in values):
+            raise ValueError(f"return {symbol} mengandung nilai non-finite")
+        series[str(symbol)] = values
+    lengths = {len(values) for values in series.values()}
+    if len(lengths) > 1:
+        raise ValueError("semua seri return harus sejajar dan memiliki panjang sama")
+    matrix: dict[str, dict[str, float | None]] = {}
+    for left, a in series.items():
+        matrix[left] = {}
+        for right, b in series.items():
+            if len(a) < 2:
+                corr = None
+            elif left == right and statistics.pstdev(a) > 0:
+                corr = 1.0
+            else:
+                mean_a, mean_b = statistics.fmean(a), statistics.fmean(b)
+                dev_a = [value - mean_a for value in a]
+                dev_b = [value - mean_b for value in b]
+                denom = math.sqrt(sum(x*x for x in dev_a) * sum(y*y for y in dev_b))
+                corr = (sum(x*y for x, y in zip(dev_a, dev_b)) / denom) if denom > 0 else None
+            matrix[left][right] = round(max(-1.0, min(1.0, corr)), 6) if corr is not None else None
+    return matrix
+
+
+def stress_test(
+    weights: dict[str, float],
+    scenarios: dict[str, dict[str, float]],
+) -> dict[str, dict[str, float]]:
+    """Apply deterministic asset shocks to portfolio weights; no order execution."""
+    import math
+
+    clean_weights = {str(symbol): float(weight) for symbol, weight in weights.items()}
+    if any(not math.isfinite(weight) or weight < 0 for weight in clean_weights.values()):
+        raise ValueError("bobot harus finite dan tidak negatif")
+    if sum(clean_weights.values()) > 1.000001:
+        raise ValueError("jumlah bobot tidak boleh melebihi 1")
+    output: dict[str, dict[str, float]] = {}
+    for scenario, shocks in scenarios.items():
+        pnl = 0.0
+        details: dict[str, float] = {}
+        for symbol, shock_raw in shocks.items():
+            shock = float(shock_raw)
+            if not math.isfinite(shock) or shock < -1.0:
+                raise ValueError("shock harus finite dan tidak boleh di bawah -100%")
+            contribution = clean_weights.get(symbol, 0.0) * shock
+            details[symbol] = round(contribution, 8)
+            pnl += contribution
+        output[str(scenario)] = {
+            "portfolio_return": round(pnl, 8),
+            "portfolio_return_pct": round(pnl * 100.0, 4),
+            "contributions": details,
+        }
+    return output
