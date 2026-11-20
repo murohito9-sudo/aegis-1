@@ -42,6 +42,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Desktop, tablet, and mobile browser regression
         run: node tests_ui.mjs
+      - name: LIVE operations console browser regression
+        run: node tests_live_ui.mjs
       - name: Upload viewport screenshots
         if: always()
         uses: actions/upload-artifact@v4
