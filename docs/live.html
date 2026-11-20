@@ -32,7 +32,7 @@ ul{color:var(--muted);padding-left:22px}li{margin:7px 0}.foot{margin-top:30px;pa
 <p><code>http://127.0.0.1:8787/live</code></p>
 <a class="cta" href="http://127.0.0.1:8787/live">Open local operations console ↗</a>
 <a class="cta" href="./demo.html">Open PAPER / DEMO ↗</a>
-<p>Console lokal membaca state, chart candle, indikator, posisi simulasi, riwayat order, risiko, health, analitik, dan audit event melalui API backend. Endpoint status adapter hanya menampilkan informasi operasional yang sudah disanitasi.</p>
+<p>Console lokal membaca state melalui WebSocket backend dengan polling fallback. Panel menampilkan candle dan EMA, RSI, MACD, ATR, ROC, relative volume, rincian bobot/vote konfluensi strategi, alasan dan veto, quote bid/ask/spread, posisi, order, risiko, portfolio, briefing, riset, health, analitik, serta audit event. Nilai indikator dan diagnostik berasal dari Python engine dan hanya memakai candle tertutup. Kedalaman order book tetap ditandai belum tersedia bila feed tidak mengumpulkannya. Laporan dapat diekspor sebagai CSV atau Markdown.</p>
 </section>
 <section class="panel">
 <h2>Current verification boundary</h2>
