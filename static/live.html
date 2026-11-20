@@ -396,6 +396,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     if(!signal){set("signal-state","NO SIGNAL YET");set("signal-explanation","Belum ada evaluasi sinyal backend yang tersedia.");return;}
     const d=signal.diagnostics||{};
     const candidate=d.candidate_side || signal.side || "NONE";
+    const isStale=signal.stale===true;
     set("signal-state",isStale?"STALE · LAST EVALUATION":(signal.actionable?"ACTIONABLE":"BLOCKED / WAIT"));
     $("signal-state").className="pill "+(isStale?"":(signal.actionable?"good":"bad"));
     set("signal-side",candidate);
@@ -405,7 +406,6 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     set("signal-rr",signal.reward_risk==null?"—":fmt(signal.reward_risk,2)+" R");
     set("signal-margin",d.score_margin==null?"—":fmt(d.score_margin,3));
     set("signal-age",signal.age_s==null?"—":ago(signal.age_s));
-    const isStale=signal.stale===true;
     tableRows("signal-components",d.components||[],[
       {value:r=>r.name},{value:r=>r.passed?"YES":"NO"},
       {value:r=>pct(r.weight)},{value:r=>pct(r.contribution)}
