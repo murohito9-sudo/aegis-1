@@ -24,12 +24,17 @@ class LiveConsoleTests(unittest.TestCase):
             exchange_id="binance",
         )
         self.broker = SimpleNamespace(name="paper", status=None)
+        async def engine_state():
+            return {"mode":"PAPER","connected":True,"symbol":"BTC/USDT"}
+
         self.engine = SimpleNamespace(
             settings=self.settings,
             broker=self.broker,
             mode=SimpleNamespace(value="PAPER"),
+            state=engine_state,
         )
-        self.client = TestClient(create_app(self.engine, Hub()))
+        self.hub = Hub()
+        self.client = TestClient(create_app(self.engine, self.hub))
         self.page = self.client.get("/live")
         self.assertEqual(self.page.status_code, 200)
         match = re.search(r'<meta name="aegis-csrf" content="([^"]+)"', self.page.text)
@@ -40,6 +45,13 @@ class LiveConsoleTests(unittest.TestCase):
         self.assertIn("Live Operations", self.page.text)
         self.assertIn("READ-ONLY CONSOLE", self.page.text)
         self.assertNotIn("__AEGIS_CSRF__", self.page.text)
+
+    def test_websocket_stream_requires_session_token_and_sends_state(self):
+        with self.client.websocket_connect(f"/ws?csrf={self.csrf}") as websocket:
+            payload = websocket.receive_json()
+        self.assertEqual(payload["mode"], "PAPER")
+        self.assertTrue(payload["connected"])
+        self.assertEqual(payload["symbol"], "BTC/USDT")
 
     def test_live_status_requires_csrf(self):
         response = self.client.get("/api/live/status")
