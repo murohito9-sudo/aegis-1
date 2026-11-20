@@ -76,12 +76,12 @@ try {
   if ((await page.locator("#adapter-dryrun").textContent()).trim() !== "NOT ACTIVE") {
     throw new Error("Paper runtime incorrectly reports an active LIVE dry-run adapter");
   }
-  if ((await page.locator("#positions tbody tr").count()) !== 1) throw new Error("Position row not rendered");
-  if ((await page.locator("#orders tbody tr").count()) !== 1) throw new Error("Order row not rendered");
+  if ((await page.locator("#positions tr").count()) !== 1) throw new Error("Position row not rendered");
+  if ((await page.locator("#orders tr").count()) !== 1) throw new Error("Order row not rendered");
   if ((await page.locator("#events .event").count()) !== 1) throw new Error("Audit event not rendered");
-  if ((await page.locator("#portfolio-holdings tbody tr").count()) !== 1) throw new Error("Portfolio holding not rendered");
-  if ((await page.locator("#closed-trades tbody tr").count()) !== 1) throw new Error("Closed trade history not rendered");
-  if ((await page.locator("#signals tbody tr").count()) !== 1) throw new Error("Signal history not rendered");
+  if ((await page.locator("#portfolio-holdings tr").count()) !== 1) throw new Error("Portfolio holding not rendered");
+  if ((await page.locator("#closed-trades tr").count()) !== 1) throw new Error("Closed trade history not rendered");
+  if ((await page.locator("#signals tr").count()) !== 1) throw new Error("Signal history not rendered");
   if ((await page.locator("#briefing-decision").textContent()).trim() !== "tunggu") throw new Error("Briefing not rendered");
   if ((await page.locator("#research-state").textContent()).trim() !== "RESULTS AVAILABLE") throw new Error("Research data not rendered");
   if (!csrfValid) throw new Error("One or more API requests omitted the CSRF header");
