@@ -21,7 +21,7 @@ const state = {
   signal: {
     symbol:"BTC/USDT",bar_ts:now-900,side:null,score:0.76,entry:50300,stop:49900,take_profit:51100,
     reward_risk:2.0,regime:"trending_up",reasons:["EMA trend supports long","volume above baseline"],
-    vetoes:["MACD did not confirm"],actionable:false,
+    vetoes:["MACD did not confirm"],actionable:false,age_s:120,stale:false,
     diagnostics:{
       candidate_side:"LONG",candidate_score:0.76,required_score:0.7,score_margin:0.21,squeeze_bonus:0,
       components:[
@@ -114,6 +114,7 @@ try {
   if ((await page.locator("#indicator-macd").textContent()).trim() !== "14.300000") throw new Error("MACD histogram not rendered");
   if ((await page.locator("#indicator-slope").textContent()).trim() !== "—") throw new Error("Missing indicator telemetry must not render as zero");
   if ((await page.locator("#signal-side").textContent()).trim() !== "LONG") throw new Error("Strategy candidate not rendered");
+  if ((await page.locator("#signal-age").textContent()).trim() !== "2m ago") throw new Error("Signal age not rendered");
   if ((await page.locator("#signal-components tr").count()) !== 8) throw new Error("Weighted confluence components not rendered");
   if ((await page.locator("#micro-spread").textContent()).trim() !== "0.40 bps") throw new Error("Quote spread not rendered");
   if (!(await page.locator("#micro-depth-note").textContent()).includes("not collected")) throw new Error("Missing order-book depth was not disclosed");
