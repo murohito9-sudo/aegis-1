@@ -260,10 +260,12 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
   const token = document.querySelector('meta[name="aegis-csrf"]')?.content || "";
   const $ = (id) => document.getElementById(id);
   const fmt = (v, d = 2) => {
+    if (v === null || v === undefined || v === "") return "—";
     const n = Number(v);
     return Number.isFinite(n) ? n.toLocaleString("en-US", {minimumFractionDigits:d, maximumFractionDigits:d}) : "—";
   };
   const pct = (v) => {
+    if (v === null || v === undefined || v === "") return "—";
     const n = Number(v);
     return Number.isFinite(n) ? (n * 100).toFixed(2) + "%" : "—";
   };
