@@ -426,7 +426,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     $("k-pnl").className = "kpi-value " + (Number(s.unrealized_pnl) >= 0 ? "positive" : "negative");
     set("market-meta", (s.exchange || "—") + " · " + (s.timeframe || "—"));
     set("market-symbol", (s.symbol || "—") + " / " + (s.timeframe || "—"));
-    set("market-price", fmt(s.chart?.close?.at(-1) ?? s.last_price, 4));
+    set("market-price", fmt(s.last_price ?? s.chart?.close?.at(-1), 4));
     set("market-source", s.data_source || "—");
     set("market-gate", s.gate?.passed ? "PASSED" : (s.gate?.summary || "PENDING"));
     set("risk-per-trade", pct(s.risk?.risk_per_trade));
