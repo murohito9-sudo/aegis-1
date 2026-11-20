@@ -198,6 +198,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
         <div class="status-item"><span>Best ask</span><b id="micro-ask">—</b></div>
         <div class="status-item"><span>Mid price</span><b id="micro-mid">—</b></div>
         <div class="status-item"><span>Bid / ask spread</span><b id="micro-spread">—</b></div>
+        <div class="status-item"><span>Quote source</span><b id="micro-source">—</b></div>
       </div>
       <p class="kpi-sub" id="micro-depth-note" style="margin:12px 0 0">Order-book depth belum tersedia.</p>
     </article>
@@ -420,6 +421,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     const m=data||{};
     set("micro-bid",fmt(m.best_bid,4));set("micro-ask",fmt(m.best_ask,4));
     set("micro-mid",fmt(m.mid,4));set("micro-spread",m.spread_bps==null?"—":fmt(m.spread_bps,2)+" bps");
+    set("micro-source",m.quote_source||"unavailable");
     set("micro-depth-note",m.depth_available
       ?"Depth tersedia dari "+(m.depth_source||"exchange order book")+"."
       :(m.depth_note||"Order-book depth belum tersedia; jangan tafsirkan quote sebagai data depth."));
