@@ -178,6 +178,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
         <div class="status-item"><span>Regime</span><b id="signal-regime">—</b></div>
         <div class="status-item"><span>Reward / risk</span><b id="signal-rr">—</b></div>
         <div class="status-item"><span>Score margin</span><b id="signal-margin">—</b></div>
+        <div class="status-item"><span>Signal age</span><b id="signal-age">—</b></div>
       </div>
       <div class="section-label" style="margin-top:14px">Confluence components / weighted votes</div>
       <div class="table-wrap"><table><thead><tr><th>Component</th><th>Passed</th><th>Weight</th><th>Contribution</th></tr></thead><tbody id="signal-components"><tr><td colspan="4" class="muted">Menunggu diagnostik strategi…</td></tr></tbody></table></div>
@@ -390,14 +391,16 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     if(!signal){set("signal-state","NO SIGNAL YET");set("signal-explanation","Belum ada evaluasi sinyal backend yang tersedia.");return;}
     const d=signal.diagnostics||{};
     const candidate=d.candidate_side || signal.side || "NONE";
-    set("signal-state",signal.actionable?"ACTIONABLE":"BLOCKED / WAIT");
-    $("signal-state").className="pill "+(signal.actionable?"good":"bad");
+    set("signal-state",isStale?"STALE · LAST EVALUATION":(signal.actionable?"ACTIONABLE":"BLOCKED / WAIT"));
+    $("signal-state").className="pill "+(isStale?"":(signal.actionable?"good":"bad"));
     set("signal-side",candidate);
     set("signal-score",fmt(d.candidate_score ?? signal.score,3));
     set("signal-threshold",d.required_score==null?"—":fmt(d.required_score,3));
     set("signal-regime",signal.regime||"—");
     set("signal-rr",signal.reward_risk==null?"—":fmt(signal.reward_risk,2)+" R");
     set("signal-margin",d.score_margin==null?"—":fmt(d.score_margin,3));
+    set("signal-age",signal.age_s==null?"—":ago(signal.age_s));
+    const isStale=signal.stale===true;
     tableRows("signal-components",d.components||[],[
       {value:r=>r.name},{value:r=>r.passed?"YES":"NO"},
       {value:r=>pct(r.weight)},{value:r=>pct(r.contribution)}
@@ -407,9 +410,11 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     const structure=d.structure||{};
     set("signal-bos",structure.break_of_structure||"No BOS");
     set("signal-levels",fmt(structure.support,4)+" / "+fmt(structure.resistance,4));
-    set("signal-explanation",signal.actionable
-      ?"Backend menandai setup ini lolos syarat strategi. Informasi ini bukan perintah transaksi."
-      :"Backend menahan setup ini. Periksa semua veto, bobot konfluensi, serta ambang sebelum menyimpulkan status pasar.");
+    set("signal-explanation",isStale
+      ?"Ini adalah hasil evaluasi terakhir dan sudah stale. Jangan menganggapnya sebagai sinyal saat ini; tunggu evaluasi backend pada candle tertutup terbaru."
+      :(signal.actionable
+        ?"Backend menandai setup ini lolos syarat strategi. Informasi ini bukan perintah transaksi."
+        :"Backend menahan setup ini. Periksa semua veto, bobot konfluensi, serta ambang sebelum menyimpulkan status pasar."));
   }
   function renderMicrostructure(data) {
     const m=data||{};
