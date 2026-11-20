@@ -936,6 +936,17 @@ class TestIntelligence(unittest.TestCase):
         self.assertIn(sig.htf_trend, ("up", "down", "flat"))
         self.assertGreaterEqual(sig.atr_pct_rank, 0.0)
         self.assertLessEqual(sig.atr_pct_rank, 1.0)
+        diagnostics = sig.as_dict()["diagnostics"]
+        self.assertIsInstance(diagnostics, dict)
+        if diagnostics:
+            self.assertIn("candidate_side", diagnostics)
+            self.assertIn("candidate_score", diagnostics)
+            self.assertIn("required_score", diagnostics)
+            if diagnostics.get("components"):
+                self.assertEqual(len(diagnostics["components"]), 8)
+                self.assertAlmostEqual(
+                    sum(item["weight"] for item in diagnostics["components"]), 1.0, places=4
+                )
 
 
 class TestAdaptiveRisk(TempProject):
