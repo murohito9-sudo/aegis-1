@@ -576,11 +576,63 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
       set("updated","Exported "+filename);
     } catch(error) { set("updated",String(error?.message || error)); }
   }
+  let liveSocket = null;
+  let streamConnected = false;
+  let historySnapshot = {orders:[],trades:[],signals:[]};
+  let reconnectTimer = null;
+
+  function connectLiveStream() {
+    if (liveSocket && (liveSocket.readyState === WebSocket.OPEN || liveSocket.readyState === WebSocket.CONNECTING)) return;
+    if (!token || !("WebSocket" in window)) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const socketUrl = protocol + "//" + location.host + "/ws?csrf=" + encodeURIComponent(token);
+    try {
+      liveSocket = new WebSocket(socketUrl);
+    } catch (error) {
+      streamConnected = false;
+      return;
+    }
+    liveSocket.addEventListener("open", () => {
+      streamConnected = true;
+      if (window.state) renderState(window.state);
+      try { liveSocket.send("aegis-live-console"); } catch (_) { /* polling remains available */ }
+    });
+    liveSocket.addEventListener("message", (event) => {
+      try {
+        const nextState = JSON.parse(event.data);
+        if (!nextState || typeof nextState !== "object" || !("mode" in nextState)) return;
+        window.state = nextState;
+        renderState(nextState);
+        renderHistory(historySnapshot);
+        renderTradeHistory(historySnapshot);
+        set("updated", "Stream " + new Date().toLocaleTimeString("id-ID", {hour12:false}));
+      } catch (_) {
+        set("connection", "BACKEND: STREAM DATA INVALID");
+      }
+    });
+    liveSocket.addEventListener("close", () => {
+      streamConnected = false;
+      liveSocket = null;
+      if (window.state) renderState(window.state);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connectLiveStream, 5000);
+    });
+    liveSocket.addEventListener("error", () => {
+      streamConnected = false;
+      try { liveSocket.close(); } catch (_) { /* close event schedules retry */ }
+    });
+  }
+
   async function refresh() {
     const button=$("refresh"); button.disabled=true;
     try {
-      const results=await Promise.all([api("/api/state"),api("/api/history"),api("/api/live/status"),api("/api/health"),api("/api/report"),api("/api/briefing"),api("/api/portfolio"),api("/api/research")]);
-      window.state=results[0]; renderState(results[0]); renderHistory(results[1]); renderTradeHistory(results[1]);
+      const results=await Promise.all([
+        streamConnected && window.state ? Promise.resolve(window.state) : api("/api/state"),
+        api("/api/history"),api("/api/live/status"),api("/api/health"),api("/api/report"),
+        api("/api/briefing"),api("/api/portfolio"),api("/api/research")
+      ]);
+      window.state=results[0]; historySnapshot=results[1];
+      renderState(results[0]); renderHistory(results[1]); renderTradeHistory(results[1]);
       renderLiveStatus(results[2]); renderHealth(results[3]); renderReport(results[4]);
       renderBriefing(results[5]); renderPortfolio(results[6]); renderResearch(results[7]);
       set("updated","Updated "+new Date().toLocaleTimeString("id-ID",{hour12:false}));
@@ -592,7 +644,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
   $("export-csv").addEventListener("click",()=>downloadReport("/api/report.csv","aegis-live-report.csv"));
   $("export-md").addEventListener("click",()=>downloadReport("/api/report.md","aegis-live-report.md"));
   window.addEventListener("resize",()=>{if(window.state){drawChart(window.state.chart||{});renderIndicators(window.state);}});
-  refresh(); setInterval(refresh,5000);
+  refresh(); connectLiveStream(); setInterval(refresh,5000);
 })();
 </script>
 </body>
