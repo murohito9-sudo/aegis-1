@@ -382,6 +382,19 @@ class Engine:
                 "bar_ts": float(last["ts"]),
             }
 
+        signal_state = self.last_signal.as_dict() if self.last_signal is not None else None
+        if signal_state is not None:
+            # bar_ts adalah waktu buka candle; sinyal melekat pada candle tertutup.
+            signal_age_s = max(
+                0.0,
+                time.time() - (
+                    float(signal_state.get("bar_ts", 0.0))
+                    + timeframe_seconds(self.settings.timeframe)
+                ),
+            )
+            signal_state["age_s"] = round(signal_age_s, 2)
+            signal_state["stale"] = signal_age_s > timeframe_seconds(self.settings.timeframe) * 1.5
+
         return {
             "ts": time.time(),
             "uptime_s": time.time() - self.started_at,
@@ -451,7 +464,7 @@ class Engine:
             },
             "chart": chart,
             "indicators": indicator_snapshot,
-            "signal": self.last_signal.as_dict() if self.last_signal is not None else None,
+            "signal": signal_state,
             "microstructure": {
                 "best_bid": snap.best_bid if snap is not None else None,
                 "best_ask": snap.best_ask if snap is not None else None,
