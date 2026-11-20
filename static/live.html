@@ -138,6 +138,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     </article>
     <article class="card">
       <div class="card-head"><h2>Closed trade analytics</h2><span class="meta">AUDIT REPORT</span></div>
+        <div class="actions" style="margin-bottom:12px"><button class="btn" id="export-csv" type="button">Export CSV</button><button class="btn" id="export-md" type="button">Export Markdown</button></div>
       <div class="status-grid">
         <div class="status-item"><span>Closed trades</span><b id="report-trades">—</b></div>
         <div class="status-item"><span>Win rate</span><b id="report-winrate">—</b></div>
@@ -148,6 +149,53 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
       </div>
     </article>
   </section>
+
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Deterministic intelligence briefing</h2><span class="meta">BACKEND / RULE-BASED</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Engine decision</span><b id="briefing-decision">—</b></div>
+        <div class="status-item"><span>Confidence score</span><b id="briefing-confidence">—</b></div>
+      </div>
+      <p id="briefing-situation" class="kpi-sub" style="margin:12px 0">Briefing belum dimuat.</p>
+      <div class="section-label">Evidence</div><div id="briefing-evidence" class="events"></div>
+      <div class="section-label" style="margin-top:10px">Risk notes</div><div id="briefing-risks" class="events"></div>
+      <div class="section-label" style="margin-top:10px">Suggested workflow</div><div id="briefing-actions" class="events"></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Portfolio overview</h2><span class="meta">BACKEND SNAPSHOT</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Total value</span><b id="portfolio-total">—</b></div>
+        <div class="status-item"><span>Cash / invested</span><b id="portfolio-cash">—</b></div>
+        <div class="status-item"><span>Unrealized holding PnL</span><b id="portfolio-pnl">—</b></div>
+        <div class="status-item"><span>Concentration (HHI)</span><b id="portfolio-concentration">—</b></div>
+      </div>
+      <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Asset</th><th>Qty</th><th>Market value</th><th>Weight</th><th>PnL</th></tr></thead><tbody id="portfolio-holdings"><tr><td colspan="5" class="muted">Menunggu snapshot portofolio…</td></tr></tbody></table></div>
+    </article>
+  </section>
+
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Research & evaluation</h2><span class="pill" id="research-state">WAITING</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Closed samples</span><b id="research-samples">—</b></div>
+        <div class="status-item"><span>Walk-forward windows</span><b id="research-windows">—</b></div>
+        <div class="status-item"><span>Out-of-sample average R</span><b id="research-average-r">—</b></div>
+        <div class="status-item"><span>Out-of-sample win rate</span><b id="research-win-rate">—</b></div>
+        <div class="status-item"><span>Monte Carlo p95 drawdown</span><b id="research-p95-dd">—</b></div>
+        <div class="status-item"><span>Below-start probability</span><b id="research-below-start">—</b></div>
+      </div>
+      <p class="kpi-sub" id="research-note" style="margin:12px 0 0">Research memakai data yang tersedia di backend; hasil yang belum cukup sampel akan ditandai.</p>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Trade & signal history</h2><span class="meta">LATEST BACKEND RECORDS</span></div>
+      <div class="section-label">Closed trades</div>
+      <div class="table-wrap" style="margin-bottom:13px"><table><thead><tr><th>Closed</th><th>Symbol</th><th>Side</th><th>PnL</th><th>R</th><th>Reason</th></tr></thead><tbody id="closed-trades"><tr><td colspan="6" class="muted">No closed trades loaded.</td></tr></tbody></table></div>
+      <div class="section-label">Recent signals</div>
+      <div class="table-wrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Score</th><th>Action</th></tr></thead><tbody id="signals"><tr><td colspan="5" class="muted">No signals loaded.</td></tr></tbody></table></div>
+    </article>
+  </section>
+
   <footer class="foot"><span>AEGIS-ONE · OBSERVABILITY / AUDIT / CONTROL</span><span>READ-ONLY CONSOLE · NO ORDER SUBMISSION</span></footer>
 </main>
 <script>
@@ -325,18 +373,88 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     set("report-dd",pct(m.max_drawdown)); set("report-pnl",signed(m.net_pnl));
     set("report-exp",m.expectancy_r == null ? "—" : fmt(m.expectancy_r,2)+" R");
   }
+  function renderList(id, items, emptyText) {
+    const holder=$(id); holder.replaceChildren();
+    const values=Array.isArray(items)?items:[];
+    if(!values.length){const empty=document.createElement("div");empty.className="empty";empty.textContent=emptyText;holder.appendChild(empty);return;}
+    values.forEach((value)=>{
+      const row=document.createElement("div");row.className="event";
+      const message=document.createElement("span");message.className="message";message.textContent=String(value);
+      row.appendChild(message);holder.appendChild(row);
+    });
+  }
+  function renderBriefing(data) {
+    set("briefing-decision",data.decision || "—");
+    set("briefing-confidence",pct(data.confidence));
+    set("briefing-situation",data.situation || "No briefing situation.");
+    renderList("briefing-evidence",data.evidence,"Belum ada evidence.");
+    renderList("briefing-risks",data.risks,"Belum ada risk note.");
+    renderList("briefing-actions",data.actions,"Belum ada action note.");
+  }
+  function renderPortfolio(data) {
+    set("portfolio-total",fmt(data.total_value) + " " + (data.quote || ""));
+    set("portfolio-cash",fmt(data.cash) + " / " + fmt(data.invested));
+    set("portfolio-pnl",signed(data.pnl));
+    set("portfolio-concentration",fmt(data.concentration,4));
+    tableRows("portfolio-holdings",data.holdings || [],[
+      {value:r=>r.symbol},{value:r=>fmt(r.qty,6)},
+      {value:r=>fmt(r.value,2)},{value:r=>pct(r.weight)},
+      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"}
+    ],"Tidak ada holding aktif pada snapshot ini.");
+  }
+  function renderResearch(data) {
+    set("research-samples",(data.samples ?? 0) + (data.required_samples ? " / "+data.required_samples : ""));
+    if(!data.available){
+      set("research-state","INSUFFICIENT SAMPLE");
+      set("research-note",data.message || "Research sample belum mencukupi.");
+      ["research-windows","research-average-r","research-win-rate","research-p95-dd","research-below-start"].forEach(id=>set(id,"—"));
+      return;
+    }
+    const summary=data.walk_forward?.test_summary || {};
+    set("research-windows",data.walk_forward?.window_count ?? "—");
+    set("research-average-r",summary.avg_r == null ? "—" : fmt(summary.avg_r,3)+" R");
+    set("research-win-rate",pct(summary.win_rate));
+    set("research-p95-dd",pct(data.monte_carlo?.max_drawdown?.p95));
+    set("research-below-start",pct(data.monte_carlo?.probability_below_start));
+    set("research-state","RESULTS AVAILABLE");
+    set("research-note",data.assumptions?.source ? "Source: "+data.assumptions.source+". "+(data.assumptions.risk_fraction_note || "") : "Hasil riset dari backend.");
+  }
+  function renderTradeHistory(history) {
+    tableRows("closed-trades",history.trades || [],[
+      {value:r=>timestamp(r.closed_at)},{value:r=>r.symbol},{value:r=>r.side},
+      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"},
+      {value:r=>fmt(r.r_multiple,2)},{value:r=>r.close_reason}
+    ],"Belum ada trade tertutup.");
+    tableRows("signals",history.signals || [],[
+      {value:r=>timestamp(r.ts)},{value:r=>r.symbol},{value:r=>r.side},
+      {value:r=>fmt(r.score,3)},{value:r=>r.action}
+    ],"Belum ada sinyal yang tercatat.");
+  }
+  async function downloadReport(path, filename) {
+    try {
+      const response=await fetch(path,{headers:{"X-AEGIS-CSRF":token},cache:"no-store"});
+      if(!response.ok) throw new Error("Export HTTP "+response.status);
+      const blob=await response.blob(), url=URL.createObjectURL(blob);
+      const link=document.createElement("a");link.href=url;link.download=filename;
+      document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+      set("updated","Exported "+filename);
+    } catch(error) { set("updated",String(error?.message || error)); }
+  }
   async function refresh() {
     const button=$("refresh"); button.disabled=true;
     try {
-      const results=await Promise.all([api("/api/state"),api("/api/history"),api("/api/live/status"),api("/api/health"),api("/api/report")]);
-      window.state=results[0]; renderState(results[0]); renderHistory(results[1]);
+      const results=await Promise.all([api("/api/state"),api("/api/history"),api("/api/live/status"),api("/api/health"),api("/api/report"),api("/api/briefing"),api("/api/portfolio"),api("/api/research")]);
+      window.state=results[0]; renderState(results[0]); renderHistory(results[1]); renderTradeHistory(results[1]);
       renderLiveStatus(results[2]); renderHealth(results[3]); renderReport(results[4]);
+      renderBriefing(results[5]); renderPortfolio(results[6]); renderResearch(results[7]);
       set("updated","Updated "+new Date().toLocaleTimeString("id-ID",{hour12:false}));
     } catch (error) {
       set("connection","BACKEND: ERROR"); set("updated",String(error?.message || error));
     } finally { button.disabled=false; }
   }
   $("refresh").addEventListener("click",refresh);
+  $("export-csv").addEventListener("click",()=>downloadReport("/api/report.csv","aegis-live-report.csv"));
+  $("export-md").addEventListener("click",()=>downloadReport("/api/report.md","aegis-live-report.md"));
   window.addEventListener("resize",()=>{if(window.state)drawChart(window.state.chart||{});});
   refresh(); setInterval(refresh,5000);
 })();
