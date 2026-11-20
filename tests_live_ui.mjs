@@ -17,7 +17,33 @@ const state = {
   analysis: {htf_trend:"up",divergence:"none",pattern:"bullish_engulfing",atr_pct_rank:0.42,squeeze:false},
   adaptive_risk: {multiplier:0.9},
   events: [{ts:now,level:"INFO",event:"tick",message:"Fixture tick processed"}],
-  chart: {close:[50000,50100,50200,50150,50300],ema_fast:[50020,50050,50110,50130,50180],ema_slow:[49900,49950,50000,50040,50080],ts:[1,2,3,4,5]}
+  indicators: {ema_fast:50180,ema_slow:50080,rsi:57.2,macd:102.5,macd_signal:88.2,macd_hist:14.3,atr:180.5,atr_pct_rank:0.42,roc:0.65,relative_volume:1.3,ema_slope:6.5,bar_ts:now-900},
+  signal: {
+    symbol:"BTC/USDT",bar_ts:now-900,side:null,score:0.76,entry:50300,stop:49900,take_profit:51100,
+    reward_risk:2.0,regime:"trending_up",reasons:["EMA trend supports long","volume above baseline"],
+    vetoes:["MACD did not confirm"],actionable:false,
+    diagnostics:{
+      candidate_side:"LONG",candidate_score:0.76,required_score:0.7,score_margin:0.21,squeeze_bonus:0,
+      components:[
+        {name:"trend",passed:true,weight:0.24,contribution:0.24},
+        {name:"momentum",passed:true,weight:0.12,contribution:0.12},
+        {name:"macd",passed:false,weight:0.12,contribution:0},
+        {name:"volume",passed:true,weight:0.12,contribution:0.12},
+        {name:"structure",passed:true,weight:0.18,contribution:0.18},
+        {name:"roc",passed:true,weight:0.08,contribution:0.08},
+        {name:"htf",passed:true,weight:0.11,contribution:0.11},
+        {name:"pattern",passed:false,weight:0.03,contribution:0}
+      ],
+      structure:{break_of_structure:"bullish",support:49800,resistance:52000}
+    }
+  },
+  microstructure:{best_bid:50299,best_ask:50301,mid:50300,spread_bps:0.4,quote_source:"fixture",depth_available:false,depth_note:"Order-book depth not collected by this feed."},
+  chart: {
+    close:[50000,50100,50200,50150,50300],ema_fast:[50020,50050,50110,50130,50180],ema_slow:[49900,49950,50000,50040,50080],
+    rsi:[48,51,53,55,57.2],macd:[12,22,44,75,102.5],macd_signal:[15,24,40,63,88.2],
+    macd_hist:[-3,-2,4,12,14.3],atr:[140,150,155,165,180.5],roc:[0.1,0.2,0.3,0.4,0.65],
+    rel_volume:[1.0,1.1,1.0,1.2,1.3],ts:[1,2,3,4,5]
+  }
 };
 const fixtures = {
   "/api/state": state,
@@ -84,6 +110,12 @@ try {
   if ((await page.locator("#signals tr").count()) !== 1) throw new Error("Signal history not rendered");
   if ((await page.locator("#briefing-decision").textContent()).trim() !== "tunggu") throw new Error("Briefing not rendered");
   if ((await page.locator("#research-state").textContent()).trim() !== "RESULTS AVAILABLE") throw new Error("Research data not rendered");
+  if ((await page.locator("#indicator-rsi").textContent()).trim() !== "57.20") throw new Error("Python RSI telemetry not rendered");
+  if ((await page.locator("#indicator-macd").textContent()).trim() !== "14.300000") throw new Error("MACD histogram not rendered");
+  if ((await page.locator("#signal-side").textContent()).trim() !== "LONG") throw new Error("Strategy candidate not rendered");
+  if ((await page.locator("#signal-components tr").count()) !== 8) throw new Error("Weighted confluence components not rendered");
+  if ((await page.locator("#micro-spread").textContent()).trim() !== "0.40 bps") throw new Error("Quote spread not rendered");
+  if (!(await page.locator("#micro-depth-note").textContent()).includes("not collected")) throw new Error("Missing order-book depth was not disclosed");
   if (!csrfValid) throw new Error("One or more API requests omitted the CSRF header");
 
   const viewports = [];
