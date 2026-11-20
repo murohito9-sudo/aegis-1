@@ -11,7 +11,7 @@ const state = {
   mode: "PAPER", live_mode: false, equity: 10020, initial_equity: 10000,
   quote: "USDT", balance: 9950, unrealized_pnl: 20, realized_pnl: 0,
   daily_loss: 0, drawdown: 0.002, exposure_ratio: 0.05,
-  positions: [{symbol:"BTC/USDT",side:"LONG",size:0.01,entry:50000,stop:49000,take_profit:52000,pnl:20}],
+  positions: [{symbol:"BTC/USDT",side:"LONG",size:0.01,entry:50000,price:50200,stop:49000,take_profit:52000,pnl:20,r_multiple:0.5,age_s:3600,trailing_active:true,stop_order_id:"SL-1",take_profit_order_id:"TP-1"}],
   risk: {risk_per_trade:0.005,max_daily_loss:0.03,max_total_exposure:0.6,max_drawdown:0.1,max_open_positions:3},
   gate: {passed:true,summary:"All data checks passed"},
   analysis: {htf_trend:"up",divergence:"none",pattern:"bullish_engulfing",atr_pct_rank:0.42,squeeze:false},
@@ -48,7 +48,7 @@ const state = {
 const fixtures = {
   "/api/state": state,
   "/api/history": {
-    orders:[{ts:now,symbol:"BTC/USDT",side:"BUY",type:"LIMIT",qty:0.01,price:50000,status:"OPEN"}],
+    orders:[{ts:now,symbol:"BTC/USDT",side:"BUY",type:"LIMIT",qty:0.01,filled:0.006,avg_price:50010,fee:0.12,exchange_id:"exchange-123",price:50000,status:"PARTIALLY_FILLED"}],
     trades:[{closed_at:now,symbol:"BTC/USDT",side:"LONG",pnl:28,r_multiple:1.2,close_reason:"take_profit"}],
     signals:[{ts:now,symbol:"BTC/USDT",side:"LONG",score:0.82,action:"paper_entry"}]
   },
@@ -64,7 +64,7 @@ const fixtures = {
     lock_reason:"LIVE remains locked in this V3 test fixture."
   },
   "/api/health": {ok:true,uptime_s:7200,tick_age_s:2,tick_count:120,consecutive_errors:0,issues:[]},
-  "/api/report": {metrics:{trades:12,win_rate:0.58,profit_factor:1.4,max_drawdown:0.04,net_pnl:28,expectancy_r:0.12}}
+  "/api/report": {metrics:{trades:12,win_rate:0.58,profit_factor:1.4,max_drawdown:0.04,net_pnl:28,expectancy_r:0.12,sharpe_trade:1.25,sortino_trade:1.8,total_fees:1.2},order_fees:{total:1.2,avg_slippage_bps:1.4}}
 };
 const server = createServer((req, res) => {
   if (req.url === "/live" || req.url.startsWith("/live?")) {
@@ -99,13 +99,16 @@ try {
   await page.waitForFunction(()=>document.querySelector("#k-mode")?.textContent==="PAPER" &&
     document.querySelector("#position-count")?.textContent==="1 positions" &&
     document.querySelector("#report-trades")?.textContent==="12");
+  if ((await page.locator("#report-slippage").textContent()).trim() !== "1.40 bps") throw new Error("Slippage metric not rendered");
   const locked = (await page.locator("#execution-pill").textContent()).trim();
   if (!locked.includes("LOCKED")) throw new Error("LIVE execution badge is not locked");
   if ((await page.locator("#adapter-dryrun").textContent()).trim() !== "NOT ACTIVE") {
     throw new Error("Paper runtime incorrectly reports an active LIVE dry-run adapter");
   }
   if ((await page.locator("#positions tr").count()) !== 1) throw new Error("Position row not rendered");
+  if (!(await page.locator("#positions tr").textContent()).includes("SL + TP")) throw new Error("Protective order state not rendered");
   if ((await page.locator("#orders tr").count()) !== 1) throw new Error("Order row not rendered");
+  if (!(await page.locator("#orders tr").textContent()).includes("exchange-123")) throw new Error("Exchange order ID not rendered");
   if ((await page.locator("#events .event").count()) !== 1) throw new Error("Audit event not rendered");
   if ((await page.locator("#portfolio-holdings tr").count()) !== 1) throw new Error("Portfolio holding not rendered");
   if ((await page.locator("#closed-trades tr").count()) !== 1) throw new Error("Closed trade history not rendered");
