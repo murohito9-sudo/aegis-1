@@ -78,11 +78,11 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
       </article>
       <article class="card">
         <div class="card-head"><h2>Open positions</h2><span class="meta" id="position-count">0 positions</span></div>
-        <div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Stop</th><th>Target</th><th>Unrealized</th></tr></thead><tbody id="positions"><tr><td colspan="7" class="muted">Menunggu data posisi…</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>Stop</th><th>Target</th><th>Unrealized</th><th>R</th><th>Age</th><th>Trail</th><th>Protection</th></tr></thead><tbody id="positions"><tr><td colspan="12" class="muted">Menunggu data posisi…</td></tr></tbody></table></div>
       </article>
       <article class="card">
         <div class="card-head"><h2>Order book / execution history</h2><span class="meta">LATEST 12</span></div>
-        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody id="orders"><tr><td colspan="7" class="muted">Menunggu riwayat order…</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Filled</th><th>Avg fill</th><th>Fee</th><th>Status</th><th>Exchange ID</th></tr></thead><tbody id="orders"><tr><td colspan="10" class="muted">Menunggu riwayat order…</td></tr></tbody></table></div>
       </article>
     </div>
     <aside class="grid">
@@ -146,6 +146,10 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
         <div class="status-item"><span>Max drawdown</span><b id="report-dd">—</b></div>
         <div class="status-item"><span>Net PnL</span><b id="report-pnl">—</b></div>
         <div class="status-item"><span>Expectancy</span><b id="report-exp">—</b></div>
+        <div class="status-item"><span>Total fees</span><b id="report-fees">—</b></div>
+        <div class="status-item"><span>Average slippage</span><b id="report-slippage">—</b></div>
+        <div class="status-item"><span>Sharpe / trade</span><b id="report-sharpe">—</b></div>
+        <div class="status-item"><span>Sortino / trade</span><b id="report-sortino">—</b></div>
       </div>
     </article>
   </section>
@@ -457,9 +461,13 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     set("position-count", positions.length + " positions");
     tableRows("positions", positions, [
       {value:r=>r.symbol},{value:r=>r.side},{value:r=>fmt(r.size,6)},
-      {value:r=>fmt(r.entry,4)},{value:r=>fmt(r.stop,4)},
+      {value:r=>fmt(r.entry,4)},{value:r=>fmt(r.price,4)},{value:r=>fmt(r.stop,4)},
       {value:r=>fmt(r.take_profit,4)},
-      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"}
+      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"},
+      {value:r=>fmt(r.r_multiple,2)},
+      {value:r=>ago(r.age_s)},
+      {value:r=>r.trailing_active?"ON":"OFF"},
+      {value:r=>r.stop_order_id && r.take_profit_order_id?"SL + TP":"CHECK"}
     ], "Tidak ada posisi terbuka.");
     drawChart(s.chart || {});
     renderIndicators(s);
@@ -488,8 +496,11 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
       {value:r=>timestamp(r.ts || r.created_at)},
       {value:r=>r.symbol},{value:r=>r.side},{value:r=>r.type},
       {value:r=>fmt(r.qty ?? r.amount,6)},
+      {value:r=>fmt(r.filled,6)},
       {value:r=>fmt(r.avg_price ?? r.price,4)},
-      {value:r=>r.status}
+      {value:r=>fmt(r.fee,6)},
+      {value:r=>r.status},
+      {value:r=>r.exchange_id || r.client_id}
     ], "Belum ada order pada audit log.");
     const events = Array.isArray(window.state?.events) ? window.state.events.slice(-18).reverse() : [];
     const holder = $("events"); holder.replaceChildren();
@@ -515,6 +526,10 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     set("report-pf",m.profit_factor == null ? "—" : fmt(m.profit_factor,2));
     set("report-dd",pct(m.max_drawdown)); set("report-pnl",signed(m.net_pnl));
     set("report-exp",m.expectancy_r == null ? "—" : fmt(m.expectancy_r,2)+" R");
+    set("report-fees",fmt(r.order_fees?.total ?? m.total_fees));
+    set("report-slippage",r.order_fees?.avg_slippage_bps == null ? "—" : fmt(r.order_fees.avg_slippage_bps,2)+" bps");
+    set("report-sharpe",fmt(m.sharpe_trade,2));
+    set("report-sortino",fmt(m.sortino_trade,2));
   }
   function renderList(id, items, emptyText) {
     const holder=$(id); holder.replaceChildren();
