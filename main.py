@@ -342,8 +342,12 @@ class Engine:
             "atr": [], "roc": [], "rel_volume": [], "ts": [],
         }
         indicator_snapshot: dict[str, float | None] = {}
-        if snap is not None and len(snap.candles) > 10:
-            full_ind = add_indicators(snap.candles, self.settings.strategy)
+        # Dashboard, seperti strategy.evaluate(), hanya memakai bar yang sudah tutup.
+        # Bar terakhir pada snapshot feed adalah bar berjalan dan tidak boleh masuk
+        # ke indikator/diagnostik yang dipakai untuk menjelaskan keputusan strategi.
+        closed_candles = snap.candles.iloc[:-1] if snap is not None and len(snap.candles) > 1 else pd.DataFrame()
+        if snap is not None and len(closed_candles) > 10:
+            full_ind = add_indicators(closed_candles, self.settings.strategy)
             ind = full_ind.tail(CHART_BARS)
 
             def clean_number(value: Any, digits: int = 8) -> float | None:
@@ -464,6 +468,8 @@ class Engine:
             },
             "markers": self.markers[-40:],
             "events": self.audit.recent_events(45),
+            "last_price": snap.last_price if snap is not None else None,
+            "last_closed_bar_ts": float(closed_candles["ts"].iloc[-1]) if len(closed_candles) else None,
             "last_tick_ts": self.last_tick_ts,
             "last_error": self.last_error,
             "tick_count": self.tick_count,
