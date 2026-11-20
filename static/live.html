@@ -250,8 +250,6 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     set("market-price", fmt(s.chart?.close?.at(-1) ?? s.last_price, 4));
     set("market-source", s.data_source || "—");
     set("market-gate", s.gate?.passed ? "PASSED" : (s.gate?.summary || "PENDING"));
-    set("market-gate", s.gate?.passed ? "PASSED" : (s.gate?.summary || "PENDING"));
-    set("market-gate", s.gate?.passed ? "PASSED" : (s.gate?.summary || "PENDING"));
     set("risk-per-trade", pct(s.risk?.risk_per_trade));
     set("risk-daily", pct(s.daily_loss) + " / " + pct(s.risk?.max_daily_loss));
     set("risk-exposure", pct(s.exposure_ratio) + " / " + pct(s.risk?.max_total_exposure));
@@ -273,7 +271,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
       {value:r=>r.symbol},{value:r=>r.side},{value:r=>fmt(r.size,6)},
       {value:r=>fmt(r.entry,4)},{value:r=>fmt(r.stop,4)},
       {value:r=>fmt(r.take_profit,4)},
-      {value:r=>signed(r.unrealized_pnl),className:r=>Number(r.unrealized_pnl)>=0?"positive":"negative"}
+      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"}
     ], "Tidak ada posisi terbuka.");
     drawChart(s.chart || {});
     set("connection", s.connected ? "BACKEND: CONNECTED" : "BACKEND: DISCONNECTED");
@@ -285,7 +283,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     adapterPill.textContent = data.adapter_present ? (data.dry_run ? "DRY-RUN" : "ADAPTER PRESENT") : "NO LIVE ADAPTER";
     set("adapter-name", data.adapter || "—");
     set("adapter-connectivity", data.adapter_connected ? "CONNECTED" : "NOT CONNECTED");
-    set("adapter-dryrun", data.dry_run ? "ENABLED" : "NOT ACTIVE");
+    set("adapter-dryrun", data.adapter_present ? (data.dry_run ? "DRY-RUN ON" : "DRY-RUN OFF") : "NOT ACTIVE");
     set("adapter-symbols", (data.allowlisted_symbols || []).join(", ") || "Not configured");
     set("adapter-orders", (data.orders_sent ?? 0) + " / " + (data.orders_rejected ?? 0));
     set("adapter-reconcile", data.last_reconcile_ts ? timestamp(data.last_reconcile_ts) : "Not run");
