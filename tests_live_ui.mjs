@@ -80,10 +80,12 @@ const browser = await chromium.launch({headless:true,args:["--no-sandbox"]});
 const page = await browser.newPage({viewport:{width:1440,height:1000}});
 const pageErrors = [];
 let csrfValid = true;
+let researchRequests = 0;
 page.on("pageerror",error=>pageErrors.push(error.message));
 await page.route("**/api/**",async route=>{
   if (route.request().headers()["x-aegis-csrf"] !== token) csrfValid = false;
   const path = new URL(route.request().url()).pathname;
+  if(path === "/api/research")researchRequests += 1;
   const body = fixtures[path];
   if (!body) {
     await route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({detail:"not found"})});
@@ -110,6 +112,10 @@ try {
   if ((await page.locator("#signals tr").count()) !== 1) throw new Error("Signal history not rendered");
   if ((await page.locator("#briefing-decision").textContent()).trim() !== "tunggu") throw new Error("Briefing not rendered");
   if ((await page.locator("#research-state").textContent()).trim() !== "RESULTS AVAILABLE") throw new Error("Research data not rendered");
+  if (researchRequests !== 1) throw new Error("Research should be loaded once on initial render");
+  await page.locator("#research-refresh").click();
+  await page.waitForFunction(() => document.querySelector("#updated")?.textContent?.startsWith("Research updated"));
+  if (researchRequests !== 2) throw new Error("Manual research refresh did not request new evaluation");
   if ((await page.locator("#indicator-rsi").textContent()).trim() !== "57.20") throw new Error("Python RSI telemetry not rendered");
   if ((await page.locator("#indicator-macd").textContent()).trim() !== "14.300000") throw new Error("MACD histogram not rendered");
   if ((await page.locator("#indicator-slope").textContent()).trim() !== "—") throw new Error("Missing indicator telemetry must not render as zero");
@@ -117,6 +123,7 @@ try {
   if ((await page.locator("#signal-age").textContent()).trim() !== "2m ago") throw new Error("Signal age not rendered");
   if ((await page.locator("#signal-components tr").count()) !== 8) throw new Error("Weighted confluence components not rendered");
   if ((await page.locator("#micro-spread").textContent()).trim() !== "0.40 bps") throw new Error("Quote spread not rendered");
+  if ((await page.locator("#micro-source").textContent()).trim() !== "fixture") throw new Error("Quote provenance not rendered");
   if (!(await page.locator("#micro-depth-note").textContent()).includes("not collected")) throw new Error("Missing order-book depth was not disclosed");
   if (!csrfValid) throw new Error("One or more API requests omitted the CSRF header");
 
