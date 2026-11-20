@@ -134,10 +134,12 @@ try {
     const metrics = await page.evaluate(()=>({
       width:innerWidth,
       documentWidth:document.documentElement.scrollWidth,
-      canvasWidth:document.querySelector("#price-chart").getBoundingClientRect().width
+      canvasWidth:document.querySelector("#price-chart").getBoundingClientRect().width,
+      rsiWidth:document.querySelector("#rsi-chart").getBoundingClientRect().width,
+      macdWidth:document.querySelector("#macd-chart").getBoundingClientRect().width
     }));
     if (metrics.documentWidth > metrics.width + 1) throw new Error("Horizontal overflow at " + width + "px");
-    if (metrics.canvasWidth <= 0) throw new Error("Chart collapsed at " + width + "px");
+    if (metrics.canvasWidth <= 0 || metrics.rsiWidth <= 0 || metrics.macdWidth <= 0) throw new Error("An engine chart collapsed at " + width + "px");
     viewports.push(metrics);
   }
   if (pageErrors.length) throw new Error("Browser runtime errors: "+pageErrors.join(" | "));
