@@ -150,6 +150,62 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     </article>
   </section>
 
+
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Technical indicator telemetry</h2><span class="meta">PYTHON ENGINE · CLOSED BARS</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>RSI (configured period)</span><b id="indicator-rsi">—</b></div>
+        <div class="status-item"><span>MACD histogram</span><b id="indicator-macd">—</b></div>
+        <div class="status-item"><span>ATR</span><b id="indicator-atr">—</b></div>
+        <div class="status-item"><span>ATR percentile rank</span><b id="indicator-atr-rank">—</b></div>
+        <div class="status-item"><span>Rate of change</span><b id="indicator-roc">—</b></div>
+        <div class="status-item"><span>Relative volume</span><b id="indicator-rel-volume">—</b></div>
+        <div class="status-item"><span>EMA fast / slow</span><b id="indicator-emas">—</b></div>
+        <div class="status-item"><span>EMA slow slope</span><b id="indicator-slope">—</b></div>
+      </div>
+      <div class="section-label" style="margin-top:14px">RSI series</div>
+      <div class="chart-wrap" style="height:130px"><canvas id="rsi-chart" aria-label="RSI values computed by Python engine"></canvas></div>
+      <div class="section-label" style="margin-top:12px">MACD line / signal / histogram</div>
+      <div class="chart-wrap" style="height:130px"><canvas id="macd-chart" aria-label="MACD values computed by Python engine"></canvas></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Strategy confluence diagnostics</h2><span class="pill" id="signal-state">WAITING</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Candidate side</span><b id="signal-side">—</b></div>
+        <div class="status-item"><span>Candidate score</span><b id="signal-score">—</b></div>
+        <div class="status-item"><span>Required threshold</span><b id="signal-threshold">—</b></div>
+        <div class="status-item"><span>Regime</span><b id="signal-regime">—</b></div>
+        <div class="status-item"><span>Reward / risk</span><b id="signal-rr">—</b></div>
+        <div class="status-item"><span>Score margin</span><b id="signal-margin">—</b></div>
+      </div>
+      <div class="section-label" style="margin-top:14px">Confluence components / weighted votes</div>
+      <div class="table-wrap"><table><thead><tr><th>Component</th><th>Passed</th><th>Weight</th><th>Contribution</th></tr></thead><tbody id="signal-components"><tr><td colspan="4" class="muted">Menunggu diagnostik strategi…</td></tr></tbody></table></div>
+      <div class="section-label" style="margin-top:12px">Reasons</div><div class="events" id="signal-reasons"></div>
+      <div class="section-label" style="margin-top:12px">Vetoes / blockers</div><div class="events" id="signal-vetoes"></div>
+      <div class="status-grid" style="margin-top:12px">
+        <div class="status-item"><span>Market structure</span><b id="signal-bos">—</b></div>
+        <div class="status-item"><span>Support / resistance</span><b id="signal-levels">—</b></div>
+      </div>
+    </article>
+  </section>
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Quote microstructure</h2><span class="meta">ACTUAL QUOTE FIELDS ONLY</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Best bid</span><b id="micro-bid">—</b></div>
+        <div class="status-item"><span>Best ask</span><b id="micro-ask">—</b></div>
+        <div class="status-item"><span>Mid price</span><b id="micro-mid">—</b></div>
+        <div class="status-item"><span>Bid / ask spread</span><b id="micro-spread">—</b></div>
+      </div>
+      <p class="kpi-sub" id="micro-depth-note" style="margin:12px 0 0">Order-book depth belum tersedia.</p>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Strategy status interpretation</h2><span class="meta">NO CLIENT-SIDE SIGNAL RECOMPUTE</span></div>
+      <p class="kpi-sub" id="signal-explanation">Rincian ini akan mengikuti output strategi dan veto dari backend Python. Tampilan browser tidak membuat sinyal baru.</p>
+    </article>
+  </section>
+
   <section class="grid cols" style="margin-top:12px">
     <article class="card">
       <div class="card-head"><h2>Deterministic intelligence briefing</h2><span class="meta">BACKEND / RULE-BASED</span></div>
@@ -286,6 +342,81 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     };
     line(slow, "#e6b85f", 1.4); line(fast, "#59cbd8", 1.5); line(close, "#76b8ff", 2);
   }
+  function drawIndicatorChart(id, series, options = {}) {
+    const canvas=$(id), rect=canvas.getBoundingClientRect(), dpr=Math.max(1,window.devicePixelRatio||1);
+    const width=Math.max(260,rect.width),height=Math.max(90,rect.height);
+    canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+    const values=series.flatMap(item=>(item.values||[]).map(v=>v==null?NaN:Number(v)).filter(Number.isFinite));
+    if(values.length<2){ctx.fillStyle="#91a2b8";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText("Menunggu bar tertutup dari backend",width/2,height/2);return;}
+    let min=options.fixedMin ?? Math.min(...values),max=options.fixedMax ?? Math.max(...values);
+    if(max===min){const pad=Math.max(Math.abs(max)*.05,.01);min-=pad;max+=pad;}
+    const pad=(max-min)*.1; if(options.fixedMin==null)min-=pad;if(options.fixedMax==null)max+=pad;
+    const left=8,right=width-8,top=8,bottom=height-12;
+    const x=i=>left+(right-left)*i/Math.max(1,Math.max(...series.map(item=>(item.values||[]).length))-1);
+    const y=v=>bottom-(v-min)/(max-min)*(bottom-top);
+    ctx.strokeStyle="#20344a";ctx.lineWidth=1;
+    for(let i=0;i<3;i++){const yy=top+(bottom-top)*i/2;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();}
+    if(Number.isFinite(options.reference)){
+      ctx.strokeStyle="#6d7f94";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(left,y(options.reference));ctx.lineTo(right,y(options.reference));ctx.stroke();ctx.setLineDash([]);
+    }
+    series.forEach(item=>{
+      const vals=item.values||[];ctx.strokeStyle=item.color;ctx.lineWidth=item.width||1.5;ctx.beginPath();let active=false;
+      vals.forEach((raw,i)=>{const value=raw==null?NaN:Number(raw);if(!Number.isFinite(value)){active=false;return;}if(!active){ctx.moveTo(x(i),y(value));active=true;}else ctx.lineTo(x(i),y(value));});
+      ctx.stroke();
+    });
+  }
+  function renderIndicators(s) {
+    const values=s.indicators||{};
+    set("indicator-rsi",values.rsi==null?"—":fmt(values.rsi,2));
+    set("indicator-macd",values.macd_hist==null?"—":fmt(values.macd_hist,6));
+    set("indicator-atr",values.atr==null?"—":fmt(values.atr,6));
+    set("indicator-atr-rank",pct(values.atr_pct_rank));
+    set("indicator-roc",values.roc==null?"—":fmt(values.roc,3)+"%");
+    set("indicator-rel-volume",values.relative_volume==null?"—":fmt(values.relative_volume,3)+"×");
+    set("indicator-emas",fmt(values.ema_fast,4)+" / "+fmt(values.ema_slow,4));
+    set("indicator-slope",values.ema_slope==null?"—":fmt(values.ema_slope,6));
+    const chart=s.chart||{};
+    drawIndicatorChart("rsi-chart",[{values:chart.rsi||[],color:"#62cbd9",width:2}],{fixedMin:0,fixedMax:100,reference:50});
+    drawIndicatorChart("macd-chart",[
+      {values:chart.macd_hist||[],color:"#e3b65e",width:1},
+      {values:chart.macd_signal||[],color:"#8f9ead",width:1.3},
+      {values:chart.macd||[],color:"#64b7ff",width:1.8}
+    ]);
+  }
+  function renderSignal(signal) {
+    if(!signal){set("signal-state","NO SIGNAL YET");set("signal-explanation","Belum ada evaluasi sinyal backend yang tersedia.");return;}
+    const d=signal.diagnostics||{};
+    const candidate=d.candidate_side || signal.side || "NONE";
+    set("signal-state",signal.actionable?"ACTIONABLE":"BLOCKED / WAIT");
+    $("signal-state").className="pill "+(signal.actionable?"good":"bad");
+    set("signal-side",candidate);
+    set("signal-score",fmt(d.candidate_score ?? signal.score,3));
+    set("signal-threshold",d.required_score==null?"—":fmt(d.required_score,3));
+    set("signal-regime",signal.regime||"—");
+    set("signal-rr",signal.reward_risk==null?"—":fmt(signal.reward_risk,2)+" R");
+    set("signal-margin",d.score_margin==null?"—":fmt(d.score_margin,3));
+    tableRows("signal-components",d.components||[],[
+      {value:r=>r.name},{value:r=>r.passed?"YES":"NO"},
+      {value:r=>pct(r.weight)},{value:r=>pct(r.contribution)}
+    ],"Diagnostik konfluensi belum tersedia untuk bar ini.");
+    renderList("signal-reasons",signal.reasons||[],"Belum ada alasan konfluensi.");
+    renderList("signal-vetoes",signal.vetoes||[],"Tidak ada veto yang tercatat.");
+    const structure=d.structure||{};
+    set("signal-bos",structure.break_of_structure||"No BOS");
+    set("signal-levels",fmt(structure.support,4)+" / "+fmt(structure.resistance,4));
+    set("signal-explanation",signal.actionable
+      ?"Backend menandai setup ini lolos syarat strategi. Informasi ini bukan perintah transaksi."
+      :"Backend menahan setup ini. Periksa semua veto, bobot konfluensi, serta ambang sebelum menyimpulkan status pasar.");
+  }
+  function renderMicrostructure(data) {
+    const m=data||{};
+    set("micro-bid",fmt(m.best_bid,4));set("micro-ask",fmt(m.best_ask,4));
+    set("micro-mid",fmt(m.mid,4));set("micro-spread",m.spread_bps==null?"—":fmt(m.spread_bps,2)+" bps");
+    set("micro-depth-note",m.depth_available
+      ?"Depth tersedia dari "+(m.depth_source||"exchange order book")+"."
+      :(m.depth_note||"Order-book depth belum tersedia; jangan tafsirkan quote sebagai data depth."));
+  }
   function renderState(s) {
     const live = window.liveStatus || {};
     set("k-mode", s.mode || "—"); set("k-broker", "Broker " + (s.broker?.name || "—"));
@@ -322,6 +453,9 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
       {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"}
     ], "Tidak ada posisi terbuka.");
     drawChart(s.chart || {});
+    renderIndicators(s);
+    renderSignal(s.signal);
+    renderMicrostructure(s.microstructure);
     set("connection", s.connected ? "BACKEND: CONNECTED" : "BACKEND: DISCONNECTED");
   }
   function renderLiveStatus(data) {
@@ -455,7 +589,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
   $("refresh").addEventListener("click",refresh);
   $("export-csv").addEventListener("click",()=>downloadReport("/api/report.csv","aegis-live-report.csv"));
   $("export-md").addEventListener("click",()=>downloadReport("/api/report.md","aegis-live-report.md"));
-  window.addEventListener("resize",()=>{if(window.state)drawChart(window.state.chart||{});});
+  window.addEventListener("resize",()=>{if(window.state){drawChart(window.state.chart||{});renderIndicators(window.state);}});
   refresh(); setInterval(refresh,5000);
 })();
 </script>
