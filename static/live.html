@@ -263,9 +263,9 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     const width = Math.max(300, rect.width), height = Math.max(180, rect.height);
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, width, height);
-    const close = Array.isArray(chart?.close) ? chart.close.map(Number).filter(Number.isFinite) : [];
-    const fast = Array.isArray(chart?.ema_fast) ? chart.ema_fast.map(Number) : [];
-    const slow = Array.isArray(chart?.ema_slow) ? chart.ema_slow.map(Number) : [];
+    const close = Array.isArray(chart?.close) ? chart.close.map(v => v == null ? NaN : Number(v)).filter(Number.isFinite) : [];
+    const fast = Array.isArray(chart?.ema_fast) ? chart.ema_fast.map(v => v == null ? NaN : Number(v)) : [];
+    const slow = Array.isArray(chart?.ema_slow) ? chart.ema_slow.map(v => v == null ? NaN : Number(v)) : [];
     if (close.length < 2) {
       ctx.fillStyle = "#91a2b8"; ctx.font = "12px system-ui"; ctx.textAlign = "center";
       ctx.fillText("Menunggu candle dari backend", width / 2, height / 2); return;
