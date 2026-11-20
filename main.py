@@ -335,17 +335,47 @@ class Engine:
         equity = self.risk.current_equity()
         exposure = self.risk.exposure(price_map)
 
-        chart = {"close": [], "ema_fast": [], "ema_slow": [], "ts": []}
+        chart: dict[str, Any] = {
+            "open": [], "high": [], "low": [], "close": [],
+            "ema_fast": [], "ema_slow": [], "rsi": [],
+            "macd": [], "macd_signal": [], "macd_hist": [],
+            "atr": [], "roc": [], "rel_volume": [], "ts": [],
+        }
+        indicator_snapshot: dict[str, float | None] = {}
         if snap is not None and len(snap.candles) > 10:
-            ind = add_indicators(snap.candles, self.settings.strategy).tail(CHART_BARS)
+            full_ind = add_indicators(snap.candles, self.settings.strategy)
+            ind = full_ind.tail(CHART_BARS)
+
+            def clean_number(value: Any, digits: int = 8) -> float | None:
+                if value is None or pd.isna(value):
+                    return None
+                number = float(value)
+                if not pd.notna(number) or number in (float("inf"), float("-inf")):
+                    return None
+                return round(number, digits)
+
             chart = {
-                "open": [None if pd.isna(v) else round(float(v), 6) for v in ind["open"]],
-                "high": [None if pd.isna(v) else round(float(v), 6) for v in ind["high"]],
-                "low": [None if pd.isna(v) else round(float(v), 6) for v in ind["low"]],
-                "close": [None if pd.isna(v) else round(float(v), 6) for v in ind["close"]],
-                "ema_fast": [None if pd.isna(v) else round(float(v), 6) for v in ind["ema_fast"]],
-                "ema_slow": [None if pd.isna(v) else round(float(v), 6) for v in ind["ema_slow"]],
-                "ts": [float(v) for v in ind["ts"]],
+                key: [clean_number(value, 6) for value in ind[key]]
+                for key in (
+                    "open", "high", "low", "close", "ema_fast", "ema_slow",
+                    "rsi", "macd", "macd_signal", "macd_hist", "atr", "roc", "rel_volume",
+                )
+            }
+            chart["ts"] = [float(value) for value in ind["ts"]]
+            last = full_ind.iloc[-1]
+            indicator_snapshot = {
+                "ema_fast": clean_number(last["ema_fast"]),
+                "ema_slow": clean_number(last["ema_slow"]),
+                "rsi": clean_number(last["rsi"], 4),
+                "macd": clean_number(last["macd"]),
+                "macd_signal": clean_number(last["macd_signal"]),
+                "macd_hist": clean_number(last["macd_hist"]),
+                "atr": clean_number(last["atr"]),
+                "atr_pct_rank": clean_number(last["atr_pct_rank"], 4),
+                "roc": clean_number(last["roc"], 4),
+                "relative_volume": clean_number(last["rel_volume"], 4),
+                "ema_slope": clean_number(last["ema_slope"], 8),
+                "bar_ts": float(last["ts"]),
             }
 
         return {
@@ -416,6 +446,22 @@ class Engine:
                     self.risk.recent_expectancy(self.settings.risk.adaptive.expectancy_lookback), 4),
             },
             "chart": chart,
+            "indicators": indicator_snapshot,
+            "signal": self.last_signal.as_dict() if self.last_signal is not None else None,
+            "microstructure": {
+                "best_bid": snap.best_bid if snap is not None else None,
+                "best_ask": snap.best_ask if snap is not None else None,
+                "mid": ((snap.best_bid + snap.best_ask) / 2.0) if snap is not None else None,
+                "spread_bps": (
+                    snap.spread_bps
+                    if snap is not None and pd.notna(snap.spread_bps)
+                    and snap.spread_bps not in (float("inf"), float("-inf"))
+                    else None
+                ),
+                "quote_source": snap.source if snap is not None else "unavailable",
+                "depth_available": False,
+                "depth_note": "Order-book depth is not collected by the current market feed.",
+            },
             "markers": self.markers[-40:],
             "events": self.audit.recent_events(45),
             "last_tick_ts": self.last_tick_ts,
