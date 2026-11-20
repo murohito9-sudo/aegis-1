@@ -27,6 +27,8 @@ jobs:
         run: python -m unittest -v tests_v3
       - name: Demo and Python indicator parity sentinels
         run: python -m unittest -v tests_strategy_parity
+      - name: JARVIS unified intelligence contract
+        run: python -m unittest -v tests_jarvis_core
       - name: LIVE console regression tests
         run: python -m unittest -v tests_live_console
       - name: Smoke test (offline, tanpa jaringan)
