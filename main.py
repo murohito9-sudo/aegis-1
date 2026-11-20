@@ -47,6 +47,7 @@ from execution import (
 )
 from analytics import build_report, to_csv, to_markdown
 from brain import BriefingInput, compose as compose_briefing
+from jarvis_core import ProviderStatus, compose as compose_jarvis_intelligence
 from evaluation import EvaluationEngine
 from monitor import Scheduler, backup, check_health, write_heartbeat
 from portfolio import Holding, Portfolio
@@ -263,7 +264,45 @@ class Engine:
             concentration=self._portfolio().concentration(),
         )
         briefing = compose_briefing(payload)
-        return {**briefing.as_dict(), "text": briefing.to_text()}
+        intelligence = compose_jarvis_intelligence(
+            symbol=self.settings.symbol,
+            timeframe=self.settings.timeframe,
+            evaluated_at=time.time(),
+            strategy={
+                "side": payload.side,
+                "score": payload.score,
+                "regime": payload.regime,
+                "vetoes": payload.vetoes,
+                "htf_trend": payload.htf_trend,
+                "divergence": payload.divergence,
+                "pattern": payload.pattern,
+            },
+            market={
+                "source": snap.source if snap else "unavailable",
+                "observed_at": snap.ts if snap else None,
+            },
+            # Provider integrations are explicitly unavailable until real,
+            # timestamped adapters are connected. Never invent neutral votes.
+            providers=[
+                ProviderStatus(name="news", available=False, detail="provider adapter belum dihubungkan"),
+                ProviderStatus(name="onchain", available=False, detail="provider adapter belum dihubungkan"),
+                ProviderStatus(name="market_depth", available=False, detail="feed depth belum dihubungkan"),
+            ],
+            risk={
+                "mode": self.mode.value,
+                "blocked": bool(payload.vetoes),
+                "block_reason": payload.vetoes[0] if payload.vetoes else "",
+                "kill_switch": self.settings.kill_switch_file.exists(),
+                "drawdown": self.risk.drawdown(),
+                "daily_loss": self.risk.daily_loss(),
+                "exposure": payload.exposure,
+            },
+        )
+        return {
+            **briefing.as_dict(),
+            "text": briefing.to_text(),
+            "intelligence_core": intelligence.as_dict(),
+        }
 
     def _portfolio(self) -> Portfolio:
         snap = self.last_snapshot
