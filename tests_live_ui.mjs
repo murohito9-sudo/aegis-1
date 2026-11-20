@@ -17,7 +17,7 @@ const state = {
   analysis: {htf_trend:"up",divergence:"none",pattern:"bullish_engulfing",atr_pct_rank:0.42,squeeze:false},
   adaptive_risk: {multiplier:0.9},
   events: [{ts:now,level:"INFO",event:"tick",message:"Fixture tick processed"}],
-  indicators: {ema_fast:50180,ema_slow:50080,rsi:57.2,macd:102.5,macd_signal:88.2,macd_hist:14.3,atr:180.5,atr_pct_rank:0.42,roc:0.65,relative_volume:1.3,ema_slope:6.5,bar_ts:now-900},
+  indicators: {ema_fast:50180,ema_slow:50080,rsi:57.2,macd:102.5,macd_signal:88.2,macd_hist:14.3,atr:180.5,atr_pct_rank:0.42,roc:0.65,relative_volume:1.3,ema_slope:null,bar_ts:now-900},
   signal: {
     symbol:"BTC/USDT",bar_ts:now-900,side:null,score:0.76,entry:50300,stop:49900,take_profit:51100,
     reward_risk:2.0,regime:"trending_up",reasons:["EMA trend supports long","volume above baseline"],
@@ -112,6 +112,7 @@ try {
   if ((await page.locator("#research-state").textContent()).trim() !== "RESULTS AVAILABLE") throw new Error("Research data not rendered");
   if ((await page.locator("#indicator-rsi").textContent()).trim() !== "57.20") throw new Error("Python RSI telemetry not rendered");
   if ((await page.locator("#indicator-macd").textContent()).trim() !== "14.300000") throw new Error("MACD histogram not rendered");
+  if ((await page.locator("#indicator-slope").textContent()).trim() !== "—") throw new Error("Missing indicator telemetry must not render as zero");
   if ((await page.locator("#signal-side").textContent()).trim() !== "LONG") throw new Error("Strategy candidate not rendered");
   if ((await page.locator("#signal-components tr").count()) !== 8) throw new Error("Weighted confluence components not rendered");
   if ((await page.locator("#micro-spread").textContent()).trim() !== "0.40 bps") throw new Error("Quote spread not rendered");
