@@ -78,6 +78,7 @@ await new Promise(resolve => server.listen(0,"127.0.0.1",resolve));
 const {port} = server.address();
 const browser = await chromium.launch({headless:true,args:["--no-sandbox"]});
 const page = await browser.newPage({viewport:{width:1440,height:1000}});
+page.setDefaultTimeout(8000);
 const pageErrors = [];
 let csrfValid = true;
 let researchRequests = 0;
@@ -96,6 +97,8 @@ await page.route("**/api/**",async route=>{
 
 try {
   await page.goto("http://127.0.0.1:" + port + "/live",{waitUntil:"domcontentloaded"});
+  await page.waitForTimeout(250);
+  if (pageErrors.length) throw new Error("Browser runtime errors before initial render: " + pageErrors.join(" | "));
   await page.waitForFunction(()=>document.querySelector("#k-mode")?.textContent==="PAPER" &&
     document.querySelector("#position-count")?.textContent==="1 positions" &&
     document.querySelector("#report-trades")?.textContent==="12");
