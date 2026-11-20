@@ -37,7 +37,7 @@ class LiveConsoleTests(unittest.TestCase):
         self.csrf = match.group(1)
 
     def test_live_console_route_injects_session_csrf(self):
-        self.assertIn("LIVE Operations", self.page.text)
+        self.assertIn("Live Operations", self.page.text)
         self.assertIn("READ-ONLY CONSOLE", self.page.text)
         self.assertNotIn("__AEGIS_CSRF__", self.page.text)
 
