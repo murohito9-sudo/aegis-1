@@ -21,7 +21,14 @@ const state = {
 };
 const fixtures = {
   "/api/state": state,
-  "/api/history": {orders:[{ts:now,symbol:"BTC/USDT",side:"BUY",type:"LIMIT",qty:0.01,price:50000,status:"OPEN"}],trades:[],signals:[]},
+  "/api/history": {
+    orders:[{ts:now,symbol:"BTC/USDT",side:"BUY",type:"LIMIT",qty:0.01,price:50000,status:"OPEN"}],
+    trades:[{closed_at:now,symbol:"BTC/USDT",side:"LONG",pnl:28,r_multiple:1.2,close_reason:"take_profit"}],
+    signals:[{ts:now,symbol:"BTC/USDT",side:"LONG",score:0.82,action:"paper_entry"}]
+  },
+  "/api/briefing": {decision:"tunggu",confidence:0.66,situation:"BTC/USDT market fixture",evidence:["HTF up"],risks:["spread wide"],actions:["wait for next closed bar"]},
+  "/api/portfolio": {quote:"USDT",total_value:10020,cash:9950,invested:70,pnl:20,concentration:0.98,holdings:[{symbol:"BTC/USDT",qty:0.0014,value:70,weight:0.007,pnl:20}]},
+  "/api/research": {available:true,samples:30,walk_forward:{window_count:3,test_summary:{avg_r:0.12,win_rate:0.56}},monte_carlo:{max_drawdown:{p95:0.08},probability_below_start:0.21},assumptions:{source:"fixture",risk_fraction_note:"illustrative only"}},
   "/api/live/status": {
     mode:"PAPER",exchange:"binance",live_requested:false,adapter:"paper",
     adapter_present:false,adapter_connected:false,dry_run:true,orders_sent:0,
@@ -72,6 +79,11 @@ try {
   if ((await page.locator("#positions tbody tr").count()) !== 1) throw new Error("Position row not rendered");
   if ((await page.locator("#orders tbody tr").count()) !== 1) throw new Error("Order row not rendered");
   if ((await page.locator("#events .event").count()) !== 1) throw new Error("Audit event not rendered");
+  if ((await page.locator("#portfolio-holdings tbody tr").count()) !== 1) throw new Error("Portfolio holding not rendered");
+  if ((await page.locator("#closed-trades tbody tr").count()) !== 1) throw new Error("Closed trade history not rendered");
+  if ((await page.locator("#signals tbody tr").count()) !== 1) throw new Error("Signal history not rendered");
+  if ((await page.locator("#briefing-decision").textContent()).trim() !== "tunggu") throw new Error("Briefing not rendered");
+  if ((await page.locator("#research-state").textContent()).trim() !== "RESULTS AVAILABLE") throw new Error("Research data not rendered");
   if (!csrfValid) throw new Error("One or more API requests omitted the CSRF header");
 
   const viewports = [];
