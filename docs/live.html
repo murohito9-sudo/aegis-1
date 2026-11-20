@@ -3,42 +3,56 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AEGIS-ONE — LIVE status</title>
+<meta name="theme-color" content="#08111d">
+<title>AEGIS-ONE — LIVE integration</title>
 <style>
-:root{color-scheme:dark;--bg:#0b0f14;--panel:#121923;--line:#263243;--text:#e5edf7;--muted:#9aa8ba;--warn:#f5bd55;--blue:#78b7ff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.65 Inter,system-ui,sans-serif}
-header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
-a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
-main{max-width:850px;margin:56px auto;padding:0 22px}.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-h1{font-size:clamp(28px,5vw,42px);line-height:1.15;margin:12px 0 18px}
-p{color:var(--muted)}.panel{margin-top:26px;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
-.status{display:inline-block;padding:5px 10px;border-radius:999px;border:1px solid #755b24;color:var(--warn);font-size:12px;font-weight:700;letter-spacing:.08em}
-ul{color:var(--muted);padding-left:22px}li{margin:8px 0}.foot{margin-top:38px;padding-top:18px;border-top:1px solid var(--line);font-size:13px}
+:root{color-scheme:dark;--bg:#08111d;--panel:#111e2d;--line:#283d55;--text:#e7eff9;--muted:#9aabc0;--blue:#78baff;--cyan:#58dce0;--amber:#f2bf68}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#152c45,transparent 42%),var(--bg);color:var(--text);font:15px/1.65 Inter,system-ui,sans-serif}
+header{padding:17px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+main{max-width:1000px;margin:42px auto;padding:0 22px}.eyebrow{font:11px ui-monospace,monospace;letter-spacing:.2em;color:var(--cyan);text-transform:uppercase}
+h1{font-size:clamp(30px,5vw,48px);line-height:1.1;margin:12px 0}.lead{color:var(--muted);max-width:760px}
+.panel{margin-top:18px;padding:20px;border:1px solid var(--line);border-radius:13px;background:linear-gradient(145deg,#142337,#101a27)}
+.pill{display:inline-block;padding:5px 10px;border:1px solid #76582c;border-radius:999px;color:var(--amber);font:700 11px ui-monospace,monospace;letter-spacing:.08em}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.item{padding:12px;border:1px solid #263a50;border-radius:8px}.item b{display:block;font:700 11px ui-monospace,monospace;letter-spacing:.1em;color:#b9cbe0}.item p{margin:6px 0 0;color:var(--muted);font-size:13px}
+code{background:#07101b;padding:3px 6px;border-radius:5px;color:#a9d4ff}.cta{display:inline-block;border:1px solid #42688f;background:#193452;padding:10px 14px;border-radius:8px;color:#e6f2ff;font-weight:700;margin:7px 8px 0 0}
+ul{color:var(--muted);padding-left:22px}li{margin:7px 0}.foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font:10px ui-monospace,monospace;color:var(--muted)}
+@media(max-width:650px){.grid{grid-template-columns:1fr}header{padding:14px 16px}main{margin:28px auto;padding:0 16px}}
 </style>
 </head>
 <body>
-<header><strong>AEGIS-ONE <span style="color:var(--muted);font-weight:400">/ SYSTEM STATUS</span></strong>
-<nav><a href="./index.html">Mode</a> · <a href="./demo.html">DEMO</a> · <a href="https://github.com/murohito9-sudo/aegis-one">Repository</a></nav></header>
+<header><strong>AEGIS-ONE <span style="color:var(--muted);font-weight:400">/ EXECUTION STATUS</span></strong><nav><a href="./index.html">Platform</a> · <a href="./demo.html">PAPER / DEMO</a> · <a href="https://github.com/murohito9-sudo/aegis-one">Repository</a></nav></header>
 <main>
-<div class="eyebrow">Execution environment</div>
-<h1>LIVE integration</h1>
-<span class="status">RESTRICTED · NOT VALIDATED</span>
-<p>Repository ini mempertahankan kode adapter LIVE sebagai bagian dari arsitektur yang sudah ada. Keberadaan kode tersebut tidak berarti integrasi telah diverifikasi, aman digunakan, atau siap produksi.</p>
+<div class="eyebrow">Execution environment / local control plane</div>
+<h1>LIVE Operations</h1>
+<span class="pill">LIVE EXECUTION LOCKED · READ-ONLY</span>
+<p class="lead">Jalur LIVE sedang dikembangkan sebagai bagian dari backend Python yang sama. Halaman publik GitHub Pages ini menjelaskan status integrasi; ia tidak terhubung ke akun exchange, tidak membaca kredensial, dan bukan dashboard runtime.</p>
 <section class="panel">
-<h2>Development policy</h2>
+<h2>Local operations console</h2>
+<p>Untuk melihat runtime backend secara langsung, jalankan aplikasi lokal dalam lingkungan PAPER lalu buka halaman konsol operasional:</p>
+<p><code>http://127.0.0.1:8787/live</code></p>
+<a class="cta" href="http://127.0.0.1:8787/live">Open local operations console ↗</a>
+<a class="cta" href="./demo.html">Open PAPER / DEMO ↗</a>
+<p>Console lokal membaca state, chart candle, indikator, posisi simulasi, riwayat order, risiko, health, analitik, dan audit event melalui API backend. Endpoint status adapter hanya menampilkan informasi operasional yang sudah disanitasi.</p>
+</section>
+<section class="panel">
+<h2>Current verification boundary</h2>
+<div class="grid">
+<div class="item"><b>VERIFIED IN REPOSITORY</b><p>Mode PAPER, feed market, indikator/strategi bersama, risk manager, audit log, reporting, monitoring, dan tampilan responsif diuji melalui fixture/offline CI.</p></div>
+<div class="item"><b>NOT VERIFIED</b><p>Live account authorization, state reconciliation end-to-end, partial-fill aggregation dengan proteksi exchange, pemulihan proses, dan koneksi akun nyata.</p></div>
+</div>
 <ul>
-<li>Pengembangan dan validasi AEGIS-ONE dilakukan pada lingkungan PAPER / simulasi.</li>
-<li>Tidak ada akun, kredensial, saldo, atau order nyata yang digunakan dalam pengujian.</li>
-<li>Pengujian integrasi menggunakan mock, fixture, dan simulasi offline.</li>
-<li>Halaman ini hanya menyampaikan status; halaman ini bukan konsol eksekusi dan tidak menyediakan panduan aktivasi.</li>
+<li>Engine V3 tetap menolak startup saat LIVE diminta. Tidak ada bypass pada konsol browser.</li>
+<li>Halaman operasional bersifat read-only dan tidak mempunyai tombol kirim order.</li>
+<li>Jangan memasukkan API key atau secret ke halaman web, browser console, issue, atau log.</li>
+<li>Pengujian yang tercatat di CI tidak membuktikan keamanan atau kesiapan produksi akun exchange.</li>
 </ul>
 </section>
 <section class="panel">
-<h2>What is verified?</h2>
-<p>CI memeriksa unit tests dan smoke test offline pada Python 3.11 dan 3.12. Hasil tersebut tidak memvalidasi koneksi exchange atau perilaku LIVE.</p>
-<p>Untuk melihat implementasi dan batasan yang terdokumentasi, baca <a href="https://github.com/murohito9-sudo/aegis-one/blob/main/README.md">README repository</a> dan <a href="https://github.com/murohito9-sudo/aegis-one/pulls">Pull Requests</a>.</p>
+<h2>Architecture target</h2>
+<p>Demo dan LIVE harus menggunakan market intelligence, indikator, strategi, risk engine, dan kontrak dashboard yang sama. Perbedaannya berada di adapter data/eksekusi serta ledger yang dipisahkan. LIVE hanya dapat dipertimbangkan setelah seluruh acceptance gate direview dan diuji menggunakan mock dan environment test yang terisolasi.</p>
+<p><a href="https://github.com/murohito9-sudo/aegis-one/pulls">Review branches and pull requests ↗</a> · <a href="https://github.com/murohito9-sudo/aegis-one/blob/main/README.md">Repository README ↗</a></p>
 </section>
-<div class="foot">AEGIS-ONE · INTELLIGENCE. PRECISION. CONTROL.</div>
+<div class="foot">AEGIS-ONE · INTELLIGENCE. PRECISION. CONTROL. · LIVE IS NOT ENABLED</div>
 </main>
 </body>
 </html>
