@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="aegis-csrf" content="__AEGIS_CSRF__">
+<meta name="theme-color" content="#080d16">
+<title>AEGIS-ONE — Live Operations</title>
+<style>
+:root{color-scheme:dark;--bg:#080d16;--panel:#101a28;--panel2:#142235;--line:#24364c;--text:#e8f0fa;--muted:#91a2b8;--blue:#73b7ff;--cyan:#54d7dc;--green:#52d6a0;--amber:#f2bd63;--red:#ff777e;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#13243a 0,transparent 38%),var(--bg);color:var(--text);font:14px/1.55 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}button{font:inherit;color:inherit}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px;border-bottom:1px solid var(--line);background:#080d16dd;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}
+.brand{font-weight:800;letter-spacing:.12em}.brand small{display:block;color:var(--muted);font:10px var(--mono);letter-spacing:.2em;margin-top:2px}
+.top-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.chip,.pill{border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--muted);font:11px var(--mono);letter-spacing:.04em}
+.pill{color:var(--amber);border-color:#785a2c;background:#4b35151f;font-weight:800}.pill.good{color:var(--green);border-color:#28644e}.pill.bad{color:var(--red);border-color:#713b43}
+main{max-width:1500px;margin:0 auto;padding:24px}
+.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:18px}.eyebrow{font:11px var(--mono);letter-spacing:.22em;color:var(--cyan);text-transform:uppercase}
+h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:8px 0}.sub{color:var(--muted);max-width:760px;margin:0}
+.actions{display:flex;align-items:center;gap:8px}.btn{border:1px solid #34506f;background:#14263a;color:var(--text);border-radius:8px;padding:9px 13px;cursor:pointer;font-weight:700;font-size:12px}.btn:hover{border-color:var(--blue);background:#1a3049}.btn:disabled{opacity:.55;cursor:wait}
+.notice{padding:12px 15px;border:1px solid #72552a;background:#4b35151f;border-radius:10px;color:#f0d29c;margin:18px 0 20px}.notice strong{color:#ffda91}
+.grid{display:grid;gap:12px}.kpis{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px}.layout{grid-template-columns:minmax(0,1.8fr) minmax(300px,1fr);align-items:start}.cols{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{background:linear-gradient(150deg,#121e2d,#0f1825);border:1px solid var(--line);border-radius:12px;padding:15px;min-width:0;box-shadow:0 12px 30px #0002}
+.kpi-label,.section-label{font:10px var(--mono);text-transform:uppercase;letter-spacing:.13em;color:var(--muted)}.kpi-value{font:700 clamp(19px,2.4vw,27px) var(--mono);margin:7px 0 3px;overflow-wrap:anywhere}.kpi-sub{font-size:11px;color:var(--muted)}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.card-head h2{font:700 11px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:#bdcde0;margin:0}.meta{font:10px var(--mono);color:var(--muted)}
+.chart-wrap{height:280px;position:relative}canvas{display:block;width:100%;height:100%}.empty{color:var(--muted);padding:18px;text-align:center;font-size:12px}
+.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.status-item{border:1px solid #22354a;border-radius:8px;padding:10px;background:#0d1724}.status-item span{display:block;font:10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.status-item b{display:block;font:600 13px var(--mono);margin-top:5px;overflow-wrap:anywhere}
+.risk{display:grid;gap:13px}.risk-row{display:grid;gap:5px}.risk-top{display:flex;justify-content:space-between;gap:10px;font-size:12px}.risk-top span:first-child{color:var(--muted)}.risk-top b{font:11px var(--mono)}.track{height:6px;background:#1c2d41;border-radius:9px;overflow:hidden}.track i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--blue));border-radius:9px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}th{text-align:left;color:var(--muted);font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;padding:9px;border-bottom:1px solid var(--line)}td{padding:9px;border-bottom:1px solid #1b2a3c;color:#d6e1ee}tbody tr:last-child td{border-bottom:0}.positive{color:var(--green)}.negative{color:var(--red)}.muted{color:var(--muted)}
+.events{display:grid;gap:0;max-height:330px;overflow:auto}.event{display:grid;grid-template-columns:125px 78px minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid #1b2a3c;font-size:11px}.event time,.event .kind{font:10px var(--mono);color:var(--muted)}.event .message{overflow-wrap:anywhere}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:15px;margin-top:20px;color:var(--muted);font:10px var(--mono)}
+@media(max-width:980px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}}
+@media(max-width:600px){main{padding:15px}.top{padding:12px 15px}.chip{display:none}.cols{grid-template-columns:1fr}.event{grid-template-columns:85px 65px minmax(0,1fr)}.chart-wrap{height:220px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">AEGIS-ONE<small>LIVE OPERATIONS CONSOLE · LOCAL BACKEND</small></div>
+  <div class="top-right">
+    <span class="chip" id="connection">BACKEND: CONNECTING</span>
+    <span class="pill" id="execution-pill">LIVE EXECUTION LOCKED</span>
+    <a class="chip" href="/">PAPER DASHBOARD</a>
+  </div>
+</header>
+<main>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Operational intelligence / 01</div>
+      <h1>Live Operations</h1>
+      <p class="sub">Panel observabilitas untuk market feed, broker adapter, posisi, order, risiko, dan audit. Data berasal dari proses backend lokal, bukan angka demonstrasi statis.</p>
+    </div>
+    <div class="actions">
+      <span class="meta" id="updated">Belum diperbarui</span>
+      <button class="btn" id="refresh" type="button">↻ Refresh data</button>
+    </div>
+  </section>
+  <div class="notice" role="status"><strong>EXECUTION LOCKED.</strong> Konsol ini bersifat read-only. V3 belum mengizinkan pengiriman order LIVE; halaman ini tidak menyediakan tombol beli/jual atau akses kredensial. Mode PAPER tetap dapat dipantau sepenuhnya.</div>
+
+  <section class="grid kpis" aria-label="Ringkasan runtime">
+    <article class="card"><div class="kpi-label">Runtime mode</div><div class="kpi-value" id="k-mode">—</div><div class="kpi-sub" id="k-broker">Broker —</div></article>
+    <article class="card"><div class="kpi-label">Equity</div><div class="kpi-value" id="k-equity">—</div><div class="kpi-sub" id="k-equity-sub">Initial equity —</div></article>
+    <article class="card"><div class="kpi-label">Free balance</div><div class="kpi-value" id="k-balance">—</div><div class="kpi-sub" id="k-quote">Quote currency —</div></article>
+    <article class="card"><div class="kpi-label">Unrealized PnL</div><div class="kpi-value" id="k-pnl">—</div><div class="kpi-sub" id="k-realized">Realized —</div></article>
+  </section>
+
+  <section class="grid layout">
+    <div class="grid">
+      <article class="card">
+        <div class="card-head"><h2>Market & indicator stream</h2><span class="meta" id="market-meta">—</span></div>
+        <div class="status-grid" style="margin-bottom:12px">
+          <div class="status-item"><span>Symbol / timeframe</span><b id="market-symbol">—</b></div>
+          <div class="status-item"><span>Last price</span><b id="market-price">—</b></div>
+          <div class="status-item"><span>Data source</span><b id="market-source">—</b></div>
+          <div class="status-item"><span>Data quality gate</span><b id="market-gate">—</b></div>
+        </div>
+        <div class="chart-wrap"><canvas id="price-chart" aria-label="Close price and EMA chart"></canvas></div>
+        <div class="meta">CLOSE · EMA FAST · EMA SLOW / CLOSED BARS FROM BACKEND</div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Open positions</h2><span class="meta" id="position-count">0 positions</span></div>
+        <div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>Stop</th><th>Target</th><th>Unrealized</th><th>R</th><th>Age</th><th>Trail</th><th>Protection</th></tr></thead><tbody id="positions"><tr><td colspan="12" class="muted">Menunggu data posisi…</td></tr></tbody></table></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Order book / execution history</h2><span class="meta">LATEST 12</span></div>
+        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Filled</th><th>Avg fill</th><th>Fee</th><th>Status</th><th>Exchange ID</th></tr></thead><tbody id="orders"><tr><td colspan="10" class="muted">Menunggu riwayat order…</td></tr></tbody></table></div>
+      </article>
+    </div>
+    <aside class="grid">
+      <article class="card">
+        <div class="card-head"><h2>Live adapter status</h2><span class="pill" id="adapter-state">LOCKED</span></div>
+        <div class="status-grid">
+          <div class="status-item"><span>Adapter</span><b id="adapter-name">—</b></div>
+          <div class="status-item"><span>Exchange connectivity</span><b id="adapter-connectivity">—</b></div>
+          <div class="status-item"><span>Dry-run state</span><b id="adapter-dryrun">—</b></div>
+          <div class="status-item"><span>Configured symbol allowlist</span><b id="adapter-symbols">—</b></div>
+          <div class="status-item"><span>Orders sent / rejected</span><b id="adapter-orders">—</b></div>
+          <div class="status-item"><span>Last reconciliation</span><b id="adapter-reconcile">—</b></div>
+        </div>
+        <p class="kpi-sub" id="adapter-reason" style="margin:12px 0 0">Status adapter akan dimuat dari backend.</p>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Risk controls</h2><span class="meta" id="risk-slots">—</span></div>
+        <div class="risk">
+          <div class="risk-row"><div class="risk-top"><span>Risk / trade</span><b id="risk-per-trade">—</b></div><div class="track"><i id="risk-bar-trade"></i></div></div>
+          <div class="risk-row"><div class="risk-top"><span>Daily loss / limit</span><b id="risk-daily">—</b></div><div class="track"><i id="risk-bar-daily"></i></div></div>
+          <div class="risk-row"><div class="risk-top"><span>Exposure / limit</span><b id="risk-exposure">—</b></div><div class="track"><i id="risk-bar-exposure"></i></div></div>
+          <div class="risk-row"><div class="risk-top"><span>Drawdown / limit</span><b id="risk-drawdown">—</b></div><div class="track"><i id="risk-bar-drawdown"></i></div></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Intelligence snapshot</h2><span class="meta">ENGINE OUTPUT</span></div>
+        <div class="status-grid">
+          <div class="status-item"><span>HTF trend</span><b id="intel-htf">—</b></div>
+          <div class="status-item"><span>Divergence</span><b id="intel-divergence">—</b></div>
+          <div class="status-item"><span>Candle pattern</span><b id="intel-pattern">—</b></div>
+          <div class="status-item"><span>Volatility rank</span><b id="intel-atr">—</b></div>
+          <div class="status-item"><span>Volatility squeeze</span><b id="intel-squeeze">—</b></div>
+          <div class="status-item"><span>Adaptive risk</span><b id="intel-adaptive">—</b></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>System health</h2><span class="pill" id="health-state">WAITING</span></div>
+        <div class="status-grid">
+          <div class="status-item"><span>Uptime</span><b id="health-uptime">—</b></div>
+          <div class="status-item"><span>Last tick age</span><b id="health-tick">—</b></div>
+          <div class="status-item"><span>Tick count</span><b id="health-count">—</b></div>
+          <div class="status-item"><span>Consecutive errors</span><b id="health-errors">—</b></div>
+        </div>
+        <p class="kpi-sub" id="health-issues" style="margin:12px 0 0">Health check belum diterima.</p>
+      </article>
+    </aside>
+  </section>
+
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Recent audit events</h2><span class="meta">BACKEND AUDIT LOG</span></div>
+      <div class="events" id="events"><div class="empty">Menunggu audit events…</div></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Closed trade analytics</h2><span class="meta">AUDIT REPORT</span></div>
+        <div class="actions" style="margin-bottom:12px"><button class="btn" id="export-csv" type="button">Export CSV</button><button class="btn" id="export-md" type="button">Export Markdown</button></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Closed trades</span><b id="report-trades">—</b></div>
+        <div class="status-item"><span>Win rate</span><b id="report-winrate">—</b></div>
+        <div class="status-item"><span>Profit factor</span><b id="report-pf">—</b></div>
+        <div class="status-item"><span>Max drawdown</span><b id="report-dd">—</b></div>
+        <div class="status-item"><span>Net PnL</span><b id="report-pnl">—</b></div>
+        <div class="status-item"><span>Expectancy</span><b id="report-exp">—</b></div>
+        <div class="status-item"><span>Total fees</span><b id="report-fees">—</b></div>
+        <div class="status-item"><span>Average slippage</span><b id="report-slippage">—</b></div>
+        <div class="status-item"><span>Sharpe / trade</span><b id="report-sharpe">—</b></div>
+        <div class="status-item"><span>Sortino / trade</span><b id="report-sortino">—</b></div>
+      </div>
+    </article>
+  </section>
+
+
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Technical indicator telemetry</h2><span class="meta">PYTHON ENGINE · CLOSED BARS</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>RSI (configured period)</span><b id="indicator-rsi">—</b></div>
+        <div class="status-item"><span>MACD histogram</span><b id="indicator-macd">—</b></div>
+        <div class="status-item"><span>ATR</span><b id="indicator-atr">—</b></div>
+        <div class="status-item"><span>ATR percentile rank</span><b id="indicator-atr-rank">—</b></div>
+        <div class="status-item"><span>Rate of change</span><b id="indicator-roc">—</b></div>
+        <div class="status-item"><span>Relative volume</span><b id="indicator-rel-volume">—</b></div>
+        <div class="status-item"><span>EMA fast / slow</span><b id="indicator-emas">—</b></div>
+        <div class="status-item"><span>EMA slow slope</span><b id="indicator-slope">—</b></div>
+      </div>
+      <div class="section-label" style="margin-top:14px">RSI series</div>
+      <div class="chart-wrap" style="height:130px"><canvas id="rsi-chart" aria-label="RSI values computed by Python engine"></canvas></div>
+      <div class="section-label" style="margin-top:12px">MACD line / signal / histogram</div>
+      <div class="chart-wrap" style="height:130px"><canvas id="macd-chart" aria-label="MACD values computed by Python engine"></canvas></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Strategy confluence diagnostics</h2><span class="pill" id="signal-state">WAITING</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Candidate side</span><b id="signal-side">—</b></div>
+        <div class="status-item"><span>Candidate score</span><b id="signal-score">—</b></div>
+        <div class="status-item"><span>Required threshold</span><b id="signal-threshold">—</b></div>
+        <div class="status-item"><span>Regime</span><b id="signal-regime">—</b></div>
+        <div class="status-item"><span>Reward / risk</span><b id="signal-rr">—</b></div>
+        <div class="status-item"><span>Score margin</span><b id="signal-margin">—</b></div>
+        <div class="status-item"><span>Signal age</span><b id="signal-age">—</b></div>
+      </div>
+      <div class="section-label" style="margin-top:14px">Confluence components / weighted votes</div>
+      <div class="table-wrap"><table><thead><tr><th>Component</th><th>Passed</th><th>Weight</th><th>Contribution</th></tr></thead><tbody id="signal-components"><tr><td colspan="4" class="muted">Menunggu diagnostik strategi…</td></tr></tbody></table></div>
+      <div class="section-label" style="margin-top:12px">Reasons</div><div class="events" id="signal-reasons"></div>
+      <div class="section-label" style="margin-top:12px">Vetoes / blockers</div><div class="events" id="signal-vetoes"></div>
+      <div class="status-grid" style="margin-top:12px">
+        <div class="status-item"><span>Market structure</span><b id="signal-bos">—</b></div>
+        <div class="status-item"><span>Support / resistance</span><b id="signal-levels">—</b></div>
+      </div>
+    </article>
+  </section>
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Quote microstructure</h2><span class="meta">ACTUAL QUOTE FIELDS ONLY</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Best bid</span><b id="micro-bid">—</b></div>
+        <div class="status-item"><span>Best ask</span><b id="micro-ask">—</b></div>
+        <div class="status-item"><span>Mid price</span><b id="micro-mid">—</b></div>
+        <div class="status-item"><span>Bid / ask spread</span><b id="micro-spread">—</b></div>
+        <div class="status-item"><span>Quote source</span><b id="micro-source">—</b></div>
+      </div>
+      <p class="kpi-sub" id="micro-depth-note" style="margin:12px 0 0">Order-book depth belum tersedia.</p>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Strategy status interpretation</h2><span class="meta">NO CLIENT-SIDE SIGNAL RECOMPUTE</span></div>
+      <p class="kpi-sub" id="signal-explanation">Rincian ini akan mengikuti output strategi dan veto dari backend Python. Tampilan browser tidak membuat sinyal baru.</p>
+    </article>
+  </section>
+
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Deterministic intelligence briefing</h2><span class="meta">BACKEND / RULE-BASED</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Engine decision</span><b id="briefing-decision">—</b></div>
+        <div class="status-item"><span>Confidence score</span><b id="briefing-confidence">—</b></div>
+      </div>
+      <p id="briefing-situation" class="kpi-sub" style="margin:12px 0">Briefing belum dimuat.</p>
+      <div class="section-label">Evidence</div><div id="briefing-evidence" class="events"></div>
+      <div class="section-label" style="margin-top:10px">Risk notes</div><div id="briefing-risks" class="events"></div>
+      <div class="section-label" style="margin-top:10px">Suggested workflow</div><div id="briefing-actions" class="events"></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Portfolio overview</h2><span class="meta">BACKEND SNAPSHOT</span></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Total value</span><b id="portfolio-total">—</b></div>
+        <div class="status-item"><span>Cash / invested</span><b id="portfolio-cash">—</b></div>
+        <div class="status-item"><span>Unrealized holding PnL</span><b id="portfolio-pnl">—</b></div>
+        <div class="status-item"><span>Concentration (HHI)</span><b id="portfolio-concentration">—</b></div>
+      </div>
+      <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Asset</th><th>Qty</th><th>Market value</th><th>Weight</th><th>PnL</th></tr></thead><tbody id="portfolio-holdings"><tr><td colspan="5" class="muted">Menunggu snapshot portofolio…</td></tr></tbody></table></div>
+    </article>
+  </section>
+
+  <section class="grid cols" style="margin-top:12px">
+    <article class="card">
+      <div class="card-head"><h2>Research & evaluation</h2><div class="actions"><button class="btn" id="research-refresh" type="button">↻ Run research</button><span class="pill" id="research-state">WAITING</span></div></div>
+      <div class="status-grid">
+        <div class="status-item"><span>Closed samples</span><b id="research-samples">—</b></div>
+        <div class="status-item"><span>Walk-forward windows</span><b id="research-windows">—</b></div>
+        <div class="status-item"><span>Out-of-sample average R</span><b id="research-average-r">—</b></div>
+        <div class="status-item"><span>Out-of-sample win rate</span><b id="research-win-rate">—</b></div>
+        <div class="status-item"><span>Monte Carlo p95 drawdown</span><b id="research-p95-dd">—</b></div>
+        <div class="status-item"><span>Below-start probability</span><b id="research-below-start">—</b></div>
+      </div>
+      <p class="kpi-sub" id="research-note" style="margin:12px 0 0">Research memakai data yang tersedia di backend; hasil yang belum cukup sampel akan ditandai.</p>
+    </article>
+    <article class="card">
+      <div class="card-head"><h2>Trade & signal history</h2><span class="meta">LATEST BACKEND RECORDS</span></div>
+      <div class="section-label">Closed trades</div>
+      <div class="table-wrap" style="margin-bottom:13px"><table><thead><tr><th>Closed</th><th>Symbol</th><th>Side</th><th>PnL</th><th>R</th><th>Reason</th></tr></thead><tbody id="closed-trades"><tr><td colspan="6" class="muted">No closed trades loaded.</td></tr></tbody></table></div>
+      <div class="section-label">Recent signals</div>
+      <div class="table-wrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Score</th><th>Action</th></tr></thead><tbody id="signals"><tr><td colspan="5" class="muted">No signals loaded.</td></tr></tbody></table></div>
+    </article>
+  </section>
+
+  <footer class="foot"><span>AEGIS-ONE · OBSERVABILITY / AUDIT / CONTROL</span><span>READ-ONLY CONSOLE · NO ORDER SUBMISSION</span></footer>
+</main>
+<script>
+(() => {
+  "use strict";
+  const token = document.querySelector('meta[name="aegis-csrf"]')?.content || "";
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v, d = 2) => {
+    if (v === null || v === undefined || v === "") return "—";
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString("en-US", {minimumFractionDigits:d, maximumFractionDigits:d}) : "—";
+  };
+  const pct = (v) => {
+    if (v === null || v === undefined || v === "") return "—";
+    const n = Number(v);
+    return Number.isFinite(n) ? (n * 100).toFixed(2) + "%" : "—";
+  };
+  const ago = (seconds) => {
+    const n = Number(seconds);
+    if (!Number.isFinite(n) || n <= 0) return "—";
+    if (n < 60) return Math.round(n) + "s ago";
+    if (n < 3600) return Math.floor(n / 60) + "m ago";
+    return Math.floor(n / 3600) + "h ago";
+  };
+  const timestamp = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? new Date(n * 1000).toLocaleTimeString("id-ID", {hour12:false}) : "—";
+  };
+  const set = (id, value) => { const el = $(id); if (el) el.textContent = value == null ? "—" : String(value); };
+  const signed = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "—";
+    return (n > 0 ? "+" : "") + fmt(n);
+  };
+  async function api(path) {
+    const response = await fetch(path, {headers: {"X-AEGIS-CSRF": token}, cache: "no-store"});
+    if (!response.ok) throw new Error(path + " HTTP " + response.status);
+    return response.json();
+  }
+  function tableRows(id, rows, columns, emptyText) {
+    const body = $(id);
+    body.replaceChildren();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      const tr = document.createElement("tr"), td = document.createElement("td");
+      td.colSpan = columns.length; td.className = "muted"; td.textContent = emptyText;
+      tr.appendChild(td); body.appendChild(tr); return;
+    }
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      columns.forEach((column) => {
+        const td = document.createElement("td");
+        const value = column.value(row);
+        td.textContent = value == null || value === "" ? "—" : String(value);
+        if (column.className) td.className = column.className(row);
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+  }
+  function setBar(id, ratio) {
+    const n = Number(ratio);
+    $(id).style.width = (Number.isFinite(n) ? Math.max(0, Math.min(100, n * 100)) : 0) + "%";
+  }
+  function drawChart(chart) {
+    const canvas = $("price-chart"), rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const width = Math.max(300, rect.width), height = Math.max(180, rect.height);
+    canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+    const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, width, height);
+    const close = Array.isArray(chart?.close) ? chart.close.map(v => v == null ? NaN : Number(v)).filter(Number.isFinite) : [];
+    const fast = Array.isArray(chart?.ema_fast) ? chart.ema_fast.map(v => v == null ? NaN : Number(v)) : [];
+    const slow = Array.isArray(chart?.ema_slow) ? chart.ema_slow.map(v => v == null ? NaN : Number(v)) : [];
+    if (close.length < 2) {
+      ctx.fillStyle = "#91a2b8"; ctx.font = "12px system-ui"; ctx.textAlign = "center";
+      ctx.fillText("Menunggu candle dari backend", width / 2, height / 2); return;
+    }
+    const all = close.concat(fast.filter(Number.isFinite), slow.filter(Number.isFinite));
+    let min = Math.min(...all), max = Math.max(...all);
+    const pad = Math.max((max - min) * .12, Math.abs(max) * .0005, .000001);
+    min -= pad; max += pad;
+    const left = 8, right = width - 8, top = 12, bottom = height - 20;
+    const x = (i) => left + (right - left) * i / Math.max(1, close.length - 1);
+    const y = (v) => bottom - (v - min) / (max - min) * (bottom - top);
+    ctx.strokeStyle = "#20344a"; ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) { const yy = top + (bottom - top) * i / 3; ctx.beginPath(); ctx.moveTo(left, yy); ctx.lineTo(right, yy); ctx.stroke(); }
+    const line = (values, color, lineWidth) => {
+      ctx.strokeStyle = color; ctx.lineWidth = lineWidth; ctx.beginPath(); let active = false;
+      values.forEach((value, i) => { if (!Number.isFinite(value)) { active = false; return; } if (!active) { ctx.moveTo(x(i), y(value)); active = true; } else ctx.lineTo(x(i), y(value)); });
+      ctx.stroke();
+    };
+    line(slow, "#e6b85f", 1.4); line(fast, "#59cbd8", 1.5); line(close, "#76b8ff", 2);
+  }
+  function drawIndicatorChart(id, series, options = {}) {
+    const canvas=$(id), rect=canvas.getBoundingClientRect(), dpr=Math.max(1,window.devicePixelRatio||1);
+    const width=Math.max(260,rect.width),height=Math.max(90,rect.height);
+    canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+    const values=series.flatMap(item=>(item.values||[]).map(v=>v==null?NaN:Number(v)).filter(Number.isFinite));
+    if(values.length<2){ctx.fillStyle="#91a2b8";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText("Menunggu bar tertutup dari backend",width/2,height/2);return;}
+    let min=options.fixedMin ?? Math.min(...values),max=options.fixedMax ?? Math.max(...values);
+    if(max===min){const pad=Math.max(Math.abs(max)*.05,.01);min-=pad;max+=pad;}
+    const pad=(max-min)*.1; if(options.fixedMin==null)min-=pad;if(options.fixedMax==null)max+=pad;
+    const left=8,right=width-8,top=8,bottom=height-12;
+    const x=i=>left+(right-left)*i/Math.max(1,Math.max(...series.map(item=>(item.values||[]).length))-1);
+    const y=v=>bottom-(v-min)/(max-min)*(bottom-top);
+    ctx.strokeStyle="#20344a";ctx.lineWidth=1;
+    for(let i=0;i<3;i++){const yy=top+(bottom-top)*i/2;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();}
+    if(Number.isFinite(options.reference)){
+      ctx.strokeStyle="#6d7f94";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(left,y(options.reference));ctx.lineTo(right,y(options.reference));ctx.stroke();ctx.setLineDash([]);
+    }
+    series.forEach(item=>{
+      const vals=item.values||[];ctx.strokeStyle=item.color;ctx.lineWidth=item.width||1.5;ctx.beginPath();let active=false;
+      vals.forEach((raw,i)=>{const value=raw==null?NaN:Number(raw);if(!Number.isFinite(value)){active=false;return;}if(!active){ctx.moveTo(x(i),y(value));active=true;}else ctx.lineTo(x(i),y(value));});
+      ctx.stroke();
+    });
+  }
+  function renderIndicators(s) {
+    const values=s.indicators||{};
+    set("indicator-rsi",values.rsi==null?"—":fmt(values.rsi,2));
+    set("indicator-macd",values.macd_hist==null?"—":fmt(values.macd_hist,6));
+    set("indicator-atr",values.atr==null?"—":fmt(values.atr,6));
+    set("indicator-atr-rank",pct(values.atr_pct_rank));
+    set("indicator-roc",values.roc==null?"—":fmt(values.roc,3)+"%");
+    set("indicator-rel-volume",values.relative_volume==null?"—":fmt(values.relative_volume,3)+"×");
+    set("indicator-emas",fmt(values.ema_fast,4)+" / "+fmt(values.ema_slow,4));
+    set("indicator-slope",values.ema_slope==null?"—":fmt(values.ema_slope,6));
+    const chart=s.chart||{};
+    drawIndicatorChart("rsi-chart",[{values:chart.rsi||[],color:"#62cbd9",width:2}],{fixedMin:0,fixedMax:100,reference:50});
+    drawIndicatorChart("macd-chart",[
+      {values:chart.macd_hist||[],color:"#e3b65e",width:1},
+      {values:chart.macd_signal||[],color:"#8f9ead",width:1.3},
+      {values:chart.macd||[],color:"#64b7ff",width:1.8}
+    ]);
+  }
+  function renderSignal(signal) {
+    if(!signal){set("signal-state","NO SIGNAL YET");set("signal-explanation","Belum ada evaluasi sinyal backend yang tersedia.");return;}
+    const d=signal.diagnostics||{};
+    const candidate=d.candidate_side || signal.side || "NONE";
+    const isStale=signal.stale===true;
+    set("signal-state",isStale?"STALE · LAST EVALUATION":(signal.actionable?"ACTIONABLE":"BLOCKED / WAIT"));
+    $("signal-state").className="pill "+(isStale?"":(signal.actionable?"good":"bad"));
+    set("signal-side",candidate);
+    set("signal-score",fmt(d.candidate_score ?? signal.score,3));
+    set("signal-threshold",d.required_score==null?"—":fmt(d.required_score,3));
+    set("signal-regime",signal.regime||"—");
+    set("signal-rr",signal.reward_risk==null?"—":fmt(signal.reward_risk,2)+" R");
+    set("signal-margin",d.score_margin==null?"—":fmt(d.score_margin,3));
+    set("signal-age",signal.age_s==null?"—":ago(signal.age_s));
+    tableRows("signal-components",d.components||[],[
+      {value:r=>r.name},{value:r=>r.passed?"YES":"NO"},
+      {value:r=>pct(r.weight)},{value:r=>pct(r.contribution)}
+    ],"Diagnostik konfluensi belum tersedia untuk bar ini.");
+    renderList("signal-reasons",signal.reasons||[],"Belum ada alasan konfluensi.");
+    renderList("signal-vetoes",signal.vetoes||[],"Tidak ada veto yang tercatat.");
+    const structure=d.structure||{};
+    set("signal-bos",structure.break_of_structure||"No BOS");
+    set("signal-levels",fmt(structure.support,4)+" / "+fmt(structure.resistance,4));
+    set("signal-explanation",isStale
+      ?"Ini adalah hasil evaluasi terakhir dan sudah stale. Jangan menganggapnya sebagai sinyal saat ini; tunggu evaluasi backend pada candle tertutup terbaru."
+      :(signal.actionable
+        ?"Backend menandai setup ini lolos syarat strategi. Informasi ini bukan perintah transaksi."
+        :"Backend menahan setup ini. Periksa semua veto, bobot konfluensi, serta ambang sebelum menyimpulkan status pasar."));
+  }
+  function renderMicrostructure(data) {
+    const m=data||{};
+    set("micro-bid",fmt(m.best_bid,4));set("micro-ask",fmt(m.best_ask,4));
+    set("micro-mid",fmt(m.mid,4));set("micro-spread",m.spread_bps==null?"—":fmt(m.spread_bps,2)+" bps");
+    set("micro-source",m.quote_source||"unavailable");
+    set("micro-depth-note",m.depth_available
+      ?"Depth tersedia dari "+(m.depth_source||"exchange order book")+"."
+      :(m.depth_note||"Order-book depth belum tersedia; jangan tafsirkan quote sebagai data depth."));
+  }
+  function renderState(s) {
+    const live = window.liveStatus || {};
+    set("k-mode", s.mode || "—"); set("k-broker", "Broker " + (s.broker?.name || "—"));
+    set("k-equity", fmt(s.equity)); set("k-equity-sub", "Initial " + fmt(s.initial_equity) + " " + (s.quote || ""));
+    set("k-balance", fmt(s.balance)); set("k-quote", "Quote " + (s.quote || "—"));
+    set("k-pnl", signed(s.unrealized_pnl)); set("k-realized", "Realized " + signed(s.realized_pnl));
+    $("k-pnl").className = "kpi-value " + (Number(s.unrealized_pnl) >= 0 ? "positive" : "negative");
+    set("market-meta", (s.exchange || "—") + " · " + (s.timeframe || "—"));
+    set("market-symbol", (s.symbol || "—") + " / " + (s.timeframe || "—"));
+    set("market-price", fmt(s.last_price ?? s.chart?.close?.at(-1), 4));
+    set("market-source", s.data_source || "—");
+    set("market-gate", s.gate?.passed ? "PASSED" : (s.gate?.summary || "PENDING"));
+    set("risk-per-trade", pct(s.risk?.risk_per_trade));
+    set("risk-daily", pct(s.daily_loss) + " / " + pct(s.risk?.max_daily_loss));
+    set("risk-exposure", pct(s.exposure_ratio) + " / " + pct(s.risk?.max_total_exposure));
+    set("risk-drawdown", pct(s.drawdown) + " / " + pct(s.risk?.max_drawdown));
+    set("risk-slots", (s.positions?.length || 0) + " / " + (s.risk?.max_open_positions ?? "—") + " slots");
+    setBar("risk-bar-trade", s.risk?.risk_per_trade / Math.max(s.risk?.max_daily_loss || .01, .01));
+    setBar("risk-bar-daily", s.daily_loss / Math.max(s.risk?.max_daily_loss || .01, .01));
+    setBar("risk-bar-exposure", s.exposure_ratio / Math.max(s.risk?.max_total_exposure || .01, .01));
+    setBar("risk-bar-drawdown", s.drawdown / Math.max(s.risk?.max_drawdown || .01, .01));
+    set("intel-htf", s.analysis?.htf_trend || "—");
+    set("intel-divergence", s.analysis?.divergence || "—");
+    set("intel-pattern", s.analysis?.pattern || "—");
+    set("intel-atr", pct(s.analysis?.atr_pct_rank));
+    set("intel-squeeze", s.analysis?.squeeze ? "ACTIVE" : "INACTIVE");
+    set("intel-adaptive", "×" + fmt(s.adaptive_risk?.multiplier, 2));
+    const positions = Array.isArray(s.positions) ? s.positions : [];
+    set("position-count", positions.length + " positions");
+    tableRows("positions", positions, [
+      {value:r=>r.symbol},{value:r=>r.side},{value:r=>fmt(r.size,6)},
+      {value:r=>fmt(r.entry,4)},{value:r=>fmt(r.price,4)},{value:r=>fmt(r.stop,4)},
+      {value:r=>fmt(r.take_profit,4)},
+      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"},
+      {value:r=>fmt(r.r_multiple,2)},
+      {value:r=>ago(r.age_s)},
+      {value:r=>r.trailing_active?"ON":"OFF"},
+      {value:r=>r.stop_order_id && r.take_profit_order_id?"SL + TP":"CHECK"}
+    ], "Tidak ada posisi terbuka.");
+    drawChart(s.chart || {});
+    renderIndicators(s);
+    renderSignal(s.signal);
+    renderMicrostructure(s.microstructure);
+    set("connection", s.connected ? (streamConnected ? "BACKEND: REAL-TIME STREAM" : "BACKEND: CONNECTED · POLLING") : "BACKEND: DISCONNECTED");
+  }
+  function renderLiveStatus(data) {
+    window.liveStatus = data;
+    const pill = $("execution-pill"), adapterPill = $("adapter-state");
+    pill.textContent = "LIVE EXECUTION " + (data.execution_state || "LOCKED");
+    adapterPill.textContent = data.adapter_present ? (data.dry_run ? "DRY-RUN" : "ADAPTER PRESENT") : "NO LIVE ADAPTER";
+    set("adapter-name", data.adapter || "—");
+    set("adapter-connectivity", data.adapter_connected ? "CONNECTED" : "NOT CONNECTED");
+    set("adapter-dryrun", data.adapter_present ? (data.dry_run ? "DRY-RUN ON" : "DRY-RUN OFF") : "NOT ACTIVE");
+    set("adapter-symbols", (data.allowlisted_symbols || []).join(", ") || "Not configured");
+    set("adapter-orders", (data.orders_sent ?? 0) + " / " + (data.orders_rejected ?? 0));
+    set("adapter-reconcile", data.last_reconcile_ts ? timestamp(data.last_reconcile_ts) : "Not run");
+    set("adapter-reason", data.lock_reason || "Execution remains locked.");
+    pill.className = "pill"; adapterPill.className = "pill";
+    if (data.execution_enabled !== true) pill.classList.add("bad");
+  }
+  function renderHistory(history) {
+    const orders = Array.isArray(history.orders) ? history.orders.slice(0,12) : [];
+    tableRows("orders", orders, [
+      {value:r=>timestamp(r.ts || r.created_at)},
+      {value:r=>r.symbol},{value:r=>r.side},{value:r=>r.type},
+      {value:r=>fmt(r.qty ?? r.amount,6)},
+      {value:r=>fmt(r.filled,6)},
+      {value:r=>fmt(r.avg_price ?? r.price,4)},
+      {value:r=>fmt(r.fee,6)},
+      {value:r=>r.status},
+      {value:r=>r.exchange_id || r.client_id}
+    ], "Belum ada order pada audit log.");
+    const events = Array.isArray(window.state?.events) ? window.state.events.slice(-18).reverse() : [];
+    const holder = $("events"); holder.replaceChildren();
+    if (!events.length) { const empty=document.createElement("div"); empty.className="empty"; empty.textContent="Belum ada audit event."; holder.appendChild(empty); return; }
+    events.forEach((event) => {
+      const row=document.createElement("div"); row.className="event";
+      const time=document.createElement("time"); time.textContent=timestamp(event.ts || event.time);
+      const kind=document.createElement("span"); kind.className="kind"; kind.textContent=event.event || event.kind || event.level || "EVENT";
+      const msg=document.createElement("span"); msg.className="message"; msg.textContent=event.message || event.detail || event.description || "";
+      row.append(time,kind,msg); holder.appendChild(row);
+    });
+  }
+  function renderHealth(h) {
+    const pill=$("health-state"); pill.textContent=h.ok ? "HEALTHY" : "ATTENTION";
+    pill.className="pill " + (h.ok ? "good" : "bad");
+    set("health-uptime",fmt(h.uptime_s,0)+"s"); set("health-tick",ago(h.tick_age_s));
+    set("health-count",fmt(h.tick_count,0)); set("health-errors",fmt(h.consecutive_errors,0));
+    set("health-issues",Array.isArray(h.issues) && h.issues.length ? h.issues.join(" · ") : (h.ok ? "No health issues reported." : "Health check requires attention."));
+  }
+  function renderReport(r) {
+    const m=r.metrics || r;
+    set("report-trades",m.trades ?? "—"); set("report-winrate",pct(m.win_rate));
+    set("report-pf",m.profit_factor == null ? "—" : fmt(m.profit_factor,2));
+    set("report-dd",pct(m.max_drawdown)); set("report-pnl",signed(m.net_pnl));
+    set("report-exp",m.expectancy_r == null ? "—" : fmt(m.expectancy_r,2)+" R");
+    set("report-fees",fmt(r.order_fees?.total ?? m.total_fees));
+    set("report-slippage",r.order_fees?.avg_slippage_bps == null ? "—" : fmt(r.order_fees.avg_slippage_bps,2)+" bps");
+    set("report-sharpe",fmt(m.sharpe_trade,2));
+    set("report-sortino",fmt(m.sortino_trade,2));
+  }
+  function renderList(id, items, emptyText) {
+    const holder=$(id); holder.replaceChildren();
+    const values=Array.isArray(items)?items:[];
+    if(!values.length){const empty=document.createElement("div");empty.className="empty";empty.textContent=emptyText;holder.appendChild(empty);return;}
+    values.forEach((value)=>{
+      const row=document.createElement("div");row.className="event";
+      const message=document.createElement("span");message.className="message";message.textContent=String(value);
+      row.appendChild(message);holder.appendChild(row);
+    });
+  }
+  function renderBriefing(data) {
+    set("briefing-decision",data.decision || "—");
+    set("briefing-confidence",pct(data.confidence));
+    set("briefing-situation",data.situation || "No briefing situation.");
+    renderList("briefing-evidence",data.evidence,"Belum ada evidence.");
+    renderList("briefing-risks",data.risks,"Belum ada risk note.");
+    renderList("briefing-actions",data.actions,"Belum ada action note.");
+  }
+  function renderPortfolio(data) {
+    set("portfolio-total",fmt(data.total_value) + " " + (data.quote || ""));
+    set("portfolio-cash",fmt(data.cash) + " / " + fmt(data.invested));
+    set("portfolio-pnl",signed(data.pnl));
+    set("portfolio-concentration",fmt(data.concentration,4));
+    tableRows("portfolio-holdings",data.holdings || [],[
+      {value:r=>r.symbol},{value:r=>fmt(r.qty,6)},
+      {value:r=>fmt(r.value,2)},{value:r=>pct(r.weight)},
+      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"}
+    ],"Tidak ada holding aktif pada snapshot ini.");
+  }
+  function renderResearch(data) {
+    set("research-samples",(data.samples ?? 0) + (data.required_samples ? " / "+data.required_samples : ""));
+    if(!data.available){
+      set("research-state","INSUFFICIENT SAMPLE");
+      set("research-note",data.message || "Research sample belum mencukupi.");
+      ["research-windows","research-average-r","research-win-rate","research-p95-dd","research-below-start"].forEach(id=>set(id,"—"));
+      return;
+    }
+    const summary=data.walk_forward?.test_summary || {};
+    set("research-windows",data.walk_forward?.window_count ?? "—");
+    set("research-average-r",summary.avg_r == null ? "—" : fmt(summary.avg_r,3)+" R");
+    set("research-win-rate",pct(summary.win_rate));
+    set("research-p95-dd",pct(data.monte_carlo?.max_drawdown?.p95));
+    set("research-below-start",pct(data.monte_carlo?.probability_below_start));
+    set("research-state","RESULTS AVAILABLE");
+    set("research-note",data.assumptions?.source ? "Source: "+data.assumptions.source+". "+(data.assumptions.risk_fraction_note || "") : "Hasil riset dari backend.");
+  }
+  function renderTradeHistory(history) {
+    tableRows("closed-trades",history.trades || [],[
+      {value:r=>timestamp(r.closed_at)},{value:r=>r.symbol},{value:r=>r.side},
+      {value:r=>signed(r.pnl),className:r=>Number(r.pnl)>=0?"positive":"negative"},
+      {value:r=>fmt(r.r_multiple,2)},{value:r=>r.close_reason}
+    ],"Belum ada trade tertutup.");
+    tableRows("signals",history.signals || [],[
+      {value:r=>timestamp(r.ts)},{value:r=>r.symbol},{value:r=>r.side},
+      {value:r=>fmt(r.score,3)},{value:r=>r.action}
+    ],"Belum ada sinyal yang tercatat.");
+  }
+  async function downloadReport(path, filename) {
+    try {
+      const response=await fetch(path,{headers:{"X-AEGIS-CSRF":token},cache:"no-store"});
+      if(!response.ok) throw new Error("Export HTTP "+response.status);
+      const blob=await response.blob(), url=URL.createObjectURL(blob);
+      const link=document.createElement("a");link.href=url;link.download=filename;
+      document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+      set("updated","Exported "+filename);
+    } catch(error) { set("updated",String(error?.message || error)); }
+  }
+  let liveSocket = null;
+  let streamConnected = false;
+  let historySnapshot = {orders:[],trades:[],signals:[]};
+  let reconnectTimer = null;
+
+  function connectLiveStream() {
+    if (liveSocket && (liveSocket.readyState === WebSocket.OPEN || liveSocket.readyState === WebSocket.CONNECTING)) return;
+    if (!token || !("WebSocket" in window)) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const socketUrl = protocol + "//" + location.host + "/ws?csrf=" + encodeURIComponent(token);
+    try {
+      liveSocket = new WebSocket(socketUrl);
+    } catch (error) {
+      streamConnected = false;
+      return;
+    }
+    liveSocket.addEventListener("open", () => {
+      streamConnected = true;
+      if (window.state) renderState(window.state);
+      try { liveSocket.send("aegis-live-console"); } catch (_) { /* polling remains available */ }
+    });
+    liveSocket.addEventListener("message", (event) => {
+      try {
+        const nextState = JSON.parse(event.data);
+        if (!nextState || typeof nextState !== "object" || !("mode" in nextState)) return;
+        window.state = nextState;
+        renderState(nextState);
+        renderHistory(historySnapshot);
+        renderTradeHistory(historySnapshot);
+        set("updated", "Stream " + new Date().toLocaleTimeString("id-ID", {hour12:false}));
+      } catch (_) {
+        set("connection", "BACKEND: STREAM DATA INVALID");
+      }
+    });
+    liveSocket.addEventListener("close", () => {
+      streamConnected = false;
+      liveSocket = null;
+      if (window.state) renderState(window.state);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connectLiveStream, 5000);
+    });
+    liveSocket.addEventListener("error", () => {
+      streamConnected = false;
+      try { liveSocket.close(); } catch (_) { /* close event schedules retry */ }
+    });
+  }
+
+  async function loadResearch() {
+    const button=$("research-refresh");
+    if(button)button.disabled=true;
+    try {
+      renderResearch(await api("/api/research"));
+      set("updated","Research updated "+new Date().toLocaleTimeString("id-ID",{hour12:false}));
+    } catch(error) {
+      set("research-state","API UNAVAILABLE");
+      set("research-note",String(error?.message || error));
+    } finally {
+      if(button)button.disabled=false;
+    }
+  }
+  async function refresh(includeResearch = true) {
+    const button=$("refresh"); button.disabled=true;
+    try {
+      const tasks=[
+        streamConnected && window.state ? Promise.resolve(window.state) : api("/api/state"),
+        api("/api/history"),api("/api/live/status"),api("/api/health"),api("/api/report"),
+        api("/api/briefing"),api("/api/portfolio")
+      ];
+      if(includeResearch)tasks.push(api("/api/research"));
+      const results=await Promise.all(tasks);
+      window.state=results[0]; historySnapshot=results[1];
+      renderState(results[0]); renderHistory(results[1]); renderTradeHistory(results[1]);
+      renderLiveStatus(results[2]); renderHealth(results[3]); renderReport(results[4]);
+      renderBriefing(results[5]); renderPortfolio(results[6]);
+      if(includeResearch)renderResearch(results[7]);
+      set("updated","Updated "+new Date().toLocaleTimeString("id-ID",{hour12:false}));
+    } catch (error) {
+      set("connection","BACKEND: ERROR"); set("updated",String(error?.message || error));
+    } finally { button.disabled=false; }
+  }
+  $("refresh").addEventListener("click",refresh);
+  $("research-refresh").addEventListener("click",loadResearch);
+  $("export-csv").addEventListener("click",()=>downloadReport("/api/report.csv","aegis-live-report.csv"));
+  $("export-md").addEventListener("click",()=>downloadReport("/api/report.md","aegis-live-report.md"));
+  window.addEventListener("resize",()=>{if(window.state){drawChart(window.state.chart||{});renderIndicators(window.state);}});
+  refresh(true); connectLiveStream(); setInterval(()=>refresh(false),5000);
+})();
+</script>
+</body>
+</html>

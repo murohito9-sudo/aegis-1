@@ -47,6 +47,7 @@ from execution import (
 )
 from analytics import build_report, to_csv, to_markdown
 from brain import BriefingInput, compose as compose_briefing
+from jarvis_core import ProviderStatus, compose as compose_jarvis_intelligence
 from evaluation import EvaluationEngine
 from monitor import Scheduler, backup, check_health, write_heartbeat
 from portfolio import Holding, Portfolio
@@ -263,7 +264,45 @@ class Engine:
             concentration=self._portfolio().concentration(),
         )
         briefing = compose_briefing(payload)
-        return {**briefing.as_dict(), "text": briefing.to_text()}
+        intelligence = compose_jarvis_intelligence(
+            symbol=self.settings.symbol,
+            timeframe=self.settings.timeframe,
+            evaluated_at=time.time(),
+            strategy={
+                "side": payload.side,
+                "score": payload.score,
+                "regime": payload.regime,
+                "vetoes": payload.vetoes,
+                "htf_trend": payload.htf_trend,
+                "divergence": payload.divergence,
+                "pattern": payload.pattern,
+            },
+            market={
+                "source": snap.source if snap else "unavailable",
+                "observed_at": snap.ts if snap else None,
+            },
+            # Provider integrations are explicitly unavailable until real,
+            # timestamped adapters are connected. Never invent neutral votes.
+            providers=[
+                ProviderStatus(name="news", available=False, detail="provider adapter belum dihubungkan"),
+                ProviderStatus(name="onchain", available=False, detail="provider adapter belum dihubungkan"),
+                ProviderStatus(name="market_depth", available=False, detail="feed depth belum dihubungkan"),
+            ],
+            risk={
+                "mode": self.mode.value,
+                "blocked": bool(payload.vetoes),
+                "block_reason": payload.vetoes[0] if payload.vetoes else "",
+                "kill_switch": self.settings.kill_switch_file.exists(),
+                "drawdown": self.risk.drawdown(),
+                "daily_loss": self.risk.daily_loss(),
+                "exposure": payload.exposure,
+            },
+        )
+        return {
+            **briefing.as_dict(),
+            "text": briefing.to_text(),
+            "intelligence_core": intelligence.as_dict(),
+        }
 
     def _portfolio(self) -> Portfolio:
         snap = self.last_snapshot
@@ -335,18 +374,65 @@ class Engine:
         equity = self.risk.current_equity()
         exposure = self.risk.exposure(price_map)
 
-        chart = {"close": [], "ema_fast": [], "ema_slow": [], "ts": []}
-        if snap is not None and len(snap.candles) > 10:
-            ind = add_indicators(snap.candles, self.settings.strategy).tail(CHART_BARS)
+        chart: dict[str, Any] = {
+            "open": [], "high": [], "low": [], "close": [],
+            "ema_fast": [], "ema_slow": [], "rsi": [],
+            "macd": [], "macd_signal": [], "macd_hist": [],
+            "atr": [], "roc": [], "rel_volume": [], "ts": [],
+        }
+        indicator_snapshot: dict[str, float | None] = {}
+        # Dashboard, seperti strategy.evaluate(), hanya memakai bar yang sudah tutup.
+        # Bar terakhir pada snapshot feed adalah bar berjalan dan tidak boleh masuk
+        # ke indikator/diagnostik yang dipakai untuk menjelaskan keputusan strategi.
+        closed_candles = snap.candles.iloc[:-1] if snap is not None and len(snap.candles) > 1 else pd.DataFrame()
+        if snap is not None and len(closed_candles) > 10:
+            full_ind = add_indicators(closed_candles, self.settings.strategy)
+            ind = full_ind.tail(CHART_BARS)
+
+            def clean_number(value: Any, digits: int = 8) -> float | None:
+                if value is None or pd.isna(value):
+                    return None
+                number = float(value)
+                if not pd.notna(number) or number in (float("inf"), float("-inf")):
+                    return None
+                return round(number, digits)
+
             chart = {
-                "open": [None if pd.isna(v) else round(float(v), 6) for v in ind["open"]],
-                "high": [None if pd.isna(v) else round(float(v), 6) for v in ind["high"]],
-                "low": [None if pd.isna(v) else round(float(v), 6) for v in ind["low"]],
-                "close": [None if pd.isna(v) else round(float(v), 6) for v in ind["close"]],
-                "ema_fast": [None if pd.isna(v) else round(float(v), 6) for v in ind["ema_fast"]],
-                "ema_slow": [None if pd.isna(v) else round(float(v), 6) for v in ind["ema_slow"]],
-                "ts": [float(v) for v in ind["ts"]],
+                key: [clean_number(value, 6) for value in ind[key]]
+                for key in (
+                    "open", "high", "low", "close", "ema_fast", "ema_slow",
+                    "rsi", "macd", "macd_signal", "macd_hist", "atr", "roc", "rel_volume",
+                )
             }
+            chart["ts"] = [float(value) for value in ind["ts"]]
+            last = full_ind.iloc[-1]
+            indicator_snapshot = {
+                "ema_fast": clean_number(last["ema_fast"]),
+                "ema_slow": clean_number(last["ema_slow"]),
+                "rsi": clean_number(last["rsi"], 4),
+                "macd": clean_number(last["macd"]),
+                "macd_signal": clean_number(last["macd_signal"]),
+                "macd_hist": clean_number(last["macd_hist"]),
+                "atr": clean_number(last["atr"]),
+                "atr_pct_rank": clean_number(last["atr_pct_rank"], 4),
+                "roc": clean_number(last["roc"], 4),
+                "relative_volume": clean_number(last["rel_volume"], 4),
+                "ema_slope": clean_number(last["ema_slope"], 8),
+                "bar_ts": float(last["ts"]),
+            }
+
+        signal_state = self.last_signal.as_dict() if self.last_signal is not None else None
+        if signal_state is not None:
+            # bar_ts adalah waktu buka candle; sinyal melekat pada candle tertutup.
+            signal_age_s = max(
+                0.0,
+                time.time() - (
+                    float(signal_state.get("bar_ts", 0.0))
+                    + timeframe_seconds(self.settings.timeframe)
+                ),
+            )
+            signal_state["age_s"] = round(signal_age_s, 2)
+            signal_state["stale"] = signal_age_s > timeframe_seconds(self.settings.timeframe) * 1.5
 
         return {
             "ts": time.time(),
@@ -416,8 +502,26 @@ class Engine:
                     self.risk.recent_expectancy(self.settings.risk.adaptive.expectancy_lookback), 4),
             },
             "chart": chart,
+            "indicators": indicator_snapshot,
+            "signal": signal_state,
+            "microstructure": {
+                "best_bid": snap.best_bid if snap is not None else None,
+                "best_ask": snap.best_ask if snap is not None else None,
+                "mid": ((snap.best_bid + snap.best_ask) / 2.0) if snap is not None else None,
+                "spread_bps": (
+                    snap.spread_bps
+                    if snap is not None and pd.notna(snap.spread_bps)
+                    and snap.spread_bps not in (float("inf"), float("-inf"))
+                    else None
+                ),
+                "quote_source": snap.source if snap is not None else "unavailable",
+                "depth_available": False,
+                "depth_note": "Order-book depth is not collected by the current market feed.",
+            },
             "markers": self.markers[-40:],
             "events": self.audit.recent_events(45),
+            "last_price": snap.last_price if snap is not None else None,
+            "last_closed_bar_ts": float(closed_candles["ts"].iloc[-1]) if len(closed_candles) else None,
             "last_tick_ts": self.last_tick_ts,
             "last_error": self.last_error,
             "tick_count": self.tick_count,

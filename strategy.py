@@ -55,6 +55,7 @@ class Signal:
     pattern: str | None = None
     squeeze: bool = False
     atr_pct_rank: float = 0.5
+    diagnostics: dict[str, object] = field(default_factory=dict)
 
     @property
     def actionable(self) -> bool:
@@ -89,6 +90,7 @@ class Signal:
             "atr_pct_rank": round(self.atr_pct_rank, 4),
             "actionable": self.actionable,
             "signal_id": self.signal_id,
+            "diagnostics": self.diagnostics,
         }
 
 
@@ -156,7 +158,14 @@ def weights_for(regime: str) -> dict[str, float]:
     return WEIGHTS_BY_REGIME.get(regime, WEIGHTS)
 
 
-def _no_signal(symbol: str, bar_ts: float, reason: str, regime: str, atr_v: float = 0.0) -> Signal:
+def _no_signal(
+    symbol: str,
+    bar_ts: float,
+    reason: str,
+    regime: str,
+    atr_v: float = 0.0,
+    diagnostics: dict[str, object] | None = None,
+) -> Signal:
     return Signal(
         symbol=symbol,
         bar_ts=bar_ts,
@@ -169,6 +178,7 @@ def _no_signal(symbol: str, bar_ts: float, reason: str, regime: str, atr_v: floa
         regime=regime,
         atr=atr_v,
         vetoes=[reason],
+        diagnostics=dict(diagnostics or {}),
     )
 
 
@@ -335,7 +345,32 @@ def evaluate(
 
     # Arah dipilih dari skor tertinggi; kalau seri, tidak ada sinyal.
     if abs(long_score - short_score) < 1e-9:
-        return _no_signal(symbol, bar_ts, "konfluensi seimbang dua arah", regime.value, atr_v)
+        tie_weights = weights
+        tie_diagnostics: dict[str, object] = {
+            "candidate_side": None,
+            "long_score": round(long_score, 4),
+            "short_score": round(short_score, 4),
+            "candidate_score": round(max(long_score, short_score), 4),
+            "required_score": round(
+                cfg.min_confluence + REQUIRED_BONUS.get(regime.value, 0.0), 4
+            ),
+            "score_margin": 0.0,
+            "squeeze_bonus": round(squeeze_bonus, 4),
+            "weights": {key: round(value, 4) for key, value in tie_weights.items()},
+            "votes": {},
+            "components": [],
+            "structure": {
+                "break_of_structure": bos,
+                "last_swing_high": struct.last_swing_high,
+                "last_swing_low": struct.last_swing_low,
+                "resistance": struct.resistance,
+                "support": struct.support,
+            },
+        }
+        return _no_signal(
+            symbol, bar_ts, "konfluensi seimbang dua arah", regime.value, atr_v,
+            diagnostics=tie_diagnostics,
+        )
     side = LONG if long_score > short_score else SHORT
     score = long_score if side == LONG else short_score
     reasons = long_reasons if side == LONG else short_reasons
@@ -455,4 +490,32 @@ def evaluate(
         pattern=pattern,
         squeeze=in_squeeze,
         atr_pct_rank=atr_rank,
+        diagnostics={
+            "candidate_side": side,
+            "long_score": round(long_score, 4),
+            "short_score": round(short_score, 4),
+            "candidate_score": round(score, 4),
+            "required_score": round(required_score, 4),
+            "score_margin": round(abs(long_score - short_score), 4),
+            "squeeze_bonus": round(squeeze_bonus, 4),
+            "weights": {key: round(value, 4) for key, value in weights.items()},
+            "votes": {key: bool(value) for key, value in votes.items()},
+            "components": [
+                {
+                    "name": key,
+                    "weight": round(weights.get(key, 0.0), 4),
+                    "passed": bool(votes.get(key, False)),
+                    "contribution": round(weights.get(key, 0.0) if votes.get(key, False) else 0.0, 4),
+                }
+                for key in weights
+            ],
+            "structure": {
+                "break_of_structure": bos,
+                "bars_since_bos": struct.bars_since_bos,
+                "last_swing_high": struct.last_swing_high,
+                "last_swing_low": struct.last_swing_low,
+                "resistance": struct.resistance,
+                "support": struct.support,
+            },
+        },
     )

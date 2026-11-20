@@ -84,6 +84,76 @@ def _purge(store: dict[str, Any]) -> None:
             store.pop(key, None)
 
 
+
+LIVE_LOCK_REASON = (
+    "Eksekusi LIVE dinonaktifkan pada V3 sampai otorisasi, pemisahan state, "
+    "dashboard, dan rekonsiliasi lulus pengujian end-to-end."
+)
+
+
+def _live_status_snapshot(engine: Any) -> dict[str, Any]:
+    """Status adapter yang aman untuk UI: tidak pernah menyertakan kredensial/error mentah.
+
+    LIVE tetap dikunci di V3. Endpoint ini hanya observabilitas dan tidak
+    menyediakan kemampuan membuat, membatalkan, atau mengubah order.
+    """
+    settings = getattr(engine, "settings", None)
+    live_config = getattr(settings, "live", None)
+    broker = getattr(engine, "broker", None)
+    broker_name = str(getattr(broker, "name", "unavailable"))
+    adapter_status = getattr(broker, "status", None)
+    mode = getattr(engine, "mode", "UNKNOWN")
+    mode = str(getattr(mode, "value", mode))
+
+    symbols = getattr(live_config, "symbols", ()) or ()
+    try:
+        safe_symbols = [str(symbol) for symbol in symbols if str(symbol).strip()]
+    except TypeError:
+        safe_symbols = []
+
+    raw_notional = getattr(live_config, "max_order_notional", None)
+    try:
+        max_order_notional = float(raw_notional) if raw_notional is not None else None
+        if max_order_notional is not None and (
+            max_order_notional != max_order_notional or abs(max_order_notional) == float("inf")
+        ):
+            max_order_notional = None
+    except (TypeError, ValueError, OverflowError):
+        max_order_notional = None
+
+    def count(name: str) -> int:
+        try:
+            return max(0, int(getattr(adapter_status, name, 0) or 0))
+        except (TypeError, ValueError, OverflowError):
+            return 0
+
+    adapter_present = broker_name.lower() == "live"
+    adapter_connected = bool(getattr(adapter_status, "connected", False)) if adapter_present else False
+    dry_run = bool(
+        getattr(adapter_status, "dry_run", getattr(live_config, "dry_run", True))
+    )
+
+    return {
+        "mode": mode,
+        "exchange": str(getattr(settings, "exchange_id", "—")),
+        "live_requested": bool(getattr(settings, "live_mode", False)),
+        "adapter": broker_name,
+        "adapter_present": adapter_present,
+        "adapter_connected": adapter_connected,
+        "dry_run": dry_run,
+        "orders_sent": count("orders_sent"),
+        "orders_rejected": count("orders_rejected"),
+        "last_reconcile_ts": float(getattr(adapter_status, "last_reconcile_ts", 0.0) or 0.0),
+        "reconciled_orders": count("reconciled_orders"),
+        "allowlisted_symbols": safe_symbols,
+        "market_orders_allowed": bool(getattr(live_config, "allow_market", False)),
+        "max_order_notional": max_order_notional,
+        "execution_state": "LOCKED",
+        "execution_enabled": False,
+        "read_only": True,
+        "lock_reason": LIVE_LOCK_REASON,
+    }
+
 def create_app(engine: Any, hub: Hub) -> FastAPI:
     """Bangun aplikasi FastAPI. ``engine`` harus menyediakan:
 
@@ -110,6 +180,24 @@ def create_app(engine: Any, hub: Hub) -> FastAPI:
         csrf_tokens[token] = time.time() + CSRF_TTL_S
         html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
         return HTMLResponse(html.replace("__AEGIS_CSRF__", token))
+
+    @app.get("/live", response_class=HTMLResponse)
+    async def live_console() -> HTMLResponse:
+        token = secrets.token_urlsafe(24)
+        csrf_tokens[token] = time.time() + CSRF_TTL_S
+        html = (STATIC_DIR / "live.html").read_text(encoding="utf-8")
+        return HTMLResponse(
+            html.replace("__AEGIS_CSRF__", token),
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @app.get("/api/live/status")
+    async def live_status(request: Request) -> JSONResponse:
+        check_csrf(request)
+        client = request.client.host if request.client else "?"
+        if not limiter.allow(client):
+            raise HTTPException(status_code=429, detail="terlalu banyak permintaan")
+        return JSONResponse(_live_status_snapshot(engine))
 
     @app.get("/api/state")
     async def state(request: Request) -> JSONResponse:
