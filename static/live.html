@@ -232,7 +232,7 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
 
   <section class="grid cols" style="margin-top:12px">
     <article class="card">
-      <div class="card-head"><h2>Research & evaluation</h2><span class="pill" id="research-state">WAITING</span></div>
+      <div class="card-head"><h2>Research & evaluation</h2><div class="actions"><button class="btn" id="research-refresh" type="button">↻ Run research</button><span class="pill" id="research-state">WAITING</span></div></div>
       <div class="status-grid">
         <div class="status-item"><span>Closed samples</span><b id="research-samples">—</b></div>
         <div class="status-item"><span>Walk-forward windows</span><b id="research-windows">—</b></div>
@@ -623,28 +623,45 @@ h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.035em;margin:
     });
   }
 
-  async function refresh() {
+  async function loadResearch() {
+    const button=$("research-refresh");
+    if(button)button.disabled=true;
+    try {
+      renderResearch(await api("/api/research"));
+      set("updated","Research updated "+new Date().toLocaleTimeString("id-ID",{hour12:false}));
+    } catch(error) {
+      set("research-state","API UNAVAILABLE");
+      set("research-note",String(error?.message || error));
+    } finally {
+      if(button)button.disabled=false;
+    }
+  }
+  async function refresh(includeResearch = true) {
     const button=$("refresh"); button.disabled=true;
     try {
-      const results=await Promise.all([
+      const tasks=[
         streamConnected && window.state ? Promise.resolve(window.state) : api("/api/state"),
         api("/api/history"),api("/api/live/status"),api("/api/health"),api("/api/report"),
-        api("/api/briefing"),api("/api/portfolio"),api("/api/research")
-      ]);
+        api("/api/briefing"),api("/api/portfolio")
+      ];
+      if(includeResearch)tasks.push(api("/api/research"));
+      const results=await Promise.all(tasks);
       window.state=results[0]; historySnapshot=results[1];
       renderState(results[0]); renderHistory(results[1]); renderTradeHistory(results[1]);
       renderLiveStatus(results[2]); renderHealth(results[3]); renderReport(results[4]);
-      renderBriefing(results[5]); renderPortfolio(results[6]); renderResearch(results[7]);
+      renderBriefing(results[5]); renderPortfolio(results[6]);
+      if(includeResearch)renderResearch(results[7]);
       set("updated","Updated "+new Date().toLocaleTimeString("id-ID",{hour12:false}));
     } catch (error) {
       set("connection","BACKEND: ERROR"); set("updated",String(error?.message || error));
     } finally { button.disabled=false; }
   }
   $("refresh").addEventListener("click",refresh);
+  $("research-refresh").addEventListener("click",loadResearch);
   $("export-csv").addEventListener("click",()=>downloadReport("/api/report.csv","aegis-live-report.csv"));
   $("export-md").addEventListener("click",()=>downloadReport("/api/report.md","aegis-live-report.md"));
   window.addEventListener("resize",()=>{if(window.state){drawChart(window.state.chart||{});renderIndicators(window.state);}});
-  refresh(); connectLiveStream(); setInterval(refresh,5000);
+  refresh(true); connectLiveStream(); setInterval(()=>refresh(false),5000);
 })();
 </script>
 </body>
