@@ -19,7 +19,29 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Compile Python modules
+        run: python -m compileall -q .
       - name: Unit tests
         run: python tests.py
       - name: Smoke test (offline, tanpa jaringan)
         run: python main.py --offline --ticks 12 --no-dashboard --interval 0
+  ui-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Playwright
+        run: npm install --no-save --package-lock=false playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Desktop, tablet, and mobile browser regression
+        run: node tests_ui.mjs
+      - name: Upload viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-ui-viewport-screenshots
+          path: artifacts/*.png
+          if-no-files-found: ignore

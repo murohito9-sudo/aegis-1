@@ -24,7 +24,8 @@ import numpy as np
 import pandas as pd
 
 from config import Mode, RiskConfig, Settings, StrategyConfig
-from data import DataQualityGate, MarketSnapshot, SyntheticFeed, timeframe_seconds
+from data import CCXTFeed, DataQualityGate, MarketSnapshot, SyntheticFeed, timeframe_seconds
+from evaluation import EvaluationEngine
 from execution import (
     LiveBrokerUnavailable,
     Order,
@@ -204,12 +205,14 @@ class TestRiskLimits(TempProject):
         from strategy import Signal
         sig = Signal("BTC/USDT", 1.0, LONG, 0.9, 100.0, 95.0, 110.0, 2.0, "trending_up", 1.0)
         pos = rm.open_position(sig, 1.0, 100.0, 0.1)
-        plan = rm.plan_management(pos, 103.0, atr_value=1.0)
+        # Initial risk is 5 points (100 entry, 95 stop), so 1R is 105.
+        plan = rm.plan_management(pos, 105.0, atr_value=1.0)
         self.assertEqual(plan["action"], "breakeven")
         self.assertAlmostEqual(plan["new_stop"], pos.entry, places=8)
         pos.stop = plan["new_stop"]
         pos.breakeven_done = True
-        plan2 = rm.plan_management(pos, 104.0, atr_value=1.0)
+        # At 106 the trade is above the 1R trailing activation threshold.
+        plan2 = rm.plan_management(pos, 106.0, atr_value=1.0)
         self.assertEqual(plan2["action"], "trail")
         self.assertGreater(plan2["new_stop"], pos.stop)
 
@@ -378,6 +381,103 @@ class TestDataGate(TempProject):
         self.assertFalse(gate.check(snap).passed)
 
 
+    def test_nan_open_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "open"] = np.nan
+        result = DataQualityGate(self.settings).check(self.snapshot(df))
+        self.assertFalse(result.passed)
+        self.assertTrue(any(c.name == "angka_ohlcv_finite" and not c.ok for c in result.checks))
+
+    def test_infinite_volume_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "volume"] = np.inf
+        result = DataQualityGate(self.settings).check(self.snapshot(df))
+        self.assertFalse(result.passed)
+        self.assertTrue(any(c.name == "angka_ohlcv_finite" and not c.ok for c in result.checks))
+
+    def test_negative_volume_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "volume"] = -1.0
+        self.assertFalse(DataQualityGate(self.settings).check(self.snapshot(df)).passed)
+
+    def test_open_outside_candle_range_fails(self) -> None:
+        df = make_df(n=400)
+        df.loc[df.index[-1], "open"] = df.loc[df.index[-1], "high"] * 1.01
+        self.assertFalse(DataQualityGate(self.settings).check(self.snapshot(df)).passed)
+
+    def test_future_bar_timestamp_fails(self) -> None:
+        df = make_df(n=400)
+        snap = self.snapshot(df)
+        snap.ts = float(df["ts"].iloc[-1]) - 1.0
+        result = DataQualityGate(self.settings).check(snap)
+        self.assertFalse(result.passed)
+        self.assertTrue(any(c.name == "kesegaran_data" and not c.ok for c in result.checks))
+
+
+class TestCCXTQuoteProvenance(unittest.TestCase):
+    class FakeExchange:
+        def __init__(self, bid, ask):
+            self.bid = bid
+            self.ask = ask
+
+        def fetch_ohlcv(self, symbol, timeframe, limit):
+            now_ms = int(time.time() * 1000)
+            return [[now_ms - 60_000, 99.0, 101.0, 98.0, 100.0, 10.0]]
+
+        def fetch_ticker(self, symbol):
+            return {"last": 100.0, "bid": self.bid, "ask": self.ask}
+
+    def _feed(self, bid, ask):
+        feed = CCXTFeed.__new__(CCXTFeed)
+        feed.exchange_id = "fake"
+        feed.symbol = "BTC/USDT"
+        feed.timeframe = "1m"
+        feed._ex = self.FakeExchange(bid, ask)
+        return feed
+
+    def test_missing_quotes_are_not_fabricated(self):
+        snap = self._feed(None, None).snapshot(10)
+        self.assertEqual(snap.best_bid, 0.0)
+        self.assertEqual(snap.best_ask, 0.0)
+        self.assertTrue(snap.source.endswith("quotes=missing"))
+
+    def test_observed_quotes_are_preserved(self):
+        snap = self._feed(99.9, 100.1).snapshot(10)
+        self.assertEqual(snap.best_bid, 99.9)
+        self.assertEqual(snap.best_ask, 100.1)
+        self.assertTrue(snap.source.endswith("quotes=observed"))
+
+
+class TestEvaluationEngine(unittest.TestCase):
+    def test_confluence_score_is_not_treated_as_probability(self) -> None:
+        engine = EvaluationEngine()
+        engine.record(score=0.9, side="LONG", r_multiple=1.0, ts=1.0)
+        report = engine.report().as_dict()
+        self.assertIsNone(report["brier"])
+        self.assertEqual(report["probability_samples"], 0)
+        self.assertEqual(report["calibration"], [])
+        self.assertTrue(report["score_performance"])
+
+    def test_explicit_probability_calculates_brier(self) -> None:
+        engine = EvaluationEngine()
+        engine.record(score=0.8, probability=0.75, side="LONG", r_multiple=1.0, ts=1.0)
+        engine.record(score=0.6, probability=0.25, side="SHORT", r_multiple=-1.0, ts=2.0)
+        report = engine.report().as_dict()
+        self.assertAlmostEqual(report["brier"], 0.0625)
+        self.assertEqual(report["probability_samples"], 2)
+        self.assertEqual(len(report["calibration"]), 2)
+
+    def test_missing_score_is_preserved_as_missing(self) -> None:
+        engine = EvaluationEngine()
+        self.assertEqual(engine.load([{"ts": 1, "r_multiple": 1.0}]), 1)
+        self.assertEqual(engine.report().as_dict()["score_performance"], [])
+
+    def test_non_finite_probability_is_rejected(self) -> None:
+        engine = EvaluationEngine()
+        with self.assertRaises(ValueError):
+            engine.record(score=0.5, probability=float("nan"), side="LONG", r_multiple=1, ts=1)
+
+
 # --------------------------------------------------------------------------- #
 class TestExecution(TempProject):
     def _broker(self) -> PaperBroker:
@@ -461,6 +561,81 @@ class TestDashboardContract(TempProject):
         self.assertNotIn("sessionStorage.", html)
         self.assertIn("AEGIS-1 Trading Console", html)
         self.assertIn("__AEGIS_CSRF__", html)
+
+
+    def test_research_endpoint_requires_csrf_and_returns_read_only_report(self) -> None:
+        from fastapi.testclient import TestClient
+        from dashboard import Hub, create_app
+
+        class StubEngine:
+            async def state(self):
+                return {}
+
+            def history(self):
+                return {"orders": [], "trades": [], "signals": []}
+
+            def report(self):
+                return {}
+
+            def report_markdown(self):
+                return ""
+
+            def report_csv(self):
+                return ""
+
+            def briefing(self):
+                return {}
+
+            def health(self):
+                return {"ok": True, "tick_count": 7, "issues": []}
+
+            def portfolio(self):
+                return {}
+
+            def research(self):
+                return {"available": False, "samples": 2, "required_samples": 30}
+
+            async def execute_action(self, action):
+                return {"action": action}
+
+        with TestClient(create_app(StubEngine(), Hub())) as client:
+            page = client.get("/")
+            self.assertEqual(page.status_code, 200)
+            token = page.text.split('name="aegis-csrf" content="', 1)[1].split('"', 1)[0]
+            denied = client.get("/api/research")
+            self.assertEqual(denied.status_code, 403)
+            response = client.get("/api/research", headers={"X-AEGIS-CSRF": token})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["samples"], 2)
+            health = client.get("/api/health", headers={"X-AEGIS-CSRF": token})
+            self.assertTrue(health.json()["ok"])
+
+    def test_frontend_navigation_and_responsive_contract(self) -> None:
+        from html.parser import HTMLParser
+
+        html = (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
+
+        class IdCollector(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.ids = []
+
+            def handle_starttag(self, tag, attrs):
+                self.ids.extend(value for key, value in attrs if key == "id" and value)
+
+        parser = IdCollector()
+        parser.feed(html)
+        duplicates = sorted({value for value in parser.ids if parser.ids.count(value) > 1})
+        self.assertEqual(duplicates, [])
+        for panel in ("ringkasan", "strategi", "research", "monitoring"):
+            self.assertIn(f'data-panel="{panel}"', html)
+            self.assertIn(f'id="panel-{panel}"', html)
+        for legacy_id in ("chart", "pos-body", "hist-body", "report", "btn-kill", "m-next", "k-equity", "rep-kpis"):
+            self.assertIn(f'id="{legacy_id}"', html)
+        self.assertIn('@media(max-width:1050px)', html)
+        self.assertIn('@media(max-width:620px)', html)
+        self.assertIn('fetch("/api/health"', html)
+        self.assertIn('fetch("/api/research"', html)
 
 
 class TestFeedAndLogging(TempProject):
@@ -826,5 +1001,102 @@ class TestAdaptiveRisk(TempProject):
 
 
 # Remaining tests continue unchanged from baseline.
+
+
+
+class TestOfflineResearch(unittest.TestCase):
+    def setUp(self) -> None:
+        self.rows = [{"ts": float(i), "r_multiple": (0.5 if i % 3 else -1.0)}
+                     for i in range(20)]
+
+    def test_walk_forward_is_chronological_and_out_of_sample(self) -> None:
+        from research import walk_forward
+        report = walk_forward(self.rows, train_size=8, test_size=4, step_size=4)
+        self.assertEqual(report["window_count"], 3)
+        first = report["windows"][0]
+        self.assertLess(first["train_end"], first["test_start"])
+        self.assertEqual(first["test"]["samples"], 4)
+        self.assertEqual(report["test_summary"]["samples"], 12)
+
+    def test_walk_forward_rejects_duplicate_timestamps(self) -> None:
+        from research import walk_forward
+        rows = self.rows + [{"ts": 0.0, "r_multiple": 1.0}]
+        with self.assertRaises(ValueError):
+            walk_forward(rows, train_size=4, test_size=2)
+
+    def test_walk_forward_handles_insufficient_history(self) -> None:
+        from research import walk_forward
+        report = walk_forward(self.rows[:4], train_size=4, test_size=2)
+        self.assertEqual(report["window_count"], 0)
+        self.assertEqual(report["test_summary"]["samples"], 0)
+
+    def test_monte_carlo_is_reproducible_and_bounded(self) -> None:
+        from research import monte_carlo_risk
+        a = monte_carlo_risk(self.rows, simulations=200, seed=7)
+        b = monte_carlo_risk(self.rows, simulations=200, seed=7)
+        self.assertEqual(a, b)
+        self.assertGreaterEqual(a["max_drawdown"]["p95"], 0.0)
+        self.assertLessEqual(a["probability_below_start"], 1.0)
+
+    def test_monte_carlo_rejects_unsafe_parameters(self) -> None:
+        from research import monte_carlo_risk
+        with self.assertRaises(ValueError):
+            monte_carlo_risk(self.rows, simulations=10)
+        with self.assertRaises(ValueError):
+            monte_carlo_risk(self.rows, simulations=100, risk_fraction=0.10)
+
+    def test_research_rejects_non_finite_results(self) -> None:
+        from research import walk_forward
+        rows = [{"ts": 1.0, "r_multiple": float("nan")}]
+        with self.assertRaises(ValueError):
+            walk_forward(rows, train_size=2, test_size=1)
+
+    def test_overlapping_walk_forward_windows_do_not_double_count_test_rows(self) -> None:
+        from research import walk_forward
+        report = walk_forward(self.rows, train_size=6, test_size=4, step_size=2)
+        unique_test = {row["ts"] for window in report["windows"]
+                       for row in self.rows
+                       if window["test_start"] <= row["ts"] <= window["test_end"]}
+        self.assertEqual(report["test_summary"]["samples"], len(unique_test))
+
+    def test_profit_factor_is_json_safe_when_no_losses(self) -> None:
+        from research import walk_forward
+        rows = [{"ts": float(i), "r_multiple": 1.0} for i in range(6)]
+        report = walk_forward(rows, train_size=3, test_size=3)
+        self.assertIsNone(report["test_summary"]["profit_factor_r"])
+
+
+class TestPortfolioRiskAnalysis(unittest.TestCase):
+    def test_correlation_matrix_detects_perfect_relationships(self) -> None:
+        from portfolio import correlation_matrix
+        matrix = correlation_matrix({"A": [1, 2, 3], "B": [2, 4, 6], "C": [3, 2, 1]})
+        self.assertAlmostEqual(matrix["A"]["B"], 1.0)
+        self.assertAlmostEqual(matrix["A"]["C"], -1.0)
+        self.assertIsNone(matrix["A"].get("missing"))
+
+    def test_correlation_rejects_misaligned_or_non_finite_data(self) -> None:
+        from portfolio import correlation_matrix
+        with self.assertRaises(ValueError):
+            correlation_matrix({"A": [1, 2], "B": [1]})
+        with self.assertRaises(ValueError):
+            correlation_matrix({"A": [1, float("inf")]})
+
+    def test_stress_test_aggregates_weighted_shocks(self) -> None:
+        from portfolio import stress_test
+        report = stress_test(
+            {"BTC": 0.6, "ETH": 0.3, "USDT": 0.1},
+            {"risk_off": {"BTC": -0.2, "ETH": -0.4}},
+        )
+        self.assertAlmostEqual(report["risk_off"]["portfolio_return"], -0.24)
+        self.assertAlmostEqual(report["risk_off"]["portfolio_return_pct"], -24.0)
+
+    def test_stress_test_rejects_invalid_weights_and_shocks(self) -> None:
+        from portfolio import stress_test
+        with self.assertRaises(ValueError):
+            stress_test({"BTC": 1.2}, {"crash": {"BTC": -0.5}})
+        with self.assertRaises(ValueError):
+            stress_test({"BTC": 0.5}, {"impossible": {"BTC": -1.2}})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -143,6 +143,54 @@
   }
   .footnote{color:var(--muted);font-size:10.5px;margin-top:14px;line-height:1.6}
 </style>
+
+<style id="aegis-premium-ui">
+:root{--bg:#080c12;--panel:#101722;--panel-2:#151f2c;--line:#243244;--text:#e7edf6;--muted:#8795a8;--accent:#67a9ff;--profit:#35c98a;--loss:#f06b73;--warn:#e9b65b}
+body{background:radial-gradient(ellipse at 72% -20%,#17283b 0,transparent 42%),var(--bg);color:var(--text)}
+header{padding:13px 24px;background:rgba(9,14,22,.88);backdrop-filter:blur(18px);border-bottom:1px solid #263548}
+.brand .logo{border-radius:9px;background:linear-gradient(145deg,#dceaff,#78a9e8);color:#0a1524;box-shadow:0 5px 20px #4e8ed52a}
+.brand h1{font-size:14px;letter-spacing:1.2px}.brand small{letter-spacing:1.4px}
+.chip{background:#111b28;border-color:#29384b;border-radius:999px;padding:6px 11px}
+.mode{border-radius:999px}
+.app-shell{display:grid;grid-template-columns:224px minmax(0,1fr);gap:22px;max-width:1720px;margin:0 auto;padding:20px 22px 48px}
+.sidebar{position:sticky;top:86px;align-self:start;min-height:calc(100vh - 110px);display:flex;flex-direction:column;gap:18px;padding:14px 12px;background:rgba(15,22,32,.78);border:1px solid #253346;border-radius:14px}
+.side-caption{padding:5px 10px;color:#718198;font-size:9px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase}
+.main-tabs{display:flex;flex-direction:column;gap:5px;border:0;margin:0}
+.main-tabs button{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border:1px solid transparent;border-radius:9px;text-align:left;background:transparent;color:#91a0b3;font-size:11.5px;letter-spacing:.25px}
+.main-tabs button:before{content:attr(data-icon);width:18px;text-align:center;color:#7f91a8;font-size:14px}
+.main-tabs button:hover{background:#182434;color:#e7edf6}
+.main-tabs button.active{background:linear-gradient(90deg,#1b3550,#17283b);border-color:#31516f;color:#eaf3ff;box-shadow:inset 2px 0 #77b3ff}
+.main-tabs button.active:before{color:#9bc9ff}
+.side-status{margin-top:auto;padding:12px;border:1px solid #263548;border-radius:10px;background:#0c131d}
+.side-status strong{display:block;font-size:10px;letter-spacing:1px;margin-bottom:7px}
+.side-status p{margin:4px 0;color:#8d9bb0;font-size:10px;line-height:1.5}
+.workspace{min-width:0;max-width:1440px;width:100%}
+.notice{border-color:#5a4727;background:linear-gradient(100deg,#211b11,#171711);border-radius:10px;padding:11px 14px}
+.card{background:linear-gradient(145deg,rgba(18,27,39,.98),rgba(14,21,31,.98));border-color:#273649;border-radius:12px;box-shadow:0 10px 30px #00000017}
+.card .label{letter-spacing:1.15px}.card .value{font-size:21px}
+.panel-head h2{color:#a8b7ca;letter-spacing:1.2px}
+.main-tabs button:focus-visible,button:focus-visible{outline:2px solid #8fc1ff;outline-offset:2px}
+#panel-research,#panel-monitoring{display:none}
+#panel-research.show,#panel-monitoring.show{display:block}
+.section-intro{padding:20px 2px 16px}
+.section-intro .eyebrow{color:#8bb9ed;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.section-intro h2{font-size:24px;letter-spacing:-.5px;margin:7px 0;color:#edf4fc}
+.section-intro p{max-width:72ch;color:#91a0b3;font-size:12px;line-height:1.7;margin:0}
+.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.feature-card{padding:17px;border:1px solid #273649;border-radius:11px;background:#101925}
+.feature-card .eyebrow{font-size:9px;letter-spacing:1.2px;color:#8ba1bb;text-transform:uppercase}
+.feature-card h3{font-size:13px;margin:9px 0 6px}
+.feature-card p{font-size:11px;line-height:1.65;color:#91a0b3;margin:0}
+.status-line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #202d3e;font-size:11px}
+.status-line:last-child{border-bottom:0}.status-line span:first-child{color:#8e9db0}
+.status-pill{border:1px solid #33465c;border-radius:999px;padding:4px 8px;color:#a9bdd3;font:10px var(--mono)}
+.status-pill.pending{border-color:#66502c;color:#e8c27e;background:#241d12}
+.monitor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.footnote{margin-top:18px;padding:12px 14px;border:1px solid #253346;border-radius:10px;background:#0d141e}
+@media(max-width:1050px){.app-shell{grid-template-columns:1fr;padding:14px}.sidebar{position:relative;top:auto;min-height:0}.side-status{display:none}.main-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.main-tabs button{justify-content:flex-start;padding:9px 8px}.main-tabs button:before{width:15px}}
+@media(max-width:620px){header{padding:10px 12px}.hdr-right{gap:5px}.hdr-right .chip{font-size:9px;padding:4px 7px}.app-shell{padding:10px;gap:12px}.main-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.feature-grid,.monitor-grid{grid-template-columns:1fr}.section-intro h2{font-size:20px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
 </head>
 <body>
 <header>
@@ -164,12 +212,28 @@
   </div>
 </header>
 
-<main>
-  <div class="main-tabs" id="main-tabs">
-    <button class="active" data-panel="ringkasan">Ringkasan</button>
-    <button data-panel="riwayat">Riwayat &amp; Laporan</button>
-    <button data-panel="strategi">Strategi</button>
-  </div>
+<main class="app-shell">
+  <aside class="sidebar" aria-label="Navigasi utama">
+    <div>
+      <div class="side-caption">Workspace</div>
+      <nav class="main-tabs" id="main-tabs" aria-label="Pusat kendali AEGIS">
+        <button class="active" data-panel="ringkasan" data-icon="⌂">Dashboard</button>
+        <button data-panel="intelligence" data-icon="◈">Intelligence Center</button>
+        <button data-panel="strategi" data-icon="⌘">Strategy Center</button>
+        <button data-panel="risk" data-icon="⛨">Risk Center</button>
+        <button data-panel="research" data-icon="⌁">Research Center</button>
+        <button data-panel="analytics" data-icon="▥">Analytics Center</button>
+        <button data-panel="monitoring" data-icon="◎">System Monitoring</button>
+        <button data-panel="events" data-icon="≋">Log &amp; Events</button>
+      </nav>
+    </div>
+    <div class="side-status">
+      <strong>AEGIS / SYSTEM NOTE</strong>
+      <p>Mode simulasi ditandai terpisah. Panel hanya menampilkan data yang tersedia dari proses backend.</p>
+      <p>LIVE: restricted · not validated</p>
+    </div>
+  </aside>
+  <div class="workspace">
 
   <div class="tabpanel show" id="panel-ringkasan">
   <div class="notice">
@@ -236,7 +300,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="risk-panel">
       <div class="panel-head"><h2>Panel Risiko</h2><div class="meta" id="risk-mode">PAPER</div></div>
       <div class="risk-row">
         <div class="top"><span>Risk per trade</span><span id="r-risk">—</span></div>
@@ -374,15 +438,95 @@
   </div><!-- /panel-riwayat -->
 
   <div class="tabpanel" id="panel-strategi">
-    <!--STRATEGI-->
+    <div class="section-intro">
+      <div class="eyebrow">Strategy configuration</div>
+      <h2>Strategy Center</h2>
+      <p>Console backend saat ini menampilkan strategi yang sedang berjalan melalui briefing, indikator, dan riwayat. Editor parameter strategi belum diekspos sebagai endpoint UI pada console lokal ini.</p>
+    </div>
+    <section class="card">
+      <div class="panel-head"><h2>Configuration availability</h2><span class="status-pill pending">UI NOT CONNECTED</span></div>
+      <div class="status-line"><span>Active strategy state</span><strong>Reflected in live dashboard data</strong></div>
+      <div class="status-line"><span>Interactive parameter editor</span><strong>Not available in this console</strong></div>
+      <div class="status-line"><span>Strategy validation API</span><strong>Not exposed</strong></div>
+      <p style="font-size:11px;color:var(--muted);line-height:1.7;margin:12px 0 0">Pengaturan yang belum memiliki kontrak API tidak ditampilkan sebagai kontrol palsu. Editor strategi JSON pada halaman demo bekerja di browser dan tidak mengubah konfigurasi bot lokal.</p>
+    </section>
   </div><!-- /panel-strategi -->
+
+  <div class="tabpanel" id="panel-research">
+    <div class="section-intro">
+      <div class="eyebrow">Quantitative research</div>
+      <h2>Research Center</h2>
+      <p>Evaluasi read-only dari hasil trade paper yang sudah ditutup pada proses saat ini. Tidak ada order, perubahan strategi, atau koneksi exchange dari modul ini.</p>
+    </div>
+    <section class="card">
+      <div class="panel-head"><h2>Research sample</h2><span class="status-pill pending" id="research-status">WAITING FOR DATA</span></div>
+      <div class="status-line"><span>Closed paper trades</span><strong id="research-samples">—</strong></div>
+      <div class="status-line"><span>Minimum sample</span><strong id="research-required">30</strong></div>
+      <p id="research-message" class="footnote" role="status">Buka panel ini untuk memuat hasil riset dari backend lokal.</p>
+      <button type="button" id="research-refresh" class="secondary">Refresh research</button>
+    </section>
+    <div class="feature-grid" style="margin-top:12px">
+      <article class="feature-card">
+        <div class="eyebrow">01 / Chronological validation</div><h3>Walk-forward</h3>
+        <div class="status-line"><span>Windows</span><strong id="research-wf-windows">—</strong></div>
+        <div class="status-line"><span>Out-of-sample average R</span><strong id="research-wf-avg">—</strong></div>
+        <div class="status-line"><span>Out-of-sample win rate</span><strong id="research-wf-win">—</strong></div>
+      </article>
+      <article class="feature-card">
+        <div class="eyebrow">02 / Bootstrap robustness</div><h3>Monte Carlo</h3>
+        <div class="status-line"><span>Median ending equity</span><strong id="research-mc-median">—</strong></div>
+        <div class="status-line"><span>95th percentile drawdown</span><strong id="research-mc-dd">—</strong></div>
+        <div class="status-line"><span>Below-start frequency</span><strong id="research-mc-below">—</strong></div>
+      </article>
+    </div>
+    <p class="footnote">Monte Carlo memakai asumsi simulasi tetap 1% per trade dan 1.000 bootstrap paths. Itu hanya asumsi analitis, bukan rekomendasi risiko. Sampel berasal dari trade paper tertutup dalam memori proses; restart bot dapat mengosongkan sampel yang tersedia.</p>
+  </div>
+
+  <div class="tabpanel" id="panel-monitoring">
+    <div class="section-intro">
+      <div class="eyebrow">Operations &amp; observability</div>
+      <h2>System Monitoring</h2>
+      <p>Data health dibaca dari endpoint backend lokal. Status koneksi pasar tetap diambil dari snapshot dashboard yang sudah berjalan.</p>
+    </div>
+    <div class="monitor-grid">
+      <section class="card">
+        <div class="panel-head"><h2>Connection status</h2><span class="status-pill" id="mon-connection">—</span></div>
+        <div class="status-line"><span>API / WebSocket</span><strong id="mon-api">—</strong></div>
+        <div class="status-line"><span>Market data source</span><strong id="mon-source">—</strong></div>
+        <div class="status-line"><span>Broker adapter</span><strong id="mon-broker">—</strong></div>
+        <div class="status-line"><span>Operating mode</span><strong id="mon-mode">—</strong></div>
+      </section>
+      <section class="card">
+        <div class="panel-head"><h2>Backend health</h2><span class="status-pill pending" id="mon-health">Loading</span></div>
+        <div class="status-line"><span>Uptime</span><strong id="mon-uptime">—</strong></div>
+        <div class="status-line"><span>Last tick age</span><strong id="mon-tick-age">—</strong></div>
+        <div class="status-line"><span>Tick count</span><strong id="mon-ticks">—</strong></div>
+        <div class="status-line"><span>Consecutive errors</span><strong id="mon-errors">—</strong></div>
+        <div class="status-line"><span>Database size</span><strong id="mon-db-size">—</strong></div>
+        <div class="status-line"><span>Disk free</span><strong id="mon-disk">—</strong></div>
+        <div class="status-line"><span>Heartbeat age</span><strong id="mon-heartbeat">—</strong></div>
+      </section>
+    </div>
+    <section class="card" style="margin-top:12px">
+      <div class="panel-head"><h2>Health details</h2><span class="meta">LIVE API READ</span></div>
+      <p id="mon-issues" style="font-size:11px;color:var(--muted);line-height:1.7;margin:0" role="status">Menunggu data health backend.</p>
+      <p id="mon-last-error" style="font-size:11px;color:var(--muted);line-height:1.7;margin:8px 0 0"></p>
+    </section>
+    <section class="card" style="margin-top:12px">
+      <div class="panel-head"><h2>Operational boundaries</h2><span class="status-pill pending">RESTRICTED</span></div>
+      <div class="status-line"><span>Paper simulation</span><strong>Existing workflow</strong></div>
+      <div class="status-line"><span>Live execution</span><strong>Not validated</strong></div>
+      <div class="status-line"><span>Secrets in browser</span><strong>Not stored</strong></div>
+      <div class="status-line"><span>CPU / memory / queue latency</span><strong>Not exposed</strong></div>
+    </section>
+  </div>
 
   <div class="footnote">
     Tidak ada API key, secret, passphrase, atau token exchange yang disimpan di halaman ini
     maupun di penyimpanan lokal browser. Dashboard hanya membaca state dari proses bot
     di mesin yang sama. Semua keputusan tercatat di audit log (SQLite + JSONL).
   </div>
-</main>
+</div><!-- /workspace -->\n</main>
 
 <div class="modal-backdrop" id="modal">
   <div class="modal">
@@ -1109,25 +1253,121 @@
 })();
 </script>
 <script>
-/* Tab utama: Ringkasan / Riwayat & Laporan / Strategi. Tiga saja, seperlunya. */
+/* Primary navigation: existing operational panels are retained; new research/monitoring views are explicit. */
 (() => {
   "use strict";
   const buttons = [...document.querySelectorAll("#main-tabs button")];
   const panels = [...document.querySelectorAll(".tabpanel")];
-  const byHash = { strategi: "strategi", banding: "strategi", report: "riwayat", briefing: "ringkasan" };
+  const routes = {
+    ringkasan: { panel: "ringkasan" },
+    intelligence: { panel: "ringkasan", target: "briefing" },
+    strategi: { panel: "strategi" },
+    risk: { panel: "ringkasan", target: "risk-panel" },
+    research: { panel: "research" },
+    analytics: { panel: "riwayat", target: "report" },
+    monitoring: { panel: "monitoring" },
+    events: { panel: "riwayat", target: "log" }
+  };
+  const byHash = { strategi: "strategi", banding: "strategi", report: "analytics", briefing: "intelligence" };
 
   function activate(name) {
-    if (!document.getElementById("panel-" + name)) return;
+    const route = routes[name];
+    if (!route) return;
     buttons.forEach((b) => b.classList.toggle("active", b.dataset.panel === name));
-    panels.forEach((p) => p.classList.toggle("show", p.id === "panel-" + name));
-    // Chart perlu digambar ulang setelah panelnya terlihat (lebar canvas = 0 saat tersembunyi).
+    panels.forEach((p) => p.classList.toggle("show", p.id === "panel-" + route.panel));
     window.dispatchEvent(new Event("resize"));
+    if (route.target) {
+      requestAnimationFrame(() => {
+        const target = document.getElementById(route.target);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   buttons.forEach((b) => b.addEventListener("click", () => {
     activate(b.dataset.panel);
     if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   }));
+
+  let healthLoading = false;
+  let lastHealthFetch = 0;
+  async function syncMonitoring(force = false) {
+    const get = (id) => (document.getElementById(id)?.textContent || "—").trim();
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value ?? "—"; };
+    const connection = get("conn-text");
+    const dot = document.getElementById("conn-dot");
+    const connected = dot?.classList.contains("on");
+    const pill = document.getElementById("mon-connection");
+    if (pill) { pill.textContent = connection || "—"; pill.className = "status-pill " + (connected ? "" : "pending"); }
+    set("mon-api", connected ? "Connected" : (connection || "Unavailable"));
+    set("mon-source", get("hdr-source")); set("mon-broker", get("hdr-broker-name")); set("mon-mode", get("mode-badge"));
+    if (healthLoading || (!force && Date.now() - lastHealthFetch < 10000)) return;
+    healthLoading = true; lastHealthFetch = Date.now();
+    try {
+      const token = document.querySelector('meta[name="aegis-csrf"]')?.content || "";
+      const response = await fetch("/api/health", { headers: { "X-AEGIS-CSRF": token } });
+      if (!response.ok) throw new Error("Health API HTTP " + response.status);
+      const h = await response.json();
+      const health = document.getElementById("mon-health");
+      if (health) { health.textContent = h.ok ? "HEALTHY" : "ATTENTION"; health.className = "status-pill " + (h.ok ? "" : "pending"); }
+      const seconds = v => v == null ? "Not available" : Math.round(v).toLocaleString("en-US") + " s";
+      set("mon-uptime", seconds(h.uptime_s)); set("mon-tick-age", seconds(h.tick_age_s));
+      set("mon-ticks", h.tick_count == null ? "—" : Number(h.tick_count).toLocaleString("en-US"));
+      set("mon-errors", h.consecutive_errors == null ? "—" : Number(h.consecutive_errors).toLocaleString("en-US"));
+      set("mon-db-size", h.db_size_mb == null ? "—" : Number(h.db_size_mb).toFixed(2) + " MB");
+      set("mon-disk", h.disk_free_mb == null ? "—" : Number(h.disk_free_mb).toFixed(1) + " MB");
+      set("mon-heartbeat", seconds(h.heartbeat_age_s));
+      set("mon-issues", Array.isArray(h.issues) && h.issues.length ? h.issues.join(" · ") : (h.ok ? "Tidak ada isu health yang dilaporkan." : "Health check membutuhkan perhatian."));
+      set("mon-last-error", h.last_error ? "Last error: " + h.last_error : "");
+    } catch (error) {
+      const health = document.getElementById("mon-health");
+      if (health) { health.textContent = "API UNAVAILABLE"; health.className = "status-pill pending"; }
+      set("mon-issues", String(error?.message || error));
+    } finally { healthLoading = false; }
+  }
+  syncMonitoring(true);
+  window.addEventListener("aegis:state-updated", () => syncMonitoring(true));
+  setInterval(() => syncMonitoring(false), 10000);
+
+  async function loadResearch() {
+    const status = document.getElementById("research-status");
+    const message = document.getElementById("research-message");
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value ?? "—"; };
+    if (status) { status.textContent = "LOADING"; status.className = "status-pill pending"; }
+    try {
+      const token = document.querySelector('meta[name="aegis-csrf"]')?.content || "";
+      const response = await fetch("/api/research", { headers: { "X-AEGIS-CSRF": token } });
+      if (!response.ok) throw new Error("Research API HTTP " + response.status);
+      const data = await response.json();
+      set("research-samples", data.samples ?? 0); set("research-required", data.required_samples ?? 30);
+      if (!data.available) {
+        if (status) { status.textContent = "INSUFFICIENT SAMPLE"; status.className = "status-pill pending"; }
+        if (message) message.textContent = data.message || "Sampel trade tertutup belum mencukupi.";
+        return;
+      }
+      const wf = data.walk_forward?.test_summary || {}, mc = data.monte_carlo || {};
+      const ending = mc.ending_equity || {}, dd = mc.max_drawdown || {};
+      const percent = v => v == null ? "—" : (Number(v) * 100).toFixed(2) + "%";
+      const number = v => v == null ? "—" : Number(v).toFixed(3) + " R";
+      set("research-wf-windows", data.walk_forward?.window_count ?? "—");
+      set("research-wf-avg", number(wf.avg_r)); set("research-wf-win", percent(wf.win_rate));
+      set("research-mc-median", ending.median == null ? "—" : Number(ending.median).toLocaleString("en-US", {maximumFractionDigits:2}));
+      set("research-mc-dd", percent(dd.p95)); set("research-mc-below", percent(mc.probability_below_start));
+      if (status) { status.textContent = "RESULTS LOADED"; status.className = "status-pill"; }
+      if (message) message.textContent = "Hasil berasal dari trade paper tertutup yang tersedia di proses ini. Monte Carlo menggunakan asumsi simulasi 1% per trade; bukan prediksi atau rekomendasi.";
+    } catch (error) {
+      if (status) { status.textContent = "API UNAVAILABLE"; status.className = "status-pill pending"; }
+      if (message) message.textContent = String(error?.message || error);
+    }
+  }
+  document.getElementById("research-refresh")?.addEventListener("click", loadResearch);
+  const originalActivate = activate;
+  buttons.forEach((button) => {
+    if (button.dataset.panel === "research") button.addEventListener("click", loadResearch);
+  });
+  if ((location.hash || "").replace("#", "") === "research") loadResearch();
 
   function fromHash() {
     const key = (location.hash || "").replace("#", "");

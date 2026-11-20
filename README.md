@@ -3,11 +3,11 @@
 Sistem trading modular: Python untuk data, indikator, sinyal, risiko, eksekusi,
 dan audit; satu file HTML untuk console pemantauan real-time.
 
-Paket ini berjalan sebagai **mesin eksekusi paper** (simulasi) dengan model biaya
-eksplisit — fee maker/taker, slippage, spread. Seluruh guardrail risiko, audit
-log, dan dashboard berfungsi penuh. **Tidak ada kode di paket ini yang mengirim
-order nyata ke exchange.** Alasannya, dan apa yang harus dibangun untuk live,
-ada di bagian [Batas paket](#batas-paket-dan-langkah-menuju-live).
+Jalur yang divalidasi dalam pengembangan ini adalah **PAPER / simulasi**
+dengan model biaya eksplisit — fee maker/taker, slippage, dan spread. Repository
+juga memuat kode adapter LIVE warisan, tetapi keberadaannya bukan bukti kesiapan
+produksi. Adapter tersebut tidak digunakan atau diuji dalam workflow ini; LIVE
+tetap restricted selama pengembangan.
 
 > Isi berkas ini bukan nasihat investasi. Tidak ada janji profit di mana pun.
 > Angka pada dashboard adalah hasil simulasi.
@@ -18,7 +18,7 @@ ada di bagian [Batas paket](#batas-paket-dan-langkah-menuju-live).
 | --- | --- |
 | [index](https://murohito9-sudo.github.io/aegis-one/) | pemilih mode: demo atau live |
 | [demo.html](https://murohito9-sudo.github.io/aegis-one/demo.html) | console dengan data contoh tertanam + validator strategi JSON |
-| [live.html](https://murohito9-sudo.github.io/aegis-one/live.html) | langkah menjalankan bot sungguhan (lokal/VPS) |
+| [live.html](https://murohito9-sudo.github.io/aegis-one/live.html) | status dan batasan integrasi LIVE (restricted) |
 
 Mode demo tidak memakai backend dan tidak mengirim order, tetapi **memakai data
 pasar sungguhan**: halaman menarik candle publik dari Binance (dengan cadangan
@@ -81,7 +81,7 @@ aegis1/
 ├── logger.py            # audit log SQLite + JSONL, alert lokal
 ├── dashboard.py         # backend FastAPI: state, history, aksi dua langkah, WebSocket
 ├── main.py              # loop utama, manajemen posisi, exception handling, graceful shutdown
-├── tests.py             # 122 unit test (sizing, risiko, sinyal, gate, replay, analitik)
+├── tests.py             # unit, regression, risk, data, replay, analytics
 ├── static/
 │   └── index.html       # "AEGIS-1 Trading Console" — satu file, tanpa CDN
 ├── deploy/
@@ -104,7 +104,7 @@ aegis1/
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # opsional; default sudah aman
-python tests.py                                       # 122 test harus OK
+python tests.py                                       # jalankan seluruh unit/regression tests
 ```
 
 Python 3.11+ (diuji pada 3.12). Tidak ada dependensi berbayar.
@@ -447,39 +447,22 @@ Semua angka ini terlihat di dashboard: baris **Pengali risiko (adaptif)** dan
 **Bias HTF · divergensi · pola** di panel risiko, plus `analysis` dan
 `adaptive_risk` di `/api/state`.
 
-## 9e. Eksekusi nyata (opsional, default mati)
+## 9e. Integrasi LIVE (restricted selama pengembangan)
 
-`live.py` adalah satu-satunya modul yang bisa mengirim order ke exchange. Ia
-hanya dipakai kalau **seluruh** pagar berikut terpenuhi; gagal satu, start
-ditolak sebelum ada request apa pun:
+Repository mempertahankan adapter LIVE sebagai bagian dari riwayat arsitektur,
+tetapi jalur ini **tidak termasuk dalam lingkungan yang divalidasi** pada
+pengembangan AEGIS-ONE V2. Kode yang tersedia tidak boleh dianggap siap
+produksi hanya karena modulnya ada.
 
-| Pagar | Variabel | Default |
-| --- | --- | --- |
-| Mode live | `AEGIS_LIVE_MODE` | `false` |
-| Frasa persetujuan risiko | `AEGIS_LIVE_ACK` = `SAYA PAHAM RISIKONYA` | kosong |
-| Kredensial | `EXCHANGE_API_KEY`, `EXCHANGE_API_SECRET` | kosong |
-| Daftar putih simbol | `AEGIS_LIVE_SYMBOLS` (mis. `BTC/USDT`) | kosong |
-| Batas nilai per order | `AEGIS_LIVE_MAX_ORDER_NOTIONAL` | `100` |
-| Order market | `AEGIS_LIVE_ALLOW_MARKET` | `false` |
-| Kirim sungguhan | `AEGIS_LIVE_DRY_RUN=false` | `true` (dry-run) |
+Selama pengembangan:
+- gunakan PAPER dan data publik/offline untuk pengujian;
+- jangan memasukkan kredensial exchange atau memakai saldo sungguhan;
+- jangan menjalankan order nyata;
+- semua pemeriksaan integrasi dilakukan dengan mock atau simulasi;
+- setiap status LIVE harus ditampilkan sebagai restricted / not validated.
 
-Dengan `AEGIS_LIVE_DRY_RUN=true` (default), setiap order tetap melewati seluruh
-validasi — presisi `amount_to_precision`, batas `limits.amount.min`,
-`limits.cost.min` dari `load_markets()`, dan batas notional — lalu dicatat ke
-audit log sebagai `live_dry_run` **tanpa dikirim**. Itu cara menguji jalur
-eksekusi tanpa risiko.
-
-Yang sudah ditangani: `clientOrderId` idempoten (order ganda tidak dikirim
-ulang), presisi instrumen dari metadata exchange, batas notional, penolakan
-simbol di luar daftar putih, `cancel_all()` saat shutdown, `flatten()` dengan
-order `reduceOnly` saat kill-switch, rekonsiliasi order terbuka dan saldo saat
-start, dan kredensial yang hanya dibaca dari environment (nilai key tidak
-pernah masuk log — hanya sidik `abcd…yz (n karakter)`).
-
-Yang belum ada dan tetap menjadi tanggung jawabmu: manajemen posisi di sisi
-exchange saat bot mati mendadak (order SL/TP sudah terpasang, tetapi posisi
-tidak diawasi), penanganan fill parsial lanjutan, dan pemilihan waktu eksekusi
-yang sadar likuiditas. Uji dengan `dry_run`, lalu nominal kecil.
+Halaman LIVE hanya menjelaskan status dan batasan. Tidak ada panduan aktivasi
+atau pengoperasian transaksi nyata dalam dokumentasi pengembangan ini.
 
 ## 9f. Peta sistem (registri 22 lapisan)
 
@@ -502,7 +485,7 @@ Telegram, token bot, atau dependensi jaringan tambahan.
 | 11 | Backtesting & Replay | ada | `data.ReplayFeed` + `analytics.py` |
 | 12 | Paper Trading | ada | `execution.PaperBroker` |
 | 13 | Portfolio Management | ada | `portfolio.py` — bobot, HHI, DCA, rebalancing |
-| 14 | AI Evaluation | ada | `evaluation.py` — kalibrasi, Brier, drift |
+| 14 | AI Evaluation | ada | `evaluation.py` — score performance; Brier/kalibrasi hanya jika probabilitas valid tersedia |
 | 15 | Automation Engine | ada | `monitor.Scheduler` + `deploy/aegis1.service` |
 | 16 | Telegram System | **tidak diikutkan** | — |
 | 17 | Voice System | ada | `voice.py` — narasi + TTS opsional (`espeak`/`say`) |
@@ -510,7 +493,7 @@ Telegram, token bot, atau dependensi jaringan tambahan.
 | 19 | Database & Memory | ada | `logger.py` (SQLite + JSONL) + migrasi kolom |
 | 20 | Security & Reliability | ada | `security.py` — hash chain, rate limit, pemindai rahasia |
 | 21 | Monitoring & Recovery | ada | `monitor.py` — health, heartbeat, backup/restore |
-| 22 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, 122 test |
+| 22 | Deployment & Testing | ada | `Dockerfile`, `.github/workflows/ci.yml`, unit/regression tests |
 
 Endpoint baru: `GET /api/briefing` (situasi, bukti, keputusan, keyakinan),
 `GET /api/health` (umur tick, error beruntun, disk, heartbeat),
@@ -525,7 +508,7 @@ saat diuji dan tidak punya sumber gratis bawaan — keduanya butuh provider
 ## 10. Uji
 
 ```bash
-python tests.py            # 122 test
+python tests.py            # seluruh unit/regression tests
 pytest tests.py -q         # sama, lewat pytest
 ```
 
@@ -564,62 +547,23 @@ simpan token di environment/secret manager, bukan di kode.
 
 ---
 
-## Batas paket dan langkah menuju live
+## Batas paket dan status validasi
 
-Bagian ini yang paling penting untuk dibaca.
+**Yang telah diverifikasi dalam workflow PAPER:** unit tests dan smoke test offline
+pada Python 3.11 dan 3.12. Lihat hasil CI yang ditautkan pada Pull Request
+pengembangan. Status ini tidak membuktikan kesiapan produksi atau validasi LIVE.
 
-**Yang ada di paket ini.** Seluruh logika sinyal, risiko, sizing, manajemen
-posisi, model biaya, audit, dashboard, kill-switch, dan 122 test. Mesin berjalan
-penuh dan bisa dipakai untuk mengukur perilaku strategi atas data apa pun.
+**Integrasi LIVE:** kode adapter lama tetap berada di repository untuk menjaga
+riwayat dan kompatibilitas arsitektur, tetapi statusnya restricted / not validated.
+Tidak ada aktivasi, koneksi akun, atau transaksi nyata dalam workflow ini.
 
-**Yang tidak ada, dengan sengaja.**
+**Batasan lain:** kanal alert eksternal belum tersedia; berita dan on-chain masih
+bergantung pada provider/data yang diberikan. Jika sumber tidak tersedia, hasil
+harus ditandai unavailable, bukan direka.
 
-1. **Eksekusi nyata ada, tetapi default-nya mati.** `live.LiveBroker` bisa
-   mengirim order ke exchange, dan hanya dibangun bila seluruh pagar terpenuhi
-   (`AEGIS_LIVE_MODE`, frasa `AEGIS_LIVE_ACK`, kredensial, daftar putih simbol,
-   batas notional) — lihat §9e. `AEGIS_LIVE_DRY_RUN=true` adalah default: order
-   divalidasi dan dicatat, tidak dikirim. Tanpa pagar lengkap, `build_broker()`
-   melempar `LiveBrokerUnavailable` sebelum menyentuh jaringan.
-2. **Tidak ada kanal alert eksternal.** Peringatan hanya ditulis ke audit log
-   dan stdout (`logger.Alerts`); tidak ada SMTP, Discord, Slack, webhook, atau
-   Telegram. Telegram sengaja tidak diikutkan (lihat §9f). Titik sambungnya
-   jelas: `Alerts.subscribe`.
-3. **Tidak ada jaminan profit, dan tidak ada klaim profit.** Seluruh angka di
-   dashboard, laporan, dan demo adalah hasil simulasi dengan fee, slippage, dan
-   spread eksplisit.
-
-**Kontrak yang harus dipenuhi bila Anda membangun adapter live sendiri.**
-`execution.Broker` adalah protokolnya: `balance()`, `place()`, `cancel()`,
-`modify()`, `open_orders()`, `all_orders()`, `on_price()`. Untuk layak dipakai
-dengan uang nyata, minimal:
-
-- baca kredensial dari environment saja, rotasi key, izin trade-only tanpa
-  penarikan;
-- idempotensi berbasis `client_id` dan `signal_id` (paket ini sudah menolak
-  duplikat; adapter live harus memakai `newClientOrderId` exchange, bukan
-  mengandalkan ingatan proses);
-- rekonsiliasi posisi nyata terhadap database saat start — jangan berasumsi
-  database adalah kebenaran;
-- tangani rate limit (`429`), timeout, `5xx`, reconnect WebSocket, partial fill,
-  dan posisi yang sudah tertutup di exchange tetapi masih terbuka di memori;
-- verifikasi bahwa SL/TP benar-benar terpasang di exchange sebelum menganggap
-  posisi terlindungi; bila gagal, tutup posisi dan kirim alert;
-- uji di testnet exchange selama minimal beberapa minggu, lalu modal minimum
-  yang Anda siap kehilangan seluruhnya;
-- jangan melewati 16 checklist pra-trade dan gate kualitas data — itu bagian dari
-  kontrak, bukan hiasan.
-
-**Langkah aman sebelum uang sungguhan.**
-
-1. `python tests.py` — semua hijau.
-2. `python main.py --offline` beberapa jam; periksa `events`, `orders`,
-   `positions` di SQLite. Pastikan tidak ada order tanpa SL.
-3. Ulangi dengan `--csv` data nyata beberapa bulan, termasuk periode crash.
-4. Baca distribusi R dan `close_reason`; kalau mayoritas exit adalah `stop_loss`,
-   masalahnya di entry atau di stop, bukan di target.
-5. Periksa biaya: fee + slippage pada log sering lebih besar dari dugaan.
-6. Baru setelah itu pertimbangkan adapter live, dengan batas risiko yang sama
-   atau lebih ketat, dan modal yang siap hilang.
+Seluruh angka performa pada dashboard dan laporan harus ditafsirkan sebagai hasil
+simulasi sesuai sumber data, biaya, dan asumsi yang tercatat. Tidak ada jaminan
+hasil atau nasihat investasi.
 
 ---
 

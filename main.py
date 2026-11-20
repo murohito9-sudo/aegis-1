@@ -53,6 +53,7 @@ from portfolio import Holding, Portfolio
 from indicators import add_indicators
 from logger import Alerts, AuditLog
 from risk import RiskManager
+from research import monte_carlo_risk, walk_forward
 from strategy import Signal, evaluate
 
 MAX_CONSECUTIVE_ERRORS = 3
@@ -186,10 +187,13 @@ class Engine:
 
     def _evaluation(self) -> EvaluationEngine:
         engine = EvaluationEngine()
+        # Riwayat posisi tidak menyimpan probabilitas pra-hasil. Jangan
+        # merekonstruksi score dari R-multiple karena membocorkan outcome.
         engine.load(
             {
                 "ts": trade.closed_at,
-                "score": 0.5 + min(0.5, abs(trade.r_multiple) / 4.0),
+                "score": None,
+                "probability": None,
                 "side": trade.side,
                 "r_multiple": trade.r_multiple,
                 "pnl": trade.pnl,
@@ -247,6 +251,48 @@ class Engine:
 
     def portfolio(self) -> dict[str, Any]:
         return self._portfolio().as_dict()
+
+    def research(self) -> dict[str, Any]:
+        """Read-only research over closed in-memory paper-trade outcomes."""
+        trades = self.risk.closed[-200:]
+        rows = [
+            {"ts": float(trade.closed_at), "r_multiple": float(trade.r_multiple)}
+            for trade in trades
+        ]
+        train_size, test_size = 20, 10
+        required = train_size + test_size
+        if len(rows) < required:
+            return {
+                "available": False,
+                "samples": len(rows),
+                "required_samples": required,
+                "message": (
+                    f"Belum cukup sampel trade tertutup: tersedia {len(rows)}, "
+                    f"dibutuhkan minimal {required} untuk konfigurasi riset ini."
+                ),
+            }
+        walk = walk_forward(rows, train_size=train_size, test_size=test_size)
+        monte_carlo = monte_carlo_risk(
+            rows,
+            simulations=1000,
+            starting_equity=float(self.settings.initial_equity),
+            risk_fraction=0.01,
+            seed=42,
+        )
+        return {
+            "available": True,
+            "samples": len(rows),
+            "walk_forward": walk,
+            "monte_carlo": monte_carlo,
+            "assumptions": {
+                "train_size": train_size,
+                "test_size": test_size,
+                "simulations": 1000,
+                "illustrative_risk_fraction": 0.01,
+                "risk_fraction_note": "Asumsi simulasi tetap 1%, bukan rekomendasi atau pengaturan bot.",
+                "source": "closed paper-trade outcomes held in current process memory",
+            },
+        }
 
     # ------------------------------------------------------------------ #
     # State untuk dashboard
